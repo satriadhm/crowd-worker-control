@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TasksService } from './services/tasks.service';
+import { TasksService } from './services/create.task.service';
 import { TasksResolver } from './tasks.resolver';
 
 @Module({
