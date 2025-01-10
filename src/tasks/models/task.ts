@@ -1,5 +1,6 @@
 import { Field, ObjectType } from '@nestjs/graphql';
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema()
 @ObjectType()
@@ -12,19 +13,24 @@ export class Task {
   @Prop({ required: true })
   question: string;
 
-  // create an object for set of questions and answers
-}
-
-export class QuestionAnswer {
   @Field()
   @Prop({ required: true })
-  nQuestion: number;
+  nAnswers: number;
 
-  @Field()
-  @Prop({ type: [String], required: true })
-  question: string[];
-
-  @Field()
-  @Prop({ type: [String], required: true })
-  answer: string[];
+  @Field(() => [Answer])
+  @Prop({ required: true })
+  answers: Answer[];
 }
+
+export class Answer {
+  @Field()
+  @Prop({ required: true })
+  answer: string;
+
+  @Field()
+  @Prop({ required: true })
+  stats: number;
+}
+
+export type TaskDocument = HydratedDocument<Task>;
+export const TaskSchema = SchemaFactory.createForClass(Task);
