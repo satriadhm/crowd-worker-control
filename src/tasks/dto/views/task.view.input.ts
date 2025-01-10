@@ -1,4 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
+import { Answer } from 'src/tasks/models/task';
 
 @ObjectType()
 export class TaskView {
@@ -14,6 +15,6 @@ export class TaskView {
   @Field()
   nAnswers: number;
 
-  @Field(() => [String])
-  answers: string[];
+  @Field(() => [Answer])
+  answers: Answer[];
 }

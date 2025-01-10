@@ -11,6 +11,14 @@ export class Task {
 
   @Field()
   @Prop({ required: true })
+  title: string;
+
+  @Field({ nullable: true })
+  @Prop({ required: false })
+  description: string;
+
+  @Field()
+  @Prop({ required: true })
   question: string;
 
   @Field()

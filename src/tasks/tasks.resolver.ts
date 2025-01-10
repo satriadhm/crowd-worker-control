@@ -1,35 +1,37 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
-import { TasksService } from './services/create.task.service';
+import { Mutation, Query, Resolver } from '@nestjs/graphql';
+import { CreateTaskService } from './services/create.task.service';
 import { Task } from './models/task';
+import { GetTaskService } from './services/get.task.service';
+import { DeleteTaskService } from './services/delete.task.service';
+import { TaskView } from './dto/views/task.view.input';
 import { CreateTaskInput } from './dto/inputs/create.task.input';
-import { UpdateTaskInput } from './dto/inputs/update.task.input';
+import { GetTaskArgs } from './dto/args/get.task.args';
 
 @Resolver(() => Task)
 export class TasksResolver {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private createTaskService: CreateTaskService,
+    private getTaskService: GetTaskService,
+    private deleteTaskService: DeleteTaskService,
+  ) {}
 
-  @Mutation(() => Task)
-  createTask(@Args('createTaskInput') createTaskInput: CreateTaskInput) {
-    return this.tasksService.create(createTaskInput);
+  @Mutation(() => TaskView)
+  async createTask(input: CreateTaskInput): Promise<TaskView> {
+    return this.createTaskService.createTask(input);
   }
 
-  @Query(() => [Task], { name: 'tasks' })
-  findAll() {
-    return this.tasksService.findAll();
+  @Query(() => TaskView)
+  async getTaskById(id: string): Promise<TaskView> {
+    return this.getTaskService.getTaskById(id);
   }
 
-  @Query(() => Task, { name: 'task' })
-  findOne(@Args('id', { type: () => Int }) id: number) {
-    return this.tasksService.findOne(id);
+  @Query(() => [TaskView])
+  async getTasks(args: GetTaskArgs): Promise<TaskView[]> {
+    return this.getTaskService.getTasks(args);
   }
 
-  @Mutation(() => Task)
-  updateTask(@Args('updateTaskInput') updateTaskInput: UpdateTaskInput) {
-    return this.tasksService.update(updateTaskInput.id, updateTaskInput);
-  }
-
-  @Mutation(() => Task)
-  removeTask(@Args('id', { type: () => Int }) id: number) {
-    return this.tasksService.remove(id);
+  @Mutation(() => TaskView)
+  async deleteTask(id: string): Promise<TaskView> {
+    return this.deleteTaskService.delete(id);
   }
 }
