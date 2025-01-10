@@ -1,7 +1,9 @@
 import { ObjectType, Field } from '@nestjs/graphql';
 import { RegisterInput } from '../dto/inputs/create.auth.input';
 import { CreateUserInput } from 'src/users/dto/inputs/create.user.input';
+import { Schema } from '@nestjs/mongoose';
 
+@Schema()
 @ObjectType()
 export class Auth {
   @Field()

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { CreateWorkerService } from 'src/users/services/create.user.service';
 import { GetWorkersService } from 'src/users/services/get.user.service';
-import { Auth, parseRegisterInput } from '../models/auth.entity';
+import { Auth, parseRegisterInput } from '../models/auth';
 import { configService } from 'src/config/config.service';
 import { LoginInput, RegisterInput } from '../dto/inputs/create.auth.input';
 import { AuthView } from '../dto/views/auth.view';

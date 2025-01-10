@@ -1,6 +1,7 @@
 import { ObjectType, Field } from '@nestjs/graphql';
-import { Prop, Schema } from '@nestjs/mongoose';
-import { Gender } from 'src/lib/user.enum';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+import { Gender, Role } from 'src/lib/user.enum';
 
 @Schema()
 @ObjectType()
@@ -41,6 +42,10 @@ export class Users {
   @Prop({ required: true })
   gender: Gender;
 
+  @Field(() => Role)
+  @Prop({ required: true })
+  role: Role;
+
   @Field()
   @Prop({ required: true })
   address1: string;
@@ -49,3 +54,6 @@ export class Users {
   @Prop({ required: true })
   address2: string;
 }
+
+export type UserDocument = HydratedDocument<Users>;
+export const UsersSchema = SchemaFactory.createForClass(Users);

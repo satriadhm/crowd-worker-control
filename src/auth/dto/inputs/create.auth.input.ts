@@ -1,4 +1,5 @@
 import { InputType, Field } from '@nestjs/graphql';
+import { Role } from 'src/lib/user.enum';
 
 @InputType()
 export class RegisterInput {
@@ -17,8 +18,8 @@ export class RegisterInput {
   @Field()
   passwordConfirmation: string;
 
-  @Field()
-  role: string;
+  @Field(() => Role)
+  role: Role;
 }
 
 @InputType()

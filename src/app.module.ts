@@ -6,9 +6,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configService } from './config/config.service';
 import { TasksModule } from './tasks/tasks.module';
 import { AuthModule } from './auth/auth.module';
-import { WorkersModule } from './users/workers.module';
+import { WorkersModule } from './users/users.module';
 import { M1Module } from './M1/m1.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { GQLErrFormatter } from '@app/gqlerr';
 
 @Module({
   imports: [
