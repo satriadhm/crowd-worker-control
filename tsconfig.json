@@ -18,10 +18,20 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@app/gqlerr": ["libs/gqlerr/src"],
-      "@app/gqlerr/*": ["libs/gqlerr/src/*"],
-      "@app/apollocl": ["libs/apollocl/src"],
-      "@app/apollocl/*": ["libs/apollocl/src/*"]
+      "@app/gqlerr": [
+        "libs/gqlerr/src",
+        "libs/gqlerr/src"
+      ],
+      "@app/gqlerr/*": [
+        "libs/gqlerr/src/*",
+        "libs/gqlerr/src/*"
+      ],
+      "@app/apollocl": [
+        "libs/apollocl/src"
+      ],
+      "@app/apollocl/*": [
+        "libs/apollocl/src/*"
+      ]
     }
   }
 }

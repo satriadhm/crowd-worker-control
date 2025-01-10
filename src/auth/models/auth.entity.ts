@@ -21,6 +21,6 @@ export function parseRegisterInput(input: RegisterInput): CreateUserInput {
     lastName: input.lastName,
     password: input.password,
     passwordConfirmation: input.passwordConfirmation,
-    role: 'user',
+    role: input.role,
   };
 }

@@ -8,6 +8,7 @@ import { LoginInput, RegisterInput } from '../dto/inputs/create.auth.input';
 import { AuthView } from '../dto/views/auth.view';
 import * as jwt from 'jsonwebtoken';
 import { createHmac } from 'crypto';
+import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 
 @Injectable()
 export class AuthService {
@@ -80,7 +81,7 @@ export class AuthService {
         userId: user.id,
       };
     } catch (error) {
-      throw new Error(error);
+      throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }
 }

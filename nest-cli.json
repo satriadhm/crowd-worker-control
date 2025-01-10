@@ -3,6 +3,18 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "webpack": true
+  },
+  "projects": {
+    "gqlerr": {
+      "type": "library",
+      "root": "libs/gqlerr",
+      "entryFile": "index",
+      "sourceRoot": "libs/gqlerr/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/gqlerr/tsconfig.lib.json"
+      }
+    }
   }
 }
