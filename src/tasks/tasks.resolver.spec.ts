@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksResolver } from './tasks.resolver';
-import { TasksService } from './tasks.service';
+import { TasksService } from './services/tasks.service';
 
 describe('TasksResolver', () => {
   let resolver: TasksResolver;

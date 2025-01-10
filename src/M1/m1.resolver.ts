@@ -1,6 +1,6 @@
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { M1Service } from './m1.service';
-import { M1 } from './entities/m1.entity';
+import { M1 } from './models/m1.entity';
 import { CreateM1Input } from './dto/create-m1.input';
 import { UpdateM1Input } from './dto/update-m1.input';
 

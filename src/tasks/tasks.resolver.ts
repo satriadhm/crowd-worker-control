@@ -1,6 +1,6 @@
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
-import { TasksService } from './tasks.service';
-import { Task } from './entities/task';
+import { TasksService } from './services/tasks.service';
+import { Task } from './models/task';
 import { CreateTaskInput } from './dto/create-task.input';
 import { UpdateTaskInput } from './dto/update-task.input';
 
