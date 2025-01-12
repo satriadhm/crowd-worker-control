@@ -1,8 +1,22 @@
 import { Module } from '@nestjs/common';
-import { TasksService } from './services/create.task.service';
 import { TasksResolver } from './tasks.resolver';
+import { Task, TaskSchema } from './models/task';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CreateTaskService } from './services/create.task.service';
+import { GetTaskService } from './services/get.task.service';
+import { UpdateTaskService } from './services/update.task.service';
+import { DeleteTaskService } from './services/delete.task.service';
 
 @Module({
-  providers: [TasksResolver, TasksService],
+  imports: [
+    MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
+  ],
+  providers: [
+    TasksResolver,
+    CreateTaskService,
+    GetTaskService,
+    UpdateTaskService,
+    DeleteTaskService,
+  ],
 })
 export class TasksModule {}

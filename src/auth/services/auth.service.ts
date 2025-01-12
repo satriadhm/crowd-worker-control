@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Model } from 'mongoose';
-import { CreateWorkerService } from 'src/users/services/create.user.service';
-import { GetWorkersService } from 'src/users/services/get.user.service';
+import { CreateUserService } from 'src/users/services/create.user.service';
+import { GetUserService } from 'src/users/services/get.user.service';
 import { Auth, parseRegisterInput } from '../models/auth';
 import { configService } from 'src/config/config.service';
 import { LoginInput, RegisterInput } from '../dto/inputs/create.auth.input';
@@ -13,13 +13,13 @@ import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 @Injectable()
 export class AuthService {
   constructor(
-    private createWorkerService: CreateWorkerService,
-    private getWorkerService: GetWorkersService,
+    private createUserService: CreateUserService,
+    private getUserService: GetUserService,
     private authModel: Model<Auth>,
   ) {}
 
   async login(input: LoginInput): Promise<AuthView> {
-    const user = await this.getWorkerService.getUserByEmail(input.email);
+    const user = await this.getUserService.getUserByEmail(input.email);
     const secretKey = configService.getEnvValue('SECRET_KEY');
     const hashedPassword = createHmac('sha256', secretKey)
       .update(input.password)
@@ -57,7 +57,7 @@ export class AuthService {
     try {
       const secretKey = configService.getEnvValue('SECRET_KEY');
       const parsedInput = parseRegisterInput(input);
-      const user = await this.createWorkerService.create(parsedInput);
+      const user = await this.createUserService.create(parsedInput);
       const accessToken = jwt.sign(
         { id: user.id, email: user.email },
         secretKey,

@@ -5,21 +5,25 @@ import { Users } from 'src/users/models/user';
 import { GetUserArgs } from '../dto/args/get.user.args';
 
 @Injectable()
-export class GetWorkersService {
+export class GetUserService {
   constructor(
     @InjectModel(Users.name)
-    private workersModel: Model<Users>,
+    private usersModel: Model<Users>,
   ) {}
 
   async getUserByUsername(userName: string): Promise<Users> {
-    return this.workersModel.findOne({ userName });
+    return this.usersModel.findOne({ userName });
   }
 
   async getUserByEmail(email: string): Promise<Users> {
-    return this.workersModel.findOne({ email });
+    return this.usersModel.findOne({ email });
+  }
+
+  async getUserById(id: string): Promise<Users> {
+    return this.usersModel.findById(id);
   }
 
   async getAllUsers(args: GetUserArgs): Promise<Users[]> {
-    return this.workersModel.find().skip(args.skip).limit(args.take);
+    return this.usersModel.find().skip(args.skip).limit(args.take);
   }
 }

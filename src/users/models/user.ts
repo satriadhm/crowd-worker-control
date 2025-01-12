@@ -39,11 +39,11 @@ export class Users {
   phoneNumber: string;
 
   @Field(() => Gender)
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   gender: Gender;
 
   @Field(() => Role)
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   role: Role;
 
   @Field()

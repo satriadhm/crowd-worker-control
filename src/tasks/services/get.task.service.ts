@@ -4,6 +4,7 @@ import { Task } from '../models/task';
 import { TaskView } from '../dto/views/task.view.input';
 import { GetTaskArgs } from '../dto/args/get.task.args';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { parseToView } from '../models/parser';
 
 @Injectable()
 export class GetTaskService {
@@ -11,7 +12,11 @@ export class GetTaskService {
 
   async getTaskById(id: string): Promise<TaskView> {
     try {
-      return await this.taskModel.findById(id);
+      const res = await this.taskModel.findById(id);
+      if (!res) {
+        throw new ThrowGQL('Task not found', GQLThrowType.NOT_FOUND);
+      }
+      return parseToView(res);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }

@@ -6,7 +6,7 @@ import { Users } from 'src/users/models/user';
 import { CreateUserInput } from '../dto/inputs/create.user.input';
 
 @Injectable()
-export class CreateWorkerService {
+export class CreateUserService {
   constructor(
     @InjectModel(Users.name)
     private workersModel: Model<Users>,

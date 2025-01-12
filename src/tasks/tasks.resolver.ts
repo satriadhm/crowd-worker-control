@@ -6,6 +6,7 @@ import { DeleteTaskService } from './services/delete.task.service';
 import { TaskView } from './dto/views/task.view.input';
 import { CreateTaskInput } from './dto/inputs/create.task.input';
 import { GetTaskArgs } from './dto/args/get.task.args';
+import { UpdateTaskService } from './services/update.task.service';
 
 @Resolver(() => Task)
 export class TasksResolver {
@@ -13,6 +14,7 @@ export class TasksResolver {
     private createTaskService: CreateTaskService,
     private getTaskService: GetTaskService,
     private deleteTaskService: DeleteTaskService,
+    private updateTaskService: UpdateTaskService,
   ) {}
 
   @Mutation(() => TaskView)

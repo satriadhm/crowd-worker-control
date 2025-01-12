@@ -1,7 +1,6 @@
 import { ObjectType, Field } from '@nestjs/graphql';
-import { RegisterInput } from '../dto/inputs/create.auth.input';
-import { CreateUserInput } from 'src/users/dto/inputs/create.user.input';
-import { Schema } from '@nestjs/mongoose';
+import { Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema()
 @ObjectType()
@@ -16,13 +15,5 @@ export class Auth {
   refreshToken: string;
 }
 
-export function parseRegisterInput(input: RegisterInput): CreateUserInput {
-  return {
-    email: input.email,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    password: input.password,
-    passwordConfirmation: input.passwordConfirmation,
-    role: input.role,
-  };
-}
+export type AuthDocument = HydratedDocument<Auth>;
+export const AuthSchema = SchemaFactory.createForClass(Auth);
