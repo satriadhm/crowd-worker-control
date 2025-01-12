@@ -6,10 +6,15 @@ import { CreateTaskService } from './services/create.task.service';
 import { GetTaskService } from './services/get.task.service';
 import { UpdateTaskService } from './services/update.task.service';
 import { DeleteTaskService } from './services/delete.task.service';
+import { UsersModule } from 'src/users/users.module';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
+    TasksModule,
+    UsersModule,
+    AuthModule,
   ],
   providers: [
     TasksResolver,

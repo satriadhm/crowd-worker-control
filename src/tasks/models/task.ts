@@ -33,8 +33,10 @@ export class Task {
 export class Answer {
   @Field()
   @Prop({ required: true })
+  workerId: string; // Link to User
+  @Field()
+  @Prop({ required: true })
   answer: string;
-
   @Field()
   @Prop({ required: true })
   stats: number;

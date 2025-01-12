@@ -1,124 +1,162 @@
+// src/M1/services/m1.service.ts
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class M1Service {
-  private workers = ['w1', 'w2', 'w3']; // ID pekerja
-
   async calculateAccuracy(tasks: any[]): Promise<Record<string, number>> {
     const N = tasks.length;
-    const agreements: Record<string, number> = {
-      w1_w2: 0,
-      w1_w3: 0,
-      w2_w3: 0,
-    };
+    const workerIds = this.extractWorkerIds(tasks);
 
-    // Langkah 1: Hitung kesepakatan jawaban
+    const agreements = this.initializeAgreementCounters(workerIds);
+
     tasks.forEach((task) => {
-      const answers = task.workerAnswers.reduce(
+      const answers = task.answers.reduce(
         (acc, answer) => {
-          acc[answer.workerId] = answer.selectedAnswer;
+          acc[answer.workerId] = answer.answer;
           return acc;
         },
         {} as Record<string, string>,
       );
 
-      if (answers['w1'] === answers['w2']) agreements.w1_w2++;
-      if (answers['w1'] === answers['w3']) agreements.w1_w3++;
-      if (answers['w2'] === answers['w3']) agreements.w2_w3++;
+      for (let i = 0; i < workerIds.length; i++) {
+        for (let j = i + 1; j < workerIds.length; j++) {
+          if (answers[workerIds[i]] === answers[workerIds[j]]) {
+            agreements[`${workerIds[i]}_${workerIds[j]}`]++;
+          }
+        }
+      }
     });
 
-    // Langkah 2: Normalisasi kesepakatan (Qij)
-    const Qij = {
-      w1_w2: agreements.w1_w2 / N,
-      w1_w3: agreements.w1_w3 / N,
-      w2_w3: agreements.w2_w3 / N,
-    };
-
-    // Langkah 3: Selesaikan persamaan untuk menghitung akurasi
-    const accuracies = this.solveAccuracies(Qij);
-    console.log('Worker accuracies:', accuracies);
-
+    const Qij = this.normalizeAgreements(agreements, N);
+    const accuracies = this.solveAccuracies(workerIds, Qij);
     return accuracies;
   }
 
-  private solveAccuracies(Qij: Record<string, number>): Record<string, number> {
-    const M = 2; // Jumlah pilihan jawaban (contoh: A, B)
+  async checkEligibility(
+    userId: string,
+    tasks: any[],
+    threshold: number = 0.7,
+  ): Promise<{ eligible: boolean; accuracy: number }> {
+    const accuracies = await this.calculateAccuracy(tasks);
 
-    // Sistem persamaan non-linear
-    const equations = (A: number[]) => [
-      Qij.w1_w2 - (A[0] * A[1] + ((1 - A[0]) * (1 - A[1])) / (M - 1)),
-      Qij.w1_w3 - (A[0] * A[2] + ((1 - A[0]) * (1 - A[2])) / (M - 1)),
-      Qij.w2_w3 - (A[1] * A[2] + ((1 - A[1]) * (1 - A[2])) / (M - 1)),
-    ];
+    // Get the accuracy of the specified user
+    const userAccuracy = accuracies[userId];
 
-    // Turunan Jacobian
-    const jacobian = (A: number[]) => [
-      [
-        A[1] - (1 - A[1]) / (M - 1), // dF1/dA1
-        A[0] - (1 - A[0]) / (M - 1), // dF1/dA2
-        0, // dF1/dA3
-      ],
-      [
-        A[2] - (1 - A[2]) / (M - 1), // dF2/dA1
-        0, // dF2/dA2
-        A[0] - (1 - A[0]) / (M - 1), // dF2/dA3
-      ],
-      [
-        0, // dF3/dA1
-        A[2] - (1 - A[2]) / (M - 1), // dF3/dA2
-        A[1] - (1 - A[1]) / (M - 1), // dF3/dA3
-      ],
-    ];
+    // If user not found in accuracies, return ineligible with 0 accuracy
+    if (userAccuracy === undefined) {
+      return { eligible: false, accuracy: 0 };
+    }
 
-    // Iterasi Newton-Raphson
+    return {
+      eligible: userAccuracy >= threshold,
+      accuracy: userAccuracy,
+    };
+  }
+
+  private extractWorkerIds(tasks: any[]): string[] {
+    const workerIds = new Set<string>();
+    tasks.forEach((task) => {
+      task.answers.forEach((answer) => workerIds.add(answer.workerId));
+    });
+    return Array.from(workerIds);
+  }
+
+  private initializeAgreementCounters(
+    workerIds: string[],
+  ): Record<string, number> {
+    const agreements: Record<string, number> = {};
+    for (let i = 0; i < workerIds.length; i++) {
+      for (let j = i + 1; j < workerIds.length; j++) {
+        agreements[`${workerIds[i]}_${workerIds[j]}`] = 0;
+      }
+    }
+    return agreements;
+  }
+
+  private normalizeAgreements(
+    agreements: Record<string, number>,
+    taskCount: number,
+  ): Record<string, number> {
+    const normalized: Record<string, number> = {};
+    Object.keys(agreements).forEach((key) => {
+      normalized[key] = agreements[key] / taskCount;
+    });
+    return normalized;
+  }
+
+  private solveAccuracies(
+    workerIds: string[],
+    Qij: Record<string, number>,
+  ): Record<string, number> {
+    const M = 2; // Number of possible answers (e.g., A, B)
+
+    const equations = (A: number[]) =>
+      workerIds.flatMap((_, i) =>
+        workerIds.slice(i + 1).map((_, j) => {
+          const key = `${workerIds[i]}_${workerIds[i + 1 + j]}`;
+          return (
+            Qij[key] -
+            (A[i] * A[i + 1 + j] + ((1 - A[i]) * (1 - A[i + 1 + j])) / (M - 1))
+          );
+        }),
+      );
+
+    const jacobian = (A: number[]) => {
+      const J: number[][] = [];
+      workerIds.forEach((_, i) => {
+        workerIds.slice(i + 1).forEach((_, j) => {
+          const row = new Array(workerIds.length).fill(0);
+          row[i] = A[i + 1 + j] - (1 - A[i + 1 + j]) / (M - 1);
+          row[i + 1 + j] = A[i] - (1 - A[i]) / (M - 1);
+          J.push(row);
+        });
+      });
+      return J;
+    };
+
+    const solveEquations = (J: number[][], F: number[]): number[] => {
+      const size = J.length;
+      const A = J.map((row, i) => [...row, F[i]]); // Augmented matrix
+      for (let i = 0; i < size; i++) {
+        let maxRow = i;
+        for (let k = i + 1; k < size; k++) {
+          if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+        }
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+
+        const diag = A[i][i];
+        for (let j = i; j <= size; j++) A[i][j] /= diag;
+
+        for (let k = 0; k < size; k++) {
+          if (k === i) continue;
+          const factor = A[k][i];
+          for (let j = i; j <= size; j++) A[k][j] -= factor * A[i][j];
+        }
+      }
+      return A.map((row) => row[size]);
+    };
+
     const tolerance = 1e-6;
     const maxIterations = 100;
-    let A = [0.5, 0.5, 0.5]; // Nilai awal
+    let A = new Array(workerIds.length).fill(0.5);
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       const F = equations(A);
       const J = jacobian(A);
-
-      // Solve J * delta = -F
-      const delta = this.lsolve(
+      const delta = solveEquations(
         J,
         F.map((f) => -f),
       );
-
-      // Update nilai A
       A = A.map((a, i) => a + delta[i]);
 
-      // Cek toleransi
       if (Math.max(...delta.map(Math.abs)) < tolerance) break;
     }
 
-    return { w1: A[0], w2: A[1], w3: A[2] };
-  }
-
-  // Penyelesaian linear untuk sistem Jacobian
-  private lsolve(J: number[][], F: number[]): number[] {
-    const size = J.length;
-    const A = J.map((row, i) => [...row, F[i]]); // Augmented matrix
-    for (let i = 0; i < size; i++) {
-      // Pivoting
-      let maxRow = i;
-      for (let k = i + 1; k < size; k++) {
-        if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
-      }
-      [A[i], A[maxRow]] = [A[maxRow], A[i]];
-
-      // Make the diagonal element 1
-      const diag = A[i][i];
-      for (let j = i; j <= size; j++) A[i][j] /= diag;
-
-      // Eliminate column
-      for (let k = 0; k < size; k++) {
-        if (k === i) continue;
-        const factor = A[k][i];
-        for (let j = i; j <= size; j++) A[k][j] -= factor * A[i][j];
-      }
-    }
-
-    // Extract solution
-    return A.map((row) => row[size]);
+    return workerIds.reduce(
+      (acc, id, idx) => {
+        acc[id] = A[idx];
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
   }
 }
