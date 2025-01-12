@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { CreateUserService } from 'src/users/services/create.user.service';
 import { GetUserService } from 'src/users/services/get.user.service';
-import { Auth, parseRegisterInput } from '../models/auth';
 import { configService } from 'src/config/config.service';
 import { LoginInput, RegisterInput } from '../dto/inputs/create.auth.input';
 import { AuthView } from '../dto/views/auth.view';
 import * as jwt from 'jsonwebtoken';
 import { createHmac } from 'crypto';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { Auth } from '../models/auth';
+import { parseRegisterInput } from '../models/parser';
 
 @Injectable()
 export class AuthService {
