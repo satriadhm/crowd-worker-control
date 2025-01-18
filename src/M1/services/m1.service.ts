@@ -40,86 +40,112 @@ export class M1Service {
       taskId,
       workerId,
     });
-    if (!workerTask) throw new Error('Worker not assigned to this task');
-
-    workerTask.answer = answer;
-    await workerTask.save();
-
-    const answers = await this.eligibilityModel.find({ taskId });
-    if (answers.length === 3) {
-      const workers = answers.map((a) => a.workerId);
-      const workerAccuracies = this.calculateAccuracy(taskId, answers);
-      await this.updateEligibility(taskId, workers, workerAccuracies);
+    if (!workerTask) {
+      // Jika pekerja baru, tambahkan ke database
+      await this.eligibilityModel.create({
+        taskId,
+        workerId,
+        answer,
+        eligible: false,
+      });
+    } else {
+      // Perbarui jawaban pekerja yang sudah ada
+      workerTask.answer = answer;
+      await workerTask.save();
     }
+
+    // Ambil semua jawaban terkini untuk taskId
+    const answers = await this.eligibilityModel.find({ taskId });
+    const workers = answers.map((a) => a.workerId);
+
+    // Hitung akurasi untuk semua pekerja secara dinamis
+    const accuracies = this.calculateAccuracy(workers, answers);
+    await this.updateEligibility(taskId, workers, accuracies);
   }
 
   private calculateAccuracy(
-    taskId: string,
+    workerIds: string[],
     answers: Eligibility[],
   ): Record<string, number> {
-    const N = answers.length; // Number of problems
-    const workers = answers.map((a) => a.workerId);
+    const N = answers.length;
     const Qij: Record<string, number> = {};
-    const agreements: Record<string, number> = {};
 
-    workers.forEach((w1, i) => {
-      workers.slice(i + 1).forEach((w2) => {
-        agreements[`${w1}_${w2}`] = 0;
-      });
-    });
+    // Calculate pairwise agreements
+    for (let i = 0; i < workerIds.length; i++) {
+      for (let j = i + 1; j < workerIds.length; j++) {
+        const w1 = workerIds[i];
+        const w2 = workerIds[j];
 
-    answers.forEach((answer) => {
-      const taskAnswers = answer.answers.reduce(
-        (acc, a) => ({ ...acc, [a.workerId]: a.answer }),
-        {},
-      );
-
-      workers.forEach((w1, i) => {
-        workers.slice(i + 1).forEach((w2) => {
-          if (taskAnswers[w1] === taskAnswers[w2]) {
-            agreements[`${w1}_${w2}`]++;
+        let agreementCount = 0;
+        for (const answer of answers) {
+          if (
+            answer.answer === answers.find((a) => a.workerId === w2)?.answer
+          ) {
+            agreementCount++;
           }
-        });
-      });
-    });
+        }
 
-    Object.keys(agreements).forEach((key) => {
-      Qij[key] = agreements[key] / N;
-    });
-
-    const accuracies = this.calculateMajorityAdjustedAccuracy(
-      workers,
-      answers,
-      Qij,
-    );
-    return accuracies;
-  }
-
-  /**
-   * Updates the eligibility of workers based on their accuracy.
-   */
-  private async updateEligibility(
-    taskId: string,
-    workers: string[],
-    accuracies: Record<string, number>,
-    threshold = 0.7,
-  ): Promise<void> {
-    for (const workerId of workers) {
-      const workerTask = await this.eligibilityModel.findOne({
-        taskId,
-        workerId,
-      });
-      if (workerTask) {
-        workerTask.accuracy = accuracies[workerId];
-        workerTask.eligible = accuracies[workerId] >= threshold;
-        await workerTask.save();
+        Qij[`${w1}_${w2}`] = agreementCount / N;
       }
     }
+
+    return this.solveAccuracyEquations(workerIds, Qij);
   }
 
-  /**
-   * Solves a linear system using Gaussian elimination.
-   */
+  private solveAccuracyEquations(
+    workerIds: string[],
+    Qij: Record<string, number>,
+    M = 2,
+  ): Record<string, number> {
+    const equations = (A: number[]) =>
+      workerIds.flatMap((_, i) =>
+        workerIds.slice(i + 1).map((_, j) => {
+          const key = `${workerIds[i]}_${workerIds[i + 1 + j]}`;
+          return (
+            Qij[key] -
+            (A[i] * A[i + 1 + j] + ((1 - A[i]) * (1 - A[i + 1 + j])) / (M - 1))
+          );
+        }),
+      );
+
+    const jacobian = (A: number[]) => {
+      const J: number[][] = [];
+      workerIds.forEach((_, i) => {
+        workerIds.slice(i + 1).forEach((_, j) => {
+          const row = new Array(workerIds.length).fill(0);
+          row[i] = A[i + 1 + j] - (1 - A[i + 1 + j]) / (M - 1);
+          row[i + 1 + j] = A[i] - (1 - A[i]) / (M - 1);
+          J.push(row);
+        });
+      });
+      return J;
+    };
+
+    const tolerance = 1e-6;
+    const maxIterations = 100;
+    let A = new Array(workerIds.length).fill(0.5);
+
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+      const F = equations(A);
+      const J = jacobian(A);
+      const delta = this.solveLinearSystem(
+        J,
+        F.map((f) => -f),
+      );
+      A = A.map((a, i) => a + delta[i]);
+
+      if (Math.max(...delta.map(Math.abs)) < tolerance) break;
+    }
+
+    return workerIds.reduce(
+      (acc, workerId, idx) => {
+        acc[workerId] = A[idx];
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  }
+
   private solveLinearSystem(J: number[][], F: number[]): number[] {
     const size = J.length;
     const augmentedMatrix = J.map((row, i) => [...row, F[i]]);
@@ -162,71 +188,30 @@ export class M1Service {
     return solution;
   }
 
-  /**
-   * Adjusts accuracy dynamically based on majority agreement.
-   */
-  private calculateMajorityAdjustedAccuracy(
-    workerIds: string[],
-    answers: Eligibility[],
-    Qij: Record<string, number>,
-  ): Record<string, number> {
-    const M = 2;
-    const equations = (A: number[]) =>
-      workerIds.flatMap((_, i) =>
-        workerIds.slice(i + 1).map((_, j) => {
-          const key = `${workerIds[i]}_${workerIds[i + 1 + j]}`;
-          return (
-            Qij[key] -
-            (A[i] * A[i + 1 + j] + ((1 - A[i]) * (1 - A[i + 1 + j])) / (M - 1))
-          );
-        }),
-      );
-
-    const jacobian = (A: number[]) => {
-      const J: number[][] = [];
-      workerIds.forEach((_, i) => {
-        workerIds.slice(i + 1).forEach((_, j) => {
-          const row = new Array(workerIds.length).fill(0);
-          row[i] = A[i + 1 + j] - (1 - A[i + 1 + j]) / (M - 1);
-          row[i + 1 + j] = A[i] - (1 - A[i]) / (M - 1);
-          J.push(row);
-        });
+  private async updateEligibility(
+    taskId: string,
+    workers: string[],
+    accuracies: Record<string, number>,
+    threshold = 0.7,
+  ): Promise<void> {
+    for (const workerId of workers) {
+      const workerTask = await this.eligibilityModel.findOne({
+        taskId,
+        workerId,
       });
-      return J;
-    };
-
-    const tolerance = 1e-6;
-    const maxIterations = 100;
-    let A = new Array(workerIds.length).fill(0.5);
-
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      const F = equations(A);
-      const J = jacobian(A);
-      const delta = this.solveLinearSystem(
-        J,
-        F.map((f) => -f),
-      );
-      A = A.map((a, i) => a + delta[i]);
-
-      if (Math.max(...delta.map(Math.abs)) < tolerance) break;
+      if (workerTask) {
+        workerTask.accuracy = accuracies[workerId];
+        workerTask.eligible = accuracies[workerId] >= threshold;
+        await workerTask.save();
+      }
     }
+  }
 
-    const majorityAccuracies: Record<string, number> = {};
-    const majorityThreshold = 2 / 3;
-
-    workerIds.forEach((workerId, idx) => {
-      const agreeCount = workerIds.reduce((count, otherId) => {
-        if (workerId !== otherId) {
-          const key = `${workerId}_${otherId}`;
-          if (Qij[key] > majorityThreshold) count++;
-        }
-        return count;
-      }, 0);
-
-      majorityAccuracies[workerId] =
-        A[idx] * (agreeCount / (workerIds.length - 1));
+  async getEligibleWorkers(taskId: string): Promise<string[]> {
+    const eligibleWorkers = await this.eligibilityModel.find({
+      taskId,
+      eligible: true,
     });
-
-    return majorityAccuracies;
+    return eligibleWorkers.map((worker) => worker.workerId);
   }
 }
