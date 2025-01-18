@@ -10,13 +10,15 @@ import { createHmac } from 'crypto';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { Auth } from '../models/auth';
 import { parseRegisterInput } from '../models/parser';
+import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectModel(Auth.name)
+    private authModel: Model<Auth>,
     private createUserService: CreateUserService,
     private getUserService: GetUserService,
-    private authModel: Model<Auth>,
   ) {}
 
   async login(input: LoginInput): Promise<AuthView> {

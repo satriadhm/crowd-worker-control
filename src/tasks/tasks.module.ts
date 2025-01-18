@@ -23,5 +23,11 @@ import { AuthModule } from 'src/auth/auth.module';
     UpdateTaskService,
     DeleteTaskService,
   ],
+  exports: [
+    CreateTaskService,
+    GetTaskService,
+    UpdateTaskService,
+    DeleteTaskService,
+  ],
 })
 export class TasksModule {}

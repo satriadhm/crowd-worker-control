@@ -5,10 +5,14 @@ import { CreateTaskInput } from '../dto/inputs/create.task.input';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { TaskView } from '../dto/views/task.view.input';
 import { parseToView } from '../models/parser';
+import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
 export class CreateTaskService {
-  constructor(private taskModel: Model<Task>) {}
+  constructor(
+    @InjectModel(Task.name)
+    private taskModel: Model<Task>,
+  ) {}
 
   async createTask(input: CreateTaskInput): Promise<TaskView> {
     try {

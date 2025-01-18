@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users } from '../models/user';
 import { UpdateUserInput } from '../dto/inputs/update.user.input';
@@ -8,7 +9,10 @@ import { parseToView } from '../models/parser';
 
 @Injectable()
 export class UpdateUserService {
-  constructor(private userModel: Model<Users>) {}
+  constructor(
+    @InjectModel(Users.name)
+    private userModel: Model<Users>,
+  ) {}
 
   async updateUser(input: UpdateUserInput): Promise<UserView> {
     try {

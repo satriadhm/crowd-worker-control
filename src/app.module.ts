@@ -20,7 +20,8 @@ import { GQLErrFormatter } from '@app/gqlerr';
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => ({
         uri:
-          config.get('DATABASE_URL') || configService.getValue('DATABASE_URL'),
+          config.get('MONGO_CONNECTION') ||
+          configService.getValue('MONGO_CONNECTION'),
         dbName: configService.getValue('MONGO_DB_NAME'),
         connectTimeoutMS: 10000,
       }),

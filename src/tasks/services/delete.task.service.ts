@@ -3,10 +3,14 @@ import { Model } from 'mongoose';
 import { Task } from '../models/task';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { TaskView } from '../dto/views/task.view.input';
+import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
 export class DeleteTaskService {
-  constructor(private taskModel: Model<Task>) {}
+  constructor(
+    @InjectModel(Task.name)
+    private taskModel: Model<Task>,
+  ) {}
 
   async delete(id: string): Promise<TaskView> {
     try {
