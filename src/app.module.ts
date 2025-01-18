@@ -14,7 +14,7 @@ import { GQLErrFormatter } from '@app/gqlerr';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
-    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 10 }] }),
+    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60, limit: 10 }] }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
