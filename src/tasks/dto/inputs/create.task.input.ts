@@ -11,9 +11,6 @@ export class CreateTaskInput {
   @Field()
   question: string;
 
-  @Field()
-  nAnswers: number;
-
   @Field(() => [String])
   answers: string[];
 }

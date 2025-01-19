@@ -4,14 +4,14 @@ import { HydratedDocument } from 'mongoose';
 
 @ObjectType()
 export class Answer {
-  @Field()
-  @Prop({ required: true })
+  @Field({ nullable: true })
+  @Prop({ required: false })
   workerId: string; // Link to User
-  @Field()
-  @Prop({ required: true })
+  @Field({ nullable: true })
+  @Prop({ required: false })
   answer: string;
-  @Field()
-  @Prop({ required: true })
+  @Field({ nullable: true })
+  @Prop({ required: false })
   stats: number;
 }
 @Schema()
@@ -19,7 +19,7 @@ export class Answer {
 export class Task {
   @Field()
   @Prop({ required: true })
-  id: string;
+  _id: string;
 
   @Field()
   @Prop({ required: true })

@@ -23,8 +23,9 @@ export class TasksResolver {
   ) {}
 
   @Mutation(() => TaskView)
-  @Roles('admin')
+  // @Roles('admin')
   async createTask(@Args('input') input: CreateTaskInput): Promise<TaskView> {
+    console.log('input', input);
     return this.createTaskService.createTask(input);
   }
 
@@ -41,7 +42,7 @@ export class TasksResolver {
   }
 
   @Query(() => [TaskView])
-  @Roles('admin')
+  // @Roles('admin')
   async getTasks(@Args() args: GetTaskArgs): Promise<TaskView[]> {
     return this.getTaskService.getTasks(args);
   }

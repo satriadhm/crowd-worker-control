@@ -4,8 +4,9 @@ import { Task } from '../models/task';
 import { CreateTaskInput } from '../dto/inputs/create.task.input';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { TaskView } from '../dto/views/task.view.input';
-import { parseToView } from '../models/parser';
+import { parseRequest, parseToView } from '../models/parser';
 import { InjectModel } from '@nestjs/mongoose';
+import { ObjectId } from 'bson';
 
 @Injectable()
 export class CreateTaskService {
@@ -16,7 +17,11 @@ export class CreateTaskService {
 
   async createTask(input: CreateTaskInput): Promise<TaskView> {
     try {
-      const result = await this.taskModel.create(input);
+      const parsedResult = parseRequest(input);
+      const result = await this.taskModel.create({
+        _id: new ObjectId(),
+        ...parsedResult,
+      });
       return parseToView(result);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
