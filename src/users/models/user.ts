@@ -8,7 +8,7 @@ import { Gender, Role } from 'src/lib/user.enum';
 export class Users {
   @Field()
   @Prop({ required: true })
-  id: string;
+  _id: string;
 
   @Field()
   @Prop({ required: true })

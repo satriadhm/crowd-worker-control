@@ -10,4 +10,7 @@ export class AuthView {
 
   @Field()
   userId: string;
+
+  @Field()
+  role: string;
 }

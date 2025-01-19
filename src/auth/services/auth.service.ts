@@ -30,27 +30,28 @@ export class AuthService {
 
     if (user && user.password === hashedPassword) {
       const accessToken = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user._id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '1h' },
       );
 
       const refreshToken = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user._id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '7d' },
       );
 
       await this.authModel.create({
-        userId: user.id,
-        accessToken,
-        refreshToken,
+        userId: user._id,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       });
 
       return {
-        accessToken,
-        refreshToken,
-        userId: user.id,
+        role: user.role,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: user._id,
       };
     }
     return null;
@@ -62,26 +63,25 @@ export class AuthService {
       const parsedInput = parseRegisterInput(input);
       const user = await this.createUserService.create(await parsedInput);
       const accessToken = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user._id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '1h' },
       );
-
       const refreshToken = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user._id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '7d' },
       );
-
       await this.authModel.create({
-        userId: user.id,
-        accessToken,
-        refreshToken,
+        userId: user._id,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       });
       return {
-        accessToken,
-        refreshToken,
-        userId: user.id,
+        role: user.role,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: user._id,
       };
     } catch (error) {
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
