@@ -1,4 +1,4 @@
-import { Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { CreateTaskService } from './services/create.task.service';
 import { Task } from './models/task';
 import { GetTaskService } from './services/get.task.service';
@@ -7,6 +7,7 @@ import { TaskView } from './dto/views/task.view.input';
 import { CreateTaskInput } from './dto/inputs/create.task.input';
 import { GetTaskArgs } from './dto/args/get.task.args';
 import { UpdateTaskService } from './services/update.task.service';
+import { UpdateTaskInput } from './dto/inputs/update.task.input';
 
 @Resolver(() => Task)
 export class TasksResolver {
@@ -18,7 +19,7 @@ export class TasksResolver {
   ) {}
 
   @Mutation(() => TaskView)
-  async createTask(input: CreateTaskInput): Promise<TaskView> {
+  async createTask(@Args('input') input: CreateTaskInput): Promise<TaskView> {
     return this.createTaskService.createTask(input);
   }
 
@@ -35,5 +36,10 @@ export class TasksResolver {
   @Mutation(() => TaskView)
   async deleteTask(id: string): Promise<TaskView> {
     return this.deleteTaskService.delete(id);
+  }
+
+  @Mutation(() => TaskView)
+  async updateTask(@Args('input') input: UpdateTaskInput): Promise<TaskView> {
+    return this.updateTaskService.updateTask(input);
   }
 }
