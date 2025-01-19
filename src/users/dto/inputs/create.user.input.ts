@@ -13,6 +13,9 @@ export class CreateUserInput {
   lastName: string;
 
   @Field()
+  userName: string;
+
+  @Field()
   password: string;
 
   @Field()

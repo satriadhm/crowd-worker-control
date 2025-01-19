@@ -15,8 +15,8 @@ export class CreateUserService {
   async create(createUserInput: CreateUserInput): Promise<Users> {
     try {
       const user = new this.workersModel({
+        id: new ObjectId(),
         ...createUserInput,
-        _id: new ObjectId(),
       });
       return user.save();
     } catch (error) {

@@ -31,27 +31,27 @@ export class Users {
   password: string;
 
   @Field()
-  @Prop({ required: true })
+  @Prop({ required: false })
   age: number;
 
   @Field()
-  @Prop({ required: true })
+  @Prop({ required: false })
   phoneNumber: string;
 
   @Field(() => Gender)
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: false })
   gender: Gender;
 
   @Field(() => Role)
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: false })
   role: Role;
 
   @Field()
-  @Prop({ required: true })
+  @Prop({ required: false })
   address1: string;
 
   @Field()
-  @Prop({ required: true })
+  @Prop({ required: false })
   address2: string;
 }
 

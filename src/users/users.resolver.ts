@@ -1,4 +1,4 @@
-import { Mutation, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Resolver } from '@nestjs/graphql';
 import { Users } from './models/user';
 import { DeleteUserService } from './services/delete.user.service';
 import { CreateUserService } from './services/create.user.service';
@@ -20,12 +20,12 @@ export class UsersResolver {
   ) {}
 
   @Mutation(() => UserView)
-  async createUser(input: CreateUserInput): Promise<UserView> {
+  async createUser(@Args('input') input: CreateUserInput): Promise<UserView> {
     return this.createUserService.create(input);
   }
 
   @Mutation(() => UserView)
-  async updateUser(input: UpdateUserInput): Promise<UserView> {
+  async updateUser(@Args('input') input: UpdateUserInput): Promise<UserView> {
     return this.updateUserService.updateUser(input);
   }
 

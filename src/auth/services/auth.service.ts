@@ -60,7 +60,7 @@ export class AuthService {
     try {
       const secretKey = configService.getEnvValue('SECRET_KEY');
       const parsedInput = parseRegisterInput(input);
-      const user = await this.createUserService.create(parsedInput);
+      const user = await this.createUserService.create(await parsedInput);
       const accessToken = jwt.sign(
         { id: user.id, email: user.email },
         secretKey,
