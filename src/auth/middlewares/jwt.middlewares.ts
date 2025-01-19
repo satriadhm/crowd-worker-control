@@ -15,7 +15,7 @@ export class JwtMiddleware implements NestMiddleware {
           token,
           configService.getEnvValue('SECRET_KEY'),
         );
-        req.user = decoded as Users; // Assign decoded token to req.user
+        req.user = decoded as Users;
       } catch (err) {
         req.user = null;
       }

@@ -6,7 +6,7 @@ import { configService } from 'src/config/config.service';
 import { LoginInput, RegisterInput } from '../dto/inputs/create.auth.input';
 import { AuthView } from '../dto/views/auth.view';
 import * as jwt from 'jsonwebtoken';
-import { createHmac } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { Auth } from '../models/auth';
 import { parseRegisterInput } from '../models/parser';
@@ -22,13 +22,17 @@ export class AuthService {
   ) {}
 
   async login(input: LoginInput): Promise<AuthView> {
-    const user = await this.getUserService.getUserByEmail(input.email);
-    const secretKey = configService.getEnvValue('SECRET_KEY');
-    const hashedPassword = createHmac('sha256', secretKey)
-      .update(input.password)
-      .digest('hex');
+    try {
+      const user = await this.getUserService.getUserByEmail(input.email);
+      const secretKey = configService.getEnvValue('SECRET_KEY');
+      const isPasswordValid = await bcrypt.compare(
+        input.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new ThrowGQL('Invalid credentials', GQLThrowType.NOT_AUTHORIZED);
+      }
 
-    if (user && user.password === hashedPassword) {
       const accessToken = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
         secretKey,
@@ -40,7 +44,6 @@ export class AuthService {
         secretKey,
         { expiresIn: '7d' },
       );
-
       await this.authModel.create({
         userId: user._id,
         accessToken: accessToken,
@@ -53,8 +56,9 @@ export class AuthService {
         refreshToken: refreshToken,
         userId: user._id,
       };
+    } catch (error) {
+      throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
-    return null;
   }
 
   async register(input: RegisterInput): Promise<AuthView> {
