@@ -35,7 +35,7 @@ export class UsersResolver {
   }
 
   @Query(() => [UserView])
-  async getAllUsers(args: GetUserArgs): Promise<UserView[]> {
+  async getAllUsers(@Args() args: GetUserArgs): Promise<UserView[]> {
     return this.getUserService.getAllUsers(args);
   }
 

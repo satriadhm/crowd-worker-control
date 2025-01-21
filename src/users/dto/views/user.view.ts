@@ -2,33 +2,33 @@ import { Field, ObjectType } from '@nestjs/graphql';
 
 @ObjectType()
 export class UserView {
-  @Field()
+  @Field({ nullable: true })
   firstName: string;
 
-  @Field()
+  @Field({ nullable: true })
   lastName: string;
 
-  @Field()
+  @Field({ nullable: true })
   userName: string;
 
-  @Field()
+  @Field({ nullable: true })
   email: string;
 
-  @Field()
+  @Field({ nullable: true })
   age: number;
 
-  @Field()
+  @Field({ nullable: true })
   phoneNumber: string;
 
-  @Field()
+  @Field({ nullable: true })
   gender: string;
 
-  @Field()
+  @Field({ nullable: true })
   role: string;
 
-  @Field()
+  @Field({ nullable: true })
   address1: string;
 
-  @Field()
+  @Field({ nullable: true })
   address2: string;
 }
