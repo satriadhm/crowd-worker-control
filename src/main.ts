@@ -10,8 +10,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: { origin: '*' },
   });
-  const config = app.get(ConfigService);
   app.use(new JwtMiddleware().use);
+  const config = app.get(ConfigService);
   app.useGlobalFilters(new CustomGraphQLErrorFilter());
   await app.listen(config.get('PORT') || configService.getPort());
 }

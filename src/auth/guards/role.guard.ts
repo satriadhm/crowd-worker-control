@@ -7,7 +7,7 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>('role', [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -18,9 +18,14 @@ export class RolesGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const user = req.user;
-    console.log(user);
 
-    if (!user || !requiredRoles.includes(user.role)) {
+    console.log('User in Guard:', user);
+
+    if (!user) {
+      throw new ThrowGQL('Unauthorized', GQLThrowType.NOT_AUTHORIZED);
+    }
+
+    if (!requiredRoles.includes(user.role)) {
       throw new ThrowGQL('Forbidden', GQLThrowType.FORBIDDEN);
     }
 

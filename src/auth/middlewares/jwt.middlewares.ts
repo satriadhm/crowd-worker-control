@@ -8,6 +8,7 @@ import { Users } from 'src/users/models/user';
 export class JwtMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const token = req.headers.authorization?.split(' ')[1];
+    console.log('Authorization Header:', req.headers.authorization);
 
     if (token) {
       try {
@@ -16,12 +17,15 @@ export class JwtMiddleware implements NestMiddleware {
           configService.getEnvValue('SECRET_KEY'),
         );
         req.user = decoded as Users;
+        console.log('Decoded User:', req.user);
       } catch (err) {
         console.error('JWT Verification Error:', err.message);
         req.user = null;
       }
+    } else {
+      console.warn('Token not found in the Authorization header');
+      req.user = null;
     }
-    console.log('Decoded User:', req.user);
     next();
   }
 }
