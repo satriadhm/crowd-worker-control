@@ -3,6 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users } from 'src/users/models/user';
 import { GetUserArgs } from '../dto/args/get.user.args';
+import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { parseToView } from '../models/parser';
+import { UserView } from '../dto/views/user.view';
 
 @Injectable()
 export class GetUserService {
@@ -11,19 +14,39 @@ export class GetUserService {
     private usersModel: Model<Users>,
   ) {}
 
-  async getUserByUsername(userName: string): Promise<Users> {
-    return this.usersModel.findOne({ userName });
+  async getUserByUsername(userName: string): Promise<UserView> {
+    try {
+      const res = await this.usersModel.findOne({ userName });
+      return parseToView(res);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
   }
 
-  async getUserByEmail(email: string): Promise<Users> {
-    return this.usersModel.findOne({ email });
+  async getUserByEmail(email: string): Promise<UserView> {
+    try {
+      const res = await this.usersModel.findOne({ email });
+      return parseToView(res);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
   }
 
-  async getUserById(id: string): Promise<Users> {
-    return this.usersModel.findById(id);
+  async getUserById(id: string): Promise<UserView> {
+    try {
+      const res = await this.usersModel.findById(id);
+      return parseToView(res);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
   }
 
-  async getAllUsers(args: GetUserArgs): Promise<Users[]> {
-    return this.usersModel.find().skip(args.skip).limit(args.take);
+  async getAllUsers(args: GetUserArgs): Promise<UserView[]> {
+    try {
+      const res = await this.usersModel.find().limit(args.take).skip(args.skip);
+      return res.map(parseToView);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
   }
 }

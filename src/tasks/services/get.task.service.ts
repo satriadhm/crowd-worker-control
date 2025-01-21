@@ -29,7 +29,6 @@ export class GetTaskService {
   async getTasks(args: GetTaskArgs): Promise<TaskView[]> {
     try {
       const res = await this.taskModel.find().skip(args.skip).limit(args.take);
-      console.log(res);
       return res.map((task) => parseToView(task));
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);

@@ -4,6 +4,9 @@ import { Model } from 'mongoose';
 import { Users } from 'src/users/models/user';
 import { CreateUserInput } from '../dto/inputs/create.user.input';
 import { ObjectId } from 'bson';
+import { parseToView } from '../models/parser';
+import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { UserView } from '../dto/views/user.view';
 
 @Injectable()
 export class CreateUserService {
@@ -12,15 +15,15 @@ export class CreateUserService {
     private workersModel: Model<Users>,
   ) {}
 
-  async create(createUserInput: CreateUserInput): Promise<Users> {
+  async create(createUserInput: CreateUserInput): Promise<UserView> {
     try {
       const user = new this.workersModel({
         _id: new ObjectId(),
         ...createUserInput,
-      });
-      return user.save();
+      }).save();
+      return parseToView(user);
     } catch (error) {
-      throw new Error(error);
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
   }
 }

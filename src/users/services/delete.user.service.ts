@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users } from '../models/user';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { UserView } from '../dto/views/user.view';
+import { parseToView } from '../models/parser';
 
 @Injectable()
 export class DeleteUserService {
@@ -11,9 +13,10 @@ export class DeleteUserService {
     private readonly userModel: Model<Users>,
   ) {}
 
-  async delete(id: string): Promise<Users> {
+  async delete(id: string): Promise<UserView> {
     try {
-      return this.userModel.findByIdAndDelete(id);
+      const res = await this.userModel.findByIdAndDelete(id);
+      return parseToView(res);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }

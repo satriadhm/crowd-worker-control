@@ -34,18 +34,18 @@ export class AuthService {
       }
 
       const accessToken = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '1h' },
       );
 
       const refreshToken = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '7d' },
       );
       await this.authModel.create({
-        userId: user._id,
+        userId: user.id,
         accessToken: accessToken,
         refreshToken: refreshToken,
       });
@@ -54,7 +54,7 @@ export class AuthService {
         role: user.role,
         accessToken: accessToken,
         refreshToken: refreshToken,
-        userId: user._id,
+        userId: user.id,
       };
     } catch (error) {
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
@@ -67,17 +67,17 @@ export class AuthService {
       const parsedInput = parseRegisterInput(input);
       const user = await this.createUserService.create(await parsedInput);
       const accessToken = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '1h' },
       );
       const refreshToken = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role },
         secretKey,
         { expiresIn: '7d' },
       );
       await this.authModel.create({
-        userId: user._id,
+        userId: user.id,
         accessToken: accessToken,
         refreshToken: refreshToken,
       });
@@ -85,7 +85,7 @@ export class AuthService {
         role: user.role,
         accessToken: accessToken,
         refreshToken: refreshToken,
-        userId: user._id,
+        userId: user.id,
       };
     } catch (error) {
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
