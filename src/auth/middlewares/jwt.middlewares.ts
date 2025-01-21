@@ -17,6 +17,7 @@ export class JwtMiddleware implements NestMiddleware {
         );
         req.user = decoded as Users;
       } catch (err) {
+        console.error('JWT Verification Error:', err.message);
         req.user = null;
       }
     }

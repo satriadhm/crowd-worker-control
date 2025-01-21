@@ -9,8 +9,12 @@ import { UpdateUserInput } from './dto/inputs/update.user.input';
 import { Query } from '@nestjs/graphql';
 import { GetUserArgs } from './dto/args/get.user.args';
 import { GetUserService } from './services/get.user.service';
+import { UseGuards } from '@nestjs/common';
+import { Roles } from 'src/auth/decorators/role.decorator';
+import { RolesGuard } from 'src/auth/guards/role.guard';
 
 @Resolver(() => Users)
+@UseGuards(RolesGuard)
 export class UsersResolver {
   constructor(
     private readonly createUserService: CreateUserService,
@@ -30,11 +34,13 @@ export class UsersResolver {
   }
 
   @Mutation(() => UserView)
+  @Roles('admin')
   async deleteUser(id: string): Promise<UserView> {
     return this.deleteUserService.delete(id);
   }
 
   @Query(() => [UserView])
+  @Roles('admin')
   async getAllUsers(@Args() args: GetUserArgs): Promise<UserView[]> {
     return this.getUserService.getAllUsers(args);
   }

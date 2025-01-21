@@ -18,6 +18,7 @@ export class RolesGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const user = req.user;
+    console.log(user);
 
     if (!user || !requiredRoles.includes(user.role)) {
       throw new ThrowGQL('Forbidden', GQLThrowType.FORBIDDEN);
