@@ -4,9 +4,9 @@ import { HydratedDocument } from 'mongoose';
 
 @ObjectType()
 export class Answer {
-  @Field({ nullable: true })
+  @Field(() => [String], { nullable: true })
   @Prop({ required: false })
-  workerId: string; // Link to User
+  workerId: string[];
   @Field({ nullable: true })
   @Prop({ required: false })
   answer: string;

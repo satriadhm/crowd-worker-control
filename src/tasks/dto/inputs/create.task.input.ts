@@ -1,6 +1,15 @@
 import { Field, InputType } from '@nestjs/graphql';
 
 @InputType()
+export class AnswerInput {
+  @Field({ nullable: true })
+  answer: string;
+
+  @Field({ nullable: true })
+  stats: number;
+}
+
+@InputType()
 export class CreateTaskInput {
   @Field()
   title: string;
@@ -11,6 +20,6 @@ export class CreateTaskInput {
   @Field()
   question: string;
 
-  @Field(() => [String])
-  answers: string[];
+  @Field(() => [AnswerInput])
+  answers: AnswerInput[];
 }

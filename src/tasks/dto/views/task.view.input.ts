@@ -3,10 +3,9 @@ import { Answer } from 'src/tasks/models/task';
 
 @ObjectType()
 export class TaskView {
-
   @Field()
   id: string;
-  
+
   @Field()
   title: string;
 
