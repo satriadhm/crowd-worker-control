@@ -11,6 +11,8 @@ import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { Auth } from '../models/auth';
 import { parseRegisterInput } from '../models/parser';
 import { InjectModel } from '@nestjs/mongoose';
+import { UserView } from 'src/users/dto/views/user.view';
+import { parseToView } from 'src/users/models/parser';
 
 @Injectable()
 export class AuthService {
@@ -87,6 +89,17 @@ export class AuthService {
         refreshToken: refreshToken,
         userId: user.id,
       };
+    } catch (error) {
+      throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
+    }
+  }
+
+  async getLoggedInUser(token: string): Promise<UserView> {
+    try {
+      const secretKey = configService.getEnvValue('SECRET_KEY');
+      const decoded = jwt.verify(token, secretKey);
+      const user = await this.getUserService.getUserById(decoded.id);
+      return parseToView(user);
     } catch (error) {
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }

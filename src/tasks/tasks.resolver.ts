@@ -36,13 +36,13 @@ export class TasksResolver {
   }
 
   @Query(() => TaskView)
-  @Roles('admin')
+  @Roles('admin', 'worker')
   async getTaskById(@Args('id') id: string): Promise<TaskView> {
     return this.getTaskService.getTaskById(id);
   }
 
   @Query(() => [TaskView])
-  @Roles('admin')
+  @Roles('admin', 'worker')
   async getTasks(@Args() args: GetTaskArgs): Promise<TaskView[]> {
     return this.getTaskService.getTasks(args);
   }
