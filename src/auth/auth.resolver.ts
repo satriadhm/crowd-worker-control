@@ -1,4 +1,4 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { Auth } from './models/auth';
 import { AuthService } from './services/auth.service';
 import { AuthView } from './dto/views/auth.view';
@@ -31,5 +31,15 @@ export class AuthResolver {
   @Roles('admin', 'worker')
   async me(@Args('token') token: string): Promise<UserView> {
     return this.authService.getLoggedInUser(token);
+  }
+
+  @Mutation(() => Boolean)
+  async logout(@Context() context): Promise<boolean> {
+    const token = context.req.headers.authorization?.split(' ')[1];
+    if (!token) throw new Error('No token provided');
+
+    // Memastikan refresh token dihapus dari database
+    await this.authService.logout(token);
+    return true;
   }
 }

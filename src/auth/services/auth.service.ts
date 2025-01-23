@@ -104,4 +104,8 @@ export class AuthService {
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }
+
+  async logout(token: string): Promise<void> {
+    await this.authModel.deleteOne({ refreshToken: token });
+  }
 }
