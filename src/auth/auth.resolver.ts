@@ -1,4 +1,4 @@
-import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { Auth } from './models/auth';
 import { AuthService } from './services/auth.service';
 import { AuthView } from './dto/views/auth.view';
@@ -14,48 +14,15 @@ export class AuthResolver {
   constructor(private readonly authService: AuthService) {}
 
   @Mutation(() => AuthView)
-  async login(
-    @Args('input') input: LoginInput,
-    @Context() context: any,
-  ): Promise<AuthView> {
+  async login(@Args('input') input: LoginInput): Promise<AuthView> {
     const result = await this.authService.login(input);
-
-    context.res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 3600 * 1000,
-    });
-
-    context.res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 3600 * 1000,
-    });
 
     return result;
   }
 
   @Mutation(() => AuthView)
-  async register(
-    @Args('input') input: RegisterInput,
-    @Context() context: any,
-  ): Promise<AuthView> {
+  async register(@Args('input') input: RegisterInput): Promise<AuthView> {
     const result = await this.authService.register(input);
-    context.res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 3600 * 1000,
-    });
-
-    context.res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 3600 * 1000,
-    });
 
     return result;
   }

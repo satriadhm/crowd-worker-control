@@ -18,9 +18,8 @@ export class JwtMiddleware implements NestMiddleware {
       console.log('Token found in Authorization header');
     }
 
-    if (!token && req.cookies) {
-      token = req.cookies['accessToken'];
-      console.log('Token found in cookies');
+    if (!token) {
+      console.warn('No token found in Authorization header');
     }
 
     if (token) {
