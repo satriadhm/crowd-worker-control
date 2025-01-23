@@ -8,11 +8,20 @@ import { Users } from 'src/users/models/user';
 export class JwtMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     if (req.method === 'OPTIONS') {
-      return next(); // Lewati preflight request
+      return next(); // Skip preflight request
     }
 
-    const token = req.headers.authorization?.split(' ')[1];
-    console.log('Authorization Header:', req.headers.authorization);
+    let token: string | undefined;
+
+    if (req.headers.authorization) {
+      token = req.headers.authorization.split(' ')[1];
+      console.log('Token found in Authorization header');
+    }
+
+    if (!token && req.cookies) {
+      token = req.cookies['accessToken'];
+      console.log('Token found in cookies');
+    }
 
     if (token) {
       try {
@@ -21,14 +30,16 @@ export class JwtMiddleware implements NestMiddleware {
           configService.getEnvValue('SECRET_KEY'),
         );
         req.user = decoded as Users;
+        console.log('JWT verified successfully:', decoded);
       } catch (err) {
         console.error('JWT Verification Error:', err.message);
         req.user = null;
       }
     } else {
-      console.warn('Token not found in the Authorization header');
+      console.warn('No token found in Authorization header or cookies');
       req.user = null;
     }
+
     next();
   }
 }
