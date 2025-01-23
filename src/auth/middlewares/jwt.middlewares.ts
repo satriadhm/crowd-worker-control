@@ -15,7 +15,6 @@ export class JwtMiddleware implements NestMiddleware {
 
     if (req.headers.authorization) {
       token = req.headers.authorization.split(' ')[1];
-      console.log('Token found in Authorization header');
     }
 
     if (!token) {
@@ -29,7 +28,6 @@ export class JwtMiddleware implements NestMiddleware {
           configService.getEnvValue('SECRET_KEY'),
         );
         req.user = decoded as Users;
-        console.log('JWT verified successfully:', decoded);
       } catch (err) {
         console.error('JWT Verification Error:', err.message);
         req.user = null;
