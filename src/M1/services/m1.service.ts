@@ -58,7 +58,6 @@ export class M1Service {
     const answers = await this.eligibilityModel.find({ taskId });
     const workers = answers.map((a) => a.workerId);
 
-    // Hitung akurasi untuk semua pekerja secara dinamis
     const accuracies = this.calculateAccuracy(workers, answers);
     await this.updateEligibility(taskId, workers, accuracies);
   }
@@ -70,7 +69,6 @@ export class M1Service {
     const N = answers.length;
     const Qij: Record<string, number> = {};
 
-    // Calculate pairwise agreements
     for (let i = 0; i < workerIds.length; i++) {
       for (let j = i + 1; j < workerIds.length; j++) {
         const w1 = workerIds[i];
