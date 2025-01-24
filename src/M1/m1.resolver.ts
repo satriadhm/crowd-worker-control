@@ -5,6 +5,7 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
+import { Role } from 'src/lib/user.enum';
 
 @Resolver()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,7 +13,7 @@ export class M1Resolver {
   constructor(private readonly m1Service: M1Service) {}
 
   @Mutation(() => Boolean)
-  @Roles('admin')
+  @Roles(Role.ADMIN)
   async assignTask(
     @Args('taskId') taskId: string,
     @Args('workerId') workerId: string,
@@ -22,7 +23,7 @@ export class M1Resolver {
   }
 
   @Mutation(() => Boolean)
-  @Roles('worker')
+  @Roles(Role.WORKER)
   async submitAnswer(
     @Args('taskId') taskId: string,
     @Args('workerId') workerId: string,
@@ -33,7 +34,7 @@ export class M1Resolver {
   }
 
   @Query(() => [String])
-  @Roles('admin')
+  @Roles(Role.ADMIN)
   async getEligibleWorkers(@Args('taskId') taskId: string): Promise<string[]> {
     const eligibleWorkers = await this.m1Service.getEligibleWorkers(taskId);
     return eligibleWorkers;

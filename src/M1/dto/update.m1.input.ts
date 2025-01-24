@@ -1,4 +1,4 @@
-import { CreateM1Input } from './create-m1.input';
+import { CreateM1Input } from './create.m1.input';
 import { InputType, Field, Int, PartialType } from '@nestjs/graphql';
 
 @InputType()

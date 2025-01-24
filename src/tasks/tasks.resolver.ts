@@ -64,7 +64,7 @@ export class TasksResolver {
   }
 
   @Query(() => Number)
-  @Roles('admin', 'worker')
+  @Roles(Role.ADMIN)
   async countTaskStat(): Promise<number> {
     return this.countTaskService.countTaskStat();
   }
