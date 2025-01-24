@@ -10,6 +10,7 @@ export class JwtMiddleware implements NestMiddleware {
     if (req.method === 'OPTIONS') {
       return next(); // Skip preflight request
     }
+    console.log(`Method: ${req.method}, URL: ${req.url}`);
 
     let token: string | undefined;
 
