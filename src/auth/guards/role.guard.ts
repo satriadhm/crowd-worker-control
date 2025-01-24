@@ -1,25 +1,26 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
+import { GqlExecutionContext } from '@nestjs/graphql';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>('role', [
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
       context.getHandler(),
       context.getClass(),
     ]);
 
+    const ctx = GqlExecutionContext.create(context).getContext();
+    const req = ctx.req;
+    const user = req.user;
+
     if (!requiredRoles) {
       return true;
     }
-
-    const req = context.switchToHttp().getRequest();
-    const user = req.user;
-
-    if (!user) {
+    if (!user || !user.role) {
       throw new ThrowGQL('Unauthorized', GQLThrowType.NOT_AUTHORIZED);
     }
 
