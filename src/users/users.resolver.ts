@@ -12,9 +12,10 @@ import { GetUserService } from './services/get.user.service';
 import { UseGuards } from '@nestjs/common';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { RolesGuard } from 'src/auth/guards/role.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 
 @Resolver(() => Users)
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersResolver {
   constructor(
     private readonly createUserService: CreateUserService,

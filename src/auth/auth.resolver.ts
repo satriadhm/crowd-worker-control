@@ -37,8 +37,6 @@ export class AuthResolver {
   async logout(@Context() context): Promise<boolean> {
     const token = context.req.headers.authorization?.split(' ')[1];
     if (!token) throw new Error('No token provided');
-
-    // Memastikan refresh token dihapus dari database
     await this.authService.logout(token);
     return true;
   }

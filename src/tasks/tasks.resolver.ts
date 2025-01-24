@@ -13,9 +13,10 @@ import { UseGuards } from '@nestjs/common';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { CountTaskService } from './services/count.task.service';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 
 @Resolver(() => Task)
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksResolver {
   constructor(
     private createTaskService: CreateTaskService,
@@ -44,13 +45,13 @@ export class TasksResolver {
   }
 
   @Query(() => [TaskView])
-  @Roles('admin', 'worker')
+  @Roles('admin')
   async getTasks(@Args() args: GetTaskArgs): Promise<TaskView[]> {
     return this.getTaskService.getTasks(args);
   }
 
   @Mutation(() => TaskView)
-  @Roles('admin')
+  @Roles('admin', 'worker')
   async deleteTask(@Args('id') id: string): Promise<TaskView> {
     return this.deleteTaskService.delete(id);
   }
