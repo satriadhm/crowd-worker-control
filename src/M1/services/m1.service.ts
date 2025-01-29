@@ -4,15 +4,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import { GetTaskService } from 'src/tasks/services/get.task.service';
 import { Eligibility } from '../models/eligibility';
 import { Model } from 'mongoose';
+import { RecordedAnswer } from '../models/recorded';
 
 @Injectable()
 export class M1Service {
   constructor(
-    private getTaskService: GetTaskService,
+    private readonly getTaskService: GetTaskService,
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<Eligibility>,
+    @InjectModel(RecordedAnswer.name)
+    private readonly recordedAnswerModel: Model<RecordedAnswer>,
   ) {}
 
+  /**
+   * Assign a task to a worker if not already assigned.
+   */
   async assignTaskToWorker(taskId: string, workerId: string): Promise<void> {
     const task = await this.getTaskService.getTaskById(taskId);
     if (!task) throw new Error('Task not found');
@@ -31,185 +37,164 @@ export class M1Service {
     }
   }
 
+  /**
+   * Record the worker's answer for a specific task and update accuracy.
+   */
   async recordAnswer(
     taskId: string,
     workerId: string,
     answer: string,
   ): Promise<void> {
-    const workerTask = await this.eligibilityModel.findOne({
-      taskId,
-      workerId,
-    });
-    if (!workerTask) {
-      // Jika pekerja baru, tambahkan ke database
-      await this.eligibilityModel.create({
-        taskId,
-        workerId,
-        answer,
-        eligible: false,
-      });
-    } else {
-      // Perbarui jawaban pekerja yang sudah ada
-      workerTask.answer = answer;
-      await workerTask.save();
-    }
-
-    // Ambil semua jawaban terkini untuk taskId
-    const answers = await this.eligibilityModel.find({ taskId });
-    const workers = answers.map((a) => a.workerId);
-
-    const accuracies = this.calculateAccuracy(workers, answers);
-    await this.updateEligibility(taskId, workers, accuracies);
-  }
-
-  private calculateAccuracy(
-    workerIds: string[],
-    answers: Eligibility[],
-  ): Record<string, number> {
-    const N = answers.length;
-    const Qij: Record<string, number> = {};
-
-    for (let i = 0; i < workerIds.length; i++) {
-      for (let j = i + 1; j < workerIds.length; j++) {
-        const w1 = workerIds[i];
-        const w2 = workerIds[j];
-
-        let agreementCount = 0;
-        for (const answer of answers) {
-          if (
-            answer.answer === answers.find((a) => a.workerId === w2)?.answer
-          ) {
-            agreementCount++;
-          }
-        }
-
-        Qij[`${w1}_${w2}`] = agreementCount / N;
-      }
-    }
-
-    return this.solveAccuracyEquations(workerIds, Qij);
-  }
-
-  private solveAccuracyEquations(
-    workerIds: string[],
-    Qij: Record<string, number>,
-    M = 2,
-  ): Record<string, number> {
-    const equations = (A: number[]) =>
-      workerIds.flatMap((_, i) =>
-        workerIds.slice(i + 1).map((_, j) => {
-          const key = `${workerIds[i]}_${workerIds[i + 1 + j]}`;
-          return (
-            Qij[key] -
-            (A[i] * A[i + 1 + j] + ((1 - A[i]) * (1 - A[i + 1 + j])) / (M - 1))
-          );
-        }),
-      );
-
-    const jacobian = (A: number[]) => {
-      const J: number[][] = [];
-      workerIds.forEach((_, i) => {
-        workerIds.slice(i + 1).forEach((_, j) => {
-          const row = new Array(workerIds.length).fill(0);
-          row[i] = A[i + 1 + j] - (1 - A[i + 1 + j]) / (M - 1);
-          row[i + 1 + j] = A[i] - (1 - A[i]) / (M - 1);
-          J.push(row);
-        });
-      });
-      return J;
-    };
-
-    const tolerance = 1e-6;
-    const maxIterations = 100;
-    let A = new Array(workerIds.length).fill(0.5);
-
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      const F = equations(A);
-      const J = jacobian(A);
-      const delta = this.solveLinearSystem(
-        J,
-        F.map((f) => -f),
-      );
-      A = A.map((a, i) => a + delta[i]);
-
-      if (Math.max(...delta.map(Math.abs)) < tolerance) break;
-    }
-
-    return workerIds.reduce(
-      (acc, workerId, idx) => {
-        acc[workerId] = A[idx];
-        return acc;
-      },
-      {} as Record<string, number>,
+    await this.eligibilityModel.findOneAndUpdate(
+      { taskId, workerId },
+      { $set: { answer } },
+      { upsert: true, new: true },
     );
+
+    // Record answer in the separate recordedAnswer schema for history
+    await this.recordedAnswerModel.create({ taskId, workerId, answer });
+
+    // Fetch all recorded answers for the task
+    const answers = await this.recordedAnswerModel.find({ taskId });
+    const workers = [...new Set(answers.map((a) => a.workerId.toString()))];
+
+    if (workers.length >= 3) {
+      const accuracies = await this.calculateAccuracy(taskId, workers, answers);
+      await this.updateEligibility(taskId, accuracies);
+    } else {
+      console.warn('Insufficient workers for accuracy calculation.');
+    }
   }
 
-  private solveLinearSystem(J: number[][], F: number[]): number[] {
-    const size = J.length;
-    const augmentedMatrix = J.map((row, i) => [...row, F[i]]);
-
-    for (let i = 0; i < size; i++) {
-      let maxRow = i;
-      for (let k = i + 1; k < size; k++) {
-        if (
-          Math.abs(augmentedMatrix[k][i]) > Math.abs(augmentedMatrix[maxRow][i])
-        ) {
-          maxRow = k;
-        }
-      }
-
-      [augmentedMatrix[i], augmentedMatrix[maxRow]] = [
-        augmentedMatrix[maxRow],
-        augmentedMatrix[i],
-      ];
-      const diag = augmentedMatrix[i][i];
-      for (let j = i; j <= size; j++) {
-        augmentedMatrix[i][j] /= diag;
-      }
-
-      for (let k = i + 1; k < size; k++) {
-        const factor = augmentedMatrix[k][i];
-        for (let j = i; j <= size; j++) {
-          augmentedMatrix[k][j] -= factor * augmentedMatrix[i][j];
-        }
-      }
-    }
-
-    const solution = new Array(size).fill(0);
-    for (let i = size - 1; i >= 0; i--) {
-      solution[i] = augmentedMatrix[i][size];
-      for (let j = i + 1; j < size; j++) {
-        solution[i] -= augmentedMatrix[i][j] * solution[j];
-      }
-    }
-
-    return solution;
-  }
-
-  private async updateEligibility(
+  /**
+   * Calculate accuracy for all workers based on recorded answers.
+   */
+  private async calculateAccuracy(
     taskId: string,
     workers: string[],
+    answers: RecordedAnswer[],
+  ): Promise<Record<string, number>> {
+    const numWorkers = workers.length;
+    const task = await this.getTaskService.getTaskById(taskId);
+    const M = task?.answers.length || 0;
+    const QijMatrix: number[][] = Array.from({ length: numWorkers }, () =>
+      Array(numWorkers).fill(0),
+    );
+
+    // Step 1: Compute Qij matrix
+    for (let i = 0; i < numWorkers; i++) {
+      for (let j = i + 1; j < numWorkers; j++) {
+        const workerIAnswers = answers.filter(
+          (r) => r.workerId.toString() === workers[i],
+        );
+        const workerJAnswers = answers.filter(
+          (r) => r.workerId.toString() === workers[j],
+        );
+
+        let matchingAnswers = 0;
+        let totalComparisons = 0;
+
+        workerIAnswers.forEach((answerI) => {
+          const answerJ = workerJAnswers.find(
+            (a) => a.taskId.toString() === answerI.taskId.toString(),
+          );
+          if (answerJ) {
+            totalComparisons++;
+            if (answerI.answer === answerJ.answer) {
+              matchingAnswers++;
+            }
+          }
+        });
+
+        const Qij =
+          totalComparisons > 0 ? matchingAnswers / totalComparisons : 0;
+        QijMatrix[i][j] = Qij;
+        QijMatrix[j][i] = Qij; // Symmetric matrix
+      }
+    }
+
+    // Step 2: Solve linear system for accuracy scores
+    const A = this.solveLinearSystem(QijMatrix, numWorkers, M);
+
+    // Step 3: Map results to worker IDs
+    const accuracyMap: Record<string, number> = {};
+    workers.forEach((workerId, index) => {
+      accuracyMap[workerId] = A[index];
+    });
+
+    return accuracyMap;
+  }
+
+  /**
+   * Solve the linear system to calculate accuracy scores.
+   */
+  private solveLinearSystem(
+    QijMatrix: number[][],
+    numWorkers: number,
+    M: number,
+  ): number[] {
+    const A = Array(numWorkers).fill(0.5); // Initial guesses for accuracy
+    const tolerance = 0.0001; // Convergence threshold
+    let maxIterations = 1000;
+
+    while (maxIterations > 0) {
+      maxIterations--;
+      const newA = [...A];
+
+      for (let i = 0; i < numWorkers; i++) {
+        let numerator = 0;
+        let denominator = 0;
+
+        for (let j = 0; j < numWorkers; j++) {
+          if (i === j) continue;
+
+          const Qij = QijMatrix[i][j];
+          numerator += Qij * (A[j] - 1 / (M + 1));
+          denominator += A[j] - 1 / (M + 1);
+        }
+
+        newA[i] = numerator / (denominator || 1); // Avoid division by zero
+      }
+
+      // Check for convergence
+      if (newA.every((val, idx) => Math.abs(val - A[idx]) < tolerance)) {
+        break;
+      }
+
+      A.splice(0, A.length, ...newA); // Update A with new values
+    }
+
+    return A;
+  }
+
+  /**
+   * Update eligibility based on calculated accuracy scores.
+   */
+  private async updateEligibility(
+    taskId: string,
     accuracies: Record<string, number>,
     threshold = 0.7,
   ): Promise<void> {
-    for (const workerId of workers) {
-      const workerTask = await this.eligibilityModel.findOne({
-        taskId,
-        workerId,
-      });
-      if (workerTask) {
-        workerTask.accuracy = accuracies[workerId];
-        workerTask.eligible = accuracies[workerId] >= threshold;
-        await workerTask.save();
-      }
+    const updates = Object.entries(accuracies).map(([workerId, accuracy]) => ({
+      updateOne: {
+        filter: { taskId, workerId },
+        update: { $set: { accuracy, eligible: accuracy >= threshold } },
+      },
+    }));
+
+    if (updates.length > 0) {
+      await this.eligibilityModel.bulkWrite(updates);
     }
   }
 
+  /**
+   * Get a list of eligible workers for a specific task.
+   */
   async getEligibleWorkers(taskId: string): Promise<string[]> {
     const eligibleWorkers = await this.eligibilityModel.find({
       taskId,
       eligible: true,
     });
-    return eligibleWorkers.map((worker) => worker.workerId);
+    return eligibleWorkers.map((worker) => worker.workerId.toString());
   }
 }

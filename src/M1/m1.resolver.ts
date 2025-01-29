@@ -1,5 +1,5 @@
 // src/M1/m1.resolver.ts
-import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
+import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { M1Service } from './services/m1.service';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
@@ -26,9 +26,10 @@ export class M1Resolver {
   @Roles(Role.WORKER)
   async submitAnswer(
     @Args('taskId') taskId: string,
-    @Args('workerId') workerId: string,
     @Args('answer') answer: string,
+    @Context() context: any,
   ): Promise<boolean> {
+    const workerId = context.req.user.id;
     await this.m1Service.recordAnswer(taskId, workerId, answer);
     return true;
   }
