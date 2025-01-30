@@ -24,14 +24,15 @@ export class M1Service {
     if (!task) throw new Error('Task not found');
 
     const existingAssignment = await this.eligibilityModel.findOne({
-      taskId,
       workerId,
+      taskIds: taskId,
     });
+
     if (!existingAssignment) {
       await this.eligibilityModel.create({
-        taskId,
+        taskIds: [taskId],
         workerId,
-        answer: '',
+        answers: [],
         eligible: false,
       });
     }

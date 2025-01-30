@@ -1,23 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Eligibility } from '../models/eligibility';
+import { Eligibility, EligibilityDocument } from '../models/eligibility';
 import { Model } from 'mongoose';
+import { CreateEligibilityInput } from '../dto/create.eligibility.input';
 
 @Injectable()
 export class CreateEligibilityService {
   constructor(
     @InjectModel(Eligibility.name)
-    private readonly eligibilityModel: Model<Eligibility>,
+    private readonly eligibilityModel: Model<EligibilityDocument>,
   ) {}
 
-  /**
-   * Create a new eligibility record for a worker and task.
-   */
-  async createEligibility(input: CreateEligibilityInput): Promise<> {
+  async createEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
     return await this.eligibilityModel.create({
-      taskId: input.taskId,
+      taskIds: [input.taskId],
       workerId: input.workerId,
-      answer: '',
+      answers: [],
       eligible: false,
     });
   }
