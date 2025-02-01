@@ -1,4 +1,4 @@
-// src/M1/m1.resolver.ts
+import { GetTaskService } from './../tasks/services/get.task.service';
 import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
@@ -16,6 +16,7 @@ export class M1Resolver {
     private readonly taskAssignmentService: TaskAssignmentService,
     private readonly accuracyCalculationService: AccuracyCalculationService,
     private readonly eligibilityUpdateService: EligibilityUpdateService,
+    private readonly getTaskService: GetTaskService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -46,9 +47,13 @@ export class M1Resolver {
     @Args('taskId') taskId: string,
     @Args('workerIds', { type: () => [String] }) workersId: string[],
   ): Promise<string[]> {
+    const task = await this.getTaskService.getTaskById(taskId);
+    if (!task) throw new Error('Task not found');
+    const m = task.answers.length;
     const accuracies = await this.accuracyCalculationService.calculateAccuracy(
       taskId,
       workersId,
+      m,
     );
 
     await this.eligibilityUpdateService.updateEligibility(taskId, accuracies);
