@@ -1,5 +1,5 @@
-// src/M1/services/accuracy.calculation.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { GetTaskService } from './../../tasks/services/get.task.service';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { RecordedAnswer } from '../models/recorded';
@@ -7,13 +7,11 @@ import { Task } from 'src/tasks/models/task';
 
 @Injectable()
 export class AccuracyCalculationService {
-  private readonly logger = new Logger(AccuracyCalculationService.name);
-
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
     @InjectModel(Task.name)
-    private readonly taskModel: Model<Task>,
+    private readonly getTaskService: GetTaskService,
   ) {}
 
   /**
@@ -29,8 +27,7 @@ export class AccuracyCalculationService {
     M: number,
   ): Promise<Record<string, number>> {
     // Fetch the task. We assume that task.answers is an array of the correct answers or metadata.
-    const task = await this.taskModel.findById(taskId);
-    if (!task) throw new Error('Task not found');
+    const task = await this.getTaskService.getTaskById(taskId);
 
     // Number of problems in this task.
     const N = task.answers.length;
