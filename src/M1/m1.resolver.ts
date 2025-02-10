@@ -8,6 +8,7 @@ import { Role } from 'src/lib/user.enum';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
 import { TaskAssignmentService } from './services/task.assignment.service';
 import { EligibilityUpdateService } from './services/update.eligibility.service';
+import { CreateRecordedService } from './services/create.recorded.service';
 
 @Resolver()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,6 +18,7 @@ export class M1Resolver {
     private readonly accuracyCalculationService: AccuracyCalculationService,
     private readonly eligibilityUpdateService: EligibilityUpdateService,
     private readonly getTaskService: GetTaskService,
+    private readonly createRecordedService: CreateRecordedService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -37,7 +39,7 @@ export class M1Resolver {
     @Context() context: any,
   ): Promise<boolean> {
     const workerId = context.req.user.id;
-    await this.taskAssignmentService.recordAnswer(taskId, workerId, answer);
+    await this.createRecordedService.recordAnswer(taskId, workerId, answer);
     return true;
   }
 

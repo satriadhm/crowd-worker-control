@@ -1,6 +1,6 @@
 // src/M1/m1.module.ts
 import { TasksModule } from './../tasks/tasks.module';
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { M1Resolver } from './m1.resolver';
 import { Task, TaskSchema } from 'src/tasks/models/task';
@@ -12,10 +12,11 @@ import { EligibilityUpdateService } from './services/update.eligibility.service'
 import { GetRecordedAnswerService } from './services/get.recorded.service';
 import { CreateEligibilityService } from './services/create.eligibility.service';
 import { CreateRecordedService } from './services/create.recorded.service';
+import { GetElibilityService } from './services/get.eligibility.service';
 
 @Module({
   imports: [
-    TasksModule,
+    forwardRef(() => TasksModule),
     MongooseModule.forFeature([
       { name: Task.name, schema: TaskSchema },
       { name: RecordedAnswer.name, schema: RecordedAnswerSchema },
@@ -25,6 +26,7 @@ import { CreateRecordedService } from './services/create.recorded.service';
   providers: [
     CreateRecordedService,
     CreateEligibilityService,
+    GetElibilityService,
     GetRecordedAnswerService,
     TaskAssignmentService,
     AccuracyCalculationService,
@@ -34,6 +36,7 @@ import { CreateRecordedService } from './services/create.recorded.service';
   exports: [
     CreateRecordedService,
     CreateEligibilityService,
+    GetElibilityService,
     GetRecordedAnswerService,
     TaskAssignmentService,
     AccuracyCalculationService,
