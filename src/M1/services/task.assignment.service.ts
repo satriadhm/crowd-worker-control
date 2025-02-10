@@ -40,9 +40,10 @@ export class TaskAssignmentService {
     workerId: string,
     answer: string,
   ): Promise<void> {
+    // Ensure that the `taskId` is included in the update query
     await this.eligibilityModel.findOneAndUpdate(
-      { taskId, workerId },
-      { $set: { answer } },
+      { taskIds: taskId, workerId }, // Ensure `taskIds` is used correctly
+      { $push: { answers: { taskId, workerId, answer } } }, // Update the answers array
       { upsert: true, new: true },
     );
 
