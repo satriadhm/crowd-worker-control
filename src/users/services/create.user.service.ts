@@ -12,15 +12,16 @@ import { UserView } from '../dto/views/user.view';
 export class CreateUserService {
   constructor(
     @InjectModel(Users.name)
-    private workersModel: Model<Users>,
+    private userModel: Model<Users>,
   ) {}
 
   async create(createUserInput: CreateUserInput): Promise<UserView> {
     try {
-      const user = new this.workersModel({
+      const user = await new this.userModel({
         _id: new ObjectId(),
         ...createUserInput,
       }).save();
+      console.log(user);
       return parseToView(user);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
