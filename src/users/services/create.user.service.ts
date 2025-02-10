@@ -21,7 +21,6 @@ export class CreateUserService {
         _id: new ObjectId(),
         ...createUserInput,
       }).save();
-      console.log(user);
       return parseToView(user);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);

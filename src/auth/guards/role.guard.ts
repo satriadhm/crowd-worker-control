@@ -17,16 +17,12 @@ export class RolesGuard implements CanActivate {
     const req = ctx.req;
     const user = req.user;
 
-    console.log('user', user);
-    
     if (!requiredRoles) {
       return true;
     }
     if (!user || !user.role) {
       throw new ThrowGQL('Unauthorized', GQLThrowType.NOT_AUTHORIZED);
     }
-
-    console.log('requiredRoles', requiredRoles);
 
     if (!requiredRoles.includes(user.role)) {
       throw new ThrowGQL('Forbidden', GQLThrowType.FORBIDDEN);
