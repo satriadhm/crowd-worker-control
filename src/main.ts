@@ -13,4 +13,10 @@ async function bootstrap() {
   app.useGlobalFilters(new CustomGraphQLErrorFilter());
   await app.listen(config.get('PORT') || configService.getPort());
 }
-bootstrap();
+
+// Check if the environment is Vercel
+if (process.env.VERCEL_ENV) {
+  module.exports = bootstrap();
+} else {
+  bootstrap();
+}

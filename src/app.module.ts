@@ -28,6 +28,7 @@ import { GQLErrFormatter } from '@app/gqlerr';
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
+      path: '/graphql',
       autoSchemaFile: true,
       sortSchema: true,
       introspection: true,

@@ -2,20 +2,15 @@
     "version": 2,
     "builds": [
       {
-        "src": "dist/main.js",
+        "src": "src/main.ts",
         "use": "@vercel/node"
       }
     ],
     "routes": [
       {
-        "src": "/graphql",
-        "dest": "dist/main.js",
-        "methods": ["GET", "POST", "OPTIONS"]
-      },
-      {
         "src": "/(.*)",
-        "dest": "dist/main.js"
+        "dest": "src/main.ts",
+        "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
       }
     ]
   }
-  
