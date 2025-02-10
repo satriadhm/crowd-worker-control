@@ -25,7 +25,7 @@ export class RolesGuard implements CanActivate {
     }
 
     if (!requiredRoles.includes(user.role)) {
-      throw new ThrowGQL('Forbidden', GQLThrowType.FORBIDDEN);
+      throw new ThrowGQL('Wrong Role', GQLThrowType.FORBIDDEN);
     }
 
     return true;

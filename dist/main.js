@@ -903,6 +903,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             graphql_1.GraphQLModule.forRoot({
                 driver: apollo_1.ApolloDriver,
+                path: '/graphql',
                 autoSchemaFile: true,
                 sortSchema: true,
                 introspection: true,
@@ -1294,7 +1295,7 @@ let RolesGuard = class RolesGuard {
             throw new gqlerr_1.ThrowGQL('Unauthorized', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
         }
         if (!requiredRoles.includes(user.role)) {
-            throw new gqlerr_1.ThrowGQL('Forbidden', gqlerr_1.GQLThrowType.FORBIDDEN);
+            throw new gqlerr_1.ThrowGQL('Wrong Role', gqlerr_1.GQLThrowType.FORBIDDEN);
         }
         return true;
     }
@@ -1573,6 +1574,37 @@ var Role;
     name: 'RoleEnum',
     description: 'The Role of the user',
 });
+
+
+/***/ }),
+
+/***/ "./src/main.ts":
+/*!*********************!*\
+  !*** ./src/main.ts ***!
+  \*********************/
+/***/ ((module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core_1 = __webpack_require__(/*! @nestjs/core */ "@nestjs/core");
+const app_module_1 = __webpack_require__(/*! ./app.module */ "./src/app.module.ts");
+const config_service_1 = __webpack_require__(/*! ./config/config.service */ "./src/config/config.service.ts");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+async function bootstrap() {
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
+        cors: { origin: '*' },
+    });
+    const config = app.get(config_1.ConfigService);
+    app.useGlobalFilters(new gqlerr_1.CustomGraphQLErrorFilter());
+    await app.listen(config.get('PORT') || config_service_1.configService.getPort());
+}
+if (process.env.VERCEL_ENV) {
+    module.exports = bootstrap();
+}
+else {
+    bootstrap();
+}
 
 
 /***/ }),
@@ -3269,31 +3301,11 @@ module.exports = require("mongoose");
 /******/ 	}
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
-(() => {
-var exports = __webpack_exports__;
-/*!*********************!*\
-  !*** ./src/main.ts ***!
-  \*********************/
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core_1 = __webpack_require__(/*! @nestjs/core */ "@nestjs/core");
-const app_module_1 = __webpack_require__(/*! ./app.module */ "./src/app.module.ts");
-const config_service_1 = __webpack_require__(/*! ./config/config.service */ "./src/config/config.service.ts");
-const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
-        cors: { origin: '*' },
-    });
-    const config = app.get(config_1.ConfigService);
-    app.useGlobalFilters(new gqlerr_1.CustomGraphQLErrorFilter());
-    await app.listen(config.get('PORT') || config_service_1.configService.getPort());
-}
-bootstrap();
-
-})();
-
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __webpack_require__("./src/main.ts");
+/******/ 	
 /******/ })()
 ;
