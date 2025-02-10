@@ -56,16 +56,4 @@ export class TasksResolver {
   async deleteTask(@Args('id') id: string): Promise<TaskView> {
     return this.deleteTaskService.delete(id);
   }
-
-  @Query(() => [TaskView])
-  @Roles(Role.ADMIN, Role.WORKER)
-  async countAnswerStat(@Args('id') id: string): Promise<TaskView> {
-    return this.countTaskService.countAnswerStat(id);
-  }
-
-  @Query(() => Number)
-  @Roles(Role.ADMIN)
-  async countTaskStat(): Promise<number> {
-    return this.countTaskService.countTaskStat();
-  }
 }

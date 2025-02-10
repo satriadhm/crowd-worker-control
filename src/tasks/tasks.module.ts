@@ -9,11 +9,13 @@ import { DeleteTaskService } from './services/delete.task.service';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { CountTaskService } from './services/count.task.service';
+import { M1Module } from 'src/M1/m1.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
     TasksModule,
+    M1Module,
     UsersModule,
     AuthModule,
   ],

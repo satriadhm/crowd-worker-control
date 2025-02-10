@@ -1,55 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { GetRecordedAnswerService } from 'src/M1/services/get.recorded.service';
 import { Task } from '../models/task';
-import { parseToView } from '../models/parser';
-import { sum } from 'mathjs';
-import { TaskView } from '../dto/views/task.view.input';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class CountTaskService {
   constructor(
     @InjectModel(Task.name)
     private taskModel: Model<Task>,
+    private getRecordedAnswerService: GetRecordedAnswerService,
   ) {}
 
-  async countAnswerStat(id: string): Promise<TaskView> {
-    try {
-      const task = await this.taskModel.findById(id);
-      if (!task) {
-        throw new Error('Task not found');
-      }
+  @Cron('*/10 * * * *')
+  async countAnswerStat(): Promise<void> {
+    const tasks = await this.taskModel.find();
+    if (!tasks.length) throw new Error('No tasks found');
 
-      const parsedTask = parseToView(task);
-      const totalWorkers = sum(
-        parsedTask.answers.map((answer) => answer.workerId.length),
-      );
+    for (const task of tasks) {
+      const recordedAnswers =
+        await this.getRecordedAnswerService.getRecordedAnswer(task._id);
+      const totalAnswers = recordedAnswers.length;
 
-      parsedTask.answers.forEach((answer) => {
-        const answerWorkers = answer.workerId.length;
-        answer.stats = totalWorkers > 0 ? answerWorkers / totalWorkers : 0;
+      task.answers.forEach((answer) => {
+        const count = recordedAnswers.filter(
+          (recordedAnswer) => recordedAnswer.answer === answer.answer,
+        ).length;
+        answer.stats = count / totalAnswers;
       });
 
-      await this.taskModel.updateOne(
-        { _id: id },
-        { answers: parsedTask.answers },
-      );
-
-      return parsedTask;
-    } catch (error) {
-      console.error('Error calculating answer stats:', error);
-      throw error;
-    }
-  }
-
-  async countTaskStat(): Promise<number> {
-    try {
-      const tasks = await this.taskModel.find();
-      const totalTasks = tasks.length;
-      return totalTasks;
-    } catch (error) {
-      console.error('Error counting tasks:', error);
-      throw error;
+      // Update the task with the new answer stats
+      await task.save();
     }
   }
 }

@@ -9,6 +9,9 @@ import { Eligibility, EligibilitySchema } from './models/eligibility';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
 import { TaskAssignmentService } from './services/task.assignment.service';
 import { EligibilityUpdateService } from './services/update.eligibility.service';
+import { GetRecordedAnswerService } from './services/get.recorded.service';
+import { CreateEligibilityService } from './services/create.eligibility.service';
+import { CreateRecordedService } from './services/create.recorded.service';
 
 @Module({
   imports: [
@@ -20,10 +23,21 @@ import { EligibilityUpdateService } from './services/update.eligibility.service'
     ]),
   ],
   providers: [
+    CreateRecordedService,
+    CreateEligibilityService,
+    GetRecordedAnswerService,
     TaskAssignmentService,
     AccuracyCalculationService,
     EligibilityUpdateService,
     M1Resolver,
+  ],
+  exports: [
+    CreateRecordedService,
+    CreateEligibilityService,
+    GetRecordedAnswerService,
+    TaskAssignmentService,
+    AccuracyCalculationService,
+    EligibilityUpdateService,
   ],
 })
 export class M1Module {}
