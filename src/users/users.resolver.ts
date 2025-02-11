@@ -36,7 +36,7 @@ export class UsersResolver {
 
   @Mutation(() => UserView)
   @Roles('admin')
-  async deleteUser(id: string): Promise<UserView> {
+  async deleteUser(@Args('id') id: string): Promise<UserView> {
     return this.deleteUserService.delete(id);
   }
 
@@ -47,17 +47,19 @@ export class UsersResolver {
   }
 
   @Query(() => UserView)
-  async getUserByUsername(userName: string): Promise<UserView> {
+  async getUserByUsername(
+    @Args('username') userName: string,
+  ): Promise<UserView> {
     return this.getUserService.getUserByUsername(userName);
   }
 
   @Query(() => UserView)
-  async getUserByEmail(email: string): Promise<UserView> {
+  async getUserByEmail(@Args('email') email: string): Promise<UserView> {
     return this.getUserService.getUserByEmail(email);
   }
 
   @Query(() => UserView)
-  async getUserById(@Args() id: string): Promise<UserView> {
+  async getUserById(@Args('id') id: string): Promise<UserView> {
     return this.getUserService.getUserById(id);
   }
 }

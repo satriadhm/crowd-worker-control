@@ -3095,6 +3095,7 @@ __decorate([
 __decorate([
     (0, graphql_1.Mutation)(() => user_view_1.UserView),
     (0, role_decorator_1.Roles)('admin'),
+    __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
@@ -3109,18 +3110,21 @@ __decorate([
 ], UsersResolver.prototype, "getAllUsers", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    __param(0, (0, graphql_1.Args)('username')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
 ], UsersResolver.prototype, "getUserByUsername", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    __param(0, (0, graphql_1.Args)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], UsersResolver.prototype, "getUserByEmail", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
