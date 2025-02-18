@@ -3,14 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { RecordedAnswer } from '../models/recorded';
-import { Task } from 'src/tasks/models/task';
+import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 
 @Injectable()
 export class AccuracyCalculationService {
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
-    @InjectModel(Task.name)
     private readonly getTaskService: GetTaskService,
   ) {}
 
@@ -24,13 +23,21 @@ export class AccuracyCalculationService {
   async calculateAccuracy(
     taskId: string,
     workers: string[],
+    windowSize: number,
     M: number,
   ): Promise<Record<string, number>> {
     // Fetch the task. We assume that task.answers is an array of the correct answers or metadata.
     const task = await this.getTaskService.getTaskById(taskId);
+    if (!task) {
+      throw new ThrowGQL(
+        `Task with ID ${taskId} not found`,
+        GQLThrowType.NOT_FOUND,
+      );
+    }
 
     // Number of problems in this task.
     const N = task.answers.length;
+    M = N;
 
     // Fetch all recorded answers for this task.
     // We assume that each RecordedAnswer now includes a property `questionIndex` (0-based index).
@@ -43,30 +50,39 @@ export class AccuracyCalculationService {
     );
 
     // For every pair (i, j), compare answers for each problem index k.
-    for (let i = 0; i < numWorkers; i++) {
-      for (let j = i + 1; j < numWorkers; j++) {
-        let Tij = 0;
-        // For each problem k, find the answer provided by worker i and j.
-        for (let k = 0; k < N; k++) {
-          const answerI = answers.find(
-            (a) =>
-              a.workerId.toString() === workers[i] &&
-              a.taskId.toString() === taskId &&
-              a['questionIndex'] === k, // ensure each answer is associated with a question index
-          );
-          const answerJ = answers.find(
-            (a) =>
-              a.workerId.toString() === workers[j] &&
-              a.taskId.toString() === taskId &&
-              a['questionIndex'] === k,
-          );
-          if (answerI && answerJ && answerI.answer === answerJ.answer) {
-            Tij++;
+    for (let start = 0; start <= numWorkers - windowSize; start++) {
+      const subsetWorkers = workers.slice(start, start + windowSize);
+
+      for (let i = 0; i < subsetWorkers.length; i++) {
+        for (let j = i + 1; j < subsetWorkers.length; j++) {
+          let Tij = 0;
+
+          // Bandingkan jawaban pekerja dalam subset
+          for (let k = 0; k < N; k++) {
+            const answerI = answers.find(
+              (a) =>
+                a.workerId.toString() === subsetWorkers[i] &&
+                a.taskId.toString() === taskId &&
+                a['questionIndex'] === k,
+            );
+            const answerJ = answers.find(
+              (a) =>
+                a.workerId.toString() === subsetWorkers[j] &&
+                a.taskId.toString() === taskId &&
+                a['questionIndex'] === k,
+            );
+            if (answerI && answerJ && answerI.answer === answerJ.answer) {
+              Tij++;
+            }
           }
+
+          const Qij = Tij / N;
+          const indexI = workers.indexOf(subsetWorkers[i]);
+          const indexJ = workers.indexOf(subsetWorkers[j]);
+
+          QijMatrix[indexI][indexJ] = Qij;
+          QijMatrix[indexJ][indexI] = Qij; // Matriks simetris
         }
-        const Qij = Tij / N;
-        QijMatrix[i][j] = Qij;
-        QijMatrix[j][i] = Qij; // symmetric
       }
     }
 
