@@ -56,6 +56,7 @@ export class M1Resolver {
       taskId,
       workersId,
       m,
+      3,
     );
 
     await this.eligibilityUpdateService.updateEligibility(taskId, accuracies);

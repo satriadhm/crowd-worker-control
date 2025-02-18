@@ -37,7 +37,6 @@ export class AccuracyCalculationService {
 
     // Number of problems in this task.
     const N = task.answers.length;
-    M = N;
 
     // Fetch all recorded answers for this task.
     // We assume that each RecordedAnswer now includes a property `questionIndex` (0-based index).
