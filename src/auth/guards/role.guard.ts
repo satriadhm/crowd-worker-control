@@ -1,7 +1,13 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
 import { GqlExecutionContext } from '@nestjs/graphql';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -15,19 +21,39 @@ export class RolesGuard implements CanActivate {
 
     const ctx = GqlExecutionContext.create(context).getContext();
     const req = ctx.req;
-    const user = req.user;
 
-    if (!requiredRoles) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedException('Missing authorization header');
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      throw new UnauthorizedException('Invalid authorization format');
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = decoded; // Attach user to request
+
+
+      if (!requiredRoles || requiredRoles.length === 0) {
+        return true;
+      }
+
+      if (!req.user || !req.user.role) {
+        throw new UnauthorizedException('User role not found');
+      }
+
+      // Check if user has the required role
+      if (!requiredRoles.includes(req.user.role)) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+
       return true;
+    } catch (error) {
+      console.error('JWT Verification Error:', error.message);
+      throw new UnauthorizedException('Invalid or expired token');
     }
-    if (!user || !user.role) {
-      throw new ThrowGQL('Unauthorized', GQLThrowType.NOT_AUTHORIZED);
-    }
-
-    if (!requiredRoles.includes(user.role)) {
-      throw new ThrowGQL('Wrong Role', GQLThrowType.FORBIDDEN);
-    }
-
-    return true;
   }
 }

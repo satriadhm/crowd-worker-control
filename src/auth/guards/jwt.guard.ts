@@ -25,7 +25,7 @@ export class JwtAuthGuard implements CanActivate {
       req.user = decoded;
       return true;
     } catch (err) {
-      throw new ThrowGQL('Unauthorized', GQLThrowType.NOT_AUTHORIZED);
+      throw new ThrowGQL(`${req.user} Unauthorized`, GQLThrowType.NOT_AUTHORIZED);
     }
   }
 }

@@ -4,19 +4,15 @@ import { AuthService } from './services/auth.service';
 import { AuthView } from './dto/views/auth.view';
 import { LoginInput, RegisterInput } from './dto/inputs/create.auth.input';
 import { UserView } from 'src/users/dto/views/user.view';
-import { UseGuards } from '@nestjs/common';
 import { Roles } from './decorators/role.decorator';
-import { RolesGuard } from './guards/role.guard';
 
 @Resolver(() => Auth)
-@UseGuards(RolesGuard)
 export class AuthResolver {
   constructor(private readonly authService: AuthService) {}
 
   @Mutation(() => AuthView)
   async login(@Args('input') input: LoginInput): Promise<AuthView> {
     const result = await this.authService.login(input);
-
     return result;
   }
 
