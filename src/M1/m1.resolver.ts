@@ -58,7 +58,6 @@ export class M1Resolver {
       m,
       3,
     );
-
     await this.eligibilityUpdateService.updateEligibility(taskId, accuracies);
 
     const eligibleWorkers = Object.entries(accuracies)

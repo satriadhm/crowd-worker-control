@@ -36,7 +36,6 @@ export class RolesGuard implements CanActivate {
       const decoded = jwt.verify(token, process.env.SECRET_KEY);
       req.user = decoded; // Attach user to request
 
-
       if (!requiredRoles || requiredRoles.length === 0) {
         return true;
       }
