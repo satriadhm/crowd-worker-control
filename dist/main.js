@@ -890,6 +890,7 @@ const users_module_1 = __webpack_require__(/*! ./users/users.module */ "./src/us
 const m1_module_1 = __webpack_require__(/*! ./M1/m1.module */ "./src/M1/m1.module.ts");
 const throttler_1 = __webpack_require__(/*! @nestjs/throttler */ "@nestjs/throttler");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const evaluation_module_1 = __webpack_require__(/*! ./evaluation/evaluation.module */ "./src/evaluation/evaluation.module.ts");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -922,6 +923,7 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             m1_module_1.M1Module,
+            evaluation_module_1.EvaluationModule,
         ],
     })
 ], AppModule);
@@ -1561,6 +1563,398 @@ const configService = new ConfigService(process.env).ensureValues([
     'SECRET_KEY',
 ]);
 exports.configService = configService;
+
+
+/***/ }),
+
+/***/ "./src/evaluation/dto/views/test-analysis.view.ts":
+/*!********************************************************!*\
+  !*** ./src/evaluation/dto/views/test-analysis.view.ts ***!
+  \********************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TesterAnalysisDto = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let TesterAnalysisDto = class TesterAnalysisDto {
+};
+exports.TesterAnalysisDto = TesterAnalysisDto;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisDto.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisDto.prototype, "testerName", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.Float),
+    __metadata("design:type", Number)
+], TesterAnalysisDto.prototype, "averageScore", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.Float),
+    __metadata("design:type", Number)
+], TesterAnalysisDto.prototype, "accuracy", void 0);
+exports.TesterAnalysisDto = TesterAnalysisDto = __decorate([
+    (0, graphql_1.ObjectType)()
+], TesterAnalysisDto);
+
+
+/***/ }),
+
+/***/ "./src/evaluation/dto/views/test-result.view.ts":
+/*!******************************************************!*\
+  !*** ./src/evaluation/dto/views/test-result.view.ts ***!
+  \******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestResultDto = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let TestResultDto = class TestResultDto {
+};
+exports.TestResultDto = TestResultDto;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultDto.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultDto.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultDto.prototype, "testId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TestResultDto.prototype, "score", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], TestResultDto.prototype, "feedback", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], TestResultDto.prototype, "createdAt", void 0);
+exports.TestResultDto = TestResultDto = __decorate([
+    (0, graphql_1.ObjectType)()
+], TestResultDto);
+
+
+/***/ }),
+
+/***/ "./src/evaluation/entities/test-result.entity.ts":
+/*!*******************************************************!*\
+  !*** ./src/evaluation/entities/test-result.entity.ts ***!
+  \*******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestResultSchema = exports.TestResult = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let TestResult = class TestResult {
+};
+exports.TestResult = TestResult;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResult.prototype, "_id", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResult.prototype, "workerId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResult.prototype, "testId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TestResult.prototype, "score", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], TestResult.prototype, "feedback", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], TestResult.prototype, "createdAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+], TestResult.prototype, "updatedAt", void 0);
+exports.TestResult = TestResult = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true }),
+    (0, graphql_1.ObjectType)()
+], TestResult);
+exports.TestResultSchema = mongoose_1.SchemaFactory.createForClass(TestResult);
+
+
+/***/ }),
+
+/***/ "./src/evaluation/evaluation.module.ts":
+/*!*********************************************!*\
+  !*** ./src/evaluation/evaluation.module.ts ***!
+  \*********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EvaluationModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const evaluation_service_1 = __webpack_require__(/*! ./evaluation.service */ "./src/evaluation/evaluation.service.ts");
+const evaluation_resolver_1 = __webpack_require__(/*! ./evaluation.resolver */ "./src/evaluation/evaluation.resolver.ts");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const test_result_entity_1 = __webpack_require__(/*! ./entities/test-result.entity */ "./src/evaluation/entities/test-result.entity.ts");
+let EvaluationModule = class EvaluationModule {
+};
+exports.EvaluationModule = EvaluationModule;
+exports.EvaluationModule = EvaluationModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            mongoose_1.MongooseModule.forFeature([
+                { name: test_result_entity_1.TestResult.name, schema: test_result_entity_1.TestResultSchema },
+            ]),
+        ],
+        providers: [evaluation_service_1.EvaluationService, evaluation_resolver_1.EvaluationResolver],
+        exports: [evaluation_service_1.EvaluationService],
+    })
+], EvaluationModule);
+
+
+/***/ }),
+
+/***/ "./src/evaluation/evaluation.resolver.ts":
+/*!***********************************************!*\
+  !*** ./src/evaluation/evaluation.resolver.ts ***!
+  \***********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EvaluationResolver = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+const evaluation_service_1 = __webpack_require__(/*! ./evaluation.service */ "./src/evaluation/evaluation.service.ts");
+const test_analysis_view_1 = __webpack_require__(/*! ./dto/views/test-analysis.view */ "./src/evaluation/dto/views/test-analysis.view.ts");
+const test_result_view_1 = __webpack_require__(/*! ./dto/views/test-result.view */ "./src/evaluation/dto/views/test-result.view.ts");
+let EvaluationResolver = class EvaluationResolver {
+    constructor(evaluationService) {
+        this.evaluationService = evaluationService;
+    }
+    async getTestHistory(workerId) {
+        const results = await this.evaluationService.getTestHistory(workerId);
+        return results.map((result) => ({
+            id: result._id.toString(),
+            workerId: result.workerId,
+            testId: result.testId,
+            score: result.score,
+            feedback: result.feedback,
+            createdAt: result.createdAt,
+        }));
+    }
+    async getTestResults() {
+        const results = await this.evaluationService.getAllTestResults();
+        return results.map((result) => ({
+            id: result._id.toString(),
+            workerId: result.workerId,
+            testId: result.testId,
+            score: result.score,
+            feedback: result.feedback,
+            createdAt: result.createdAt,
+        }));
+    }
+    async getTesterAnalysis() {
+        return this.evaluationService.getTesterAnalysis();
+    }
+    async recordTestResult(workerId, testId, score, feedback) {
+        const result = await this.evaluationService.recordTestResult(workerId, testId, score, feedback);
+        return {
+            id: result._id.toString(),
+            workerId: result.workerId,
+            testId: result.testId,
+            score: result.score,
+            feedback: result.feedback,
+            createdAt: result.createdAt,
+        };
+    }
+};
+exports.EvaluationResolver = EvaluationResolver;
+__decorate([
+    (0, graphql_1.Query)(() => [test_result_view_1.TestResultDto]),
+    __param(0, (0, graphql_1.Args)('workerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_b = typeof Promise !== "undefined" && Promise) === "function" ? _b : Object)
+], EvaluationResolver.prototype, "getTestHistory", null);
+__decorate([
+    (0, graphql_1.Query)(() => [test_result_view_1.TestResultDto]),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], EvaluationResolver.prototype, "getTestResults", null);
+__decorate([
+    (0, graphql_1.Query)(() => [test_analysis_view_1.TesterAnalysisDto]),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_d = typeof Promise !== "undefined" && Promise) === "function" ? _d : Object)
+], EvaluationResolver.prototype, "getTesterAnalysis", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => test_result_view_1.TestResultDto),
+    __param(0, (0, graphql_1.Args)('workerId')),
+    __param(1, (0, graphql_1.Args)('testId')),
+    __param(2, (0, graphql_1.Args)('score')),
+    __param(3, (0, graphql_1.Args)('feedback', { nullable: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number, String]),
+    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+], EvaluationResolver.prototype, "recordTestResult", null);
+exports.EvaluationResolver = EvaluationResolver = __decorate([
+    (0, graphql_1.Resolver)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof evaluation_service_1.EvaluationService !== "undefined" && evaluation_service_1.EvaluationService) === "function" ? _a : Object])
+], EvaluationResolver);
+
+
+/***/ }),
+
+/***/ "./src/evaluation/evaluation.service.ts":
+/*!**********************************************!*\
+  !*** ./src/evaluation/evaluation.service.ts ***!
+  \**********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EvaluationService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const test_result_entity_1 = __webpack_require__(/*! ./entities/test-result.entity */ "./src/evaluation/entities/test-result.entity.ts");
+let EvaluationService = class EvaluationService {
+    constructor(testResultModel) {
+        this.testResultModel = testResultModel;
+    }
+    async getTestHistory(workerId) {
+        return this.testResultModel
+            .find({ workerId })
+            .sort({ createdAt: -1 })
+            .exec();
+    }
+    async getAllTestResults() {
+        return this.testResultModel.find().sort({ createdAt: -1 }).exec();
+    }
+    async getTesterAnalysis() {
+        const results = await this.testResultModel.aggregate([
+            {
+                $group: {
+                    _id: '$workerId',
+                    averageScore: { $avg: '$score' },
+                    count: { $sum: 1 },
+                },
+            },
+            {
+                $project: {
+                    workerId: '$_id',
+                    averageScore: 1,
+                    accuracy: { $divide: ['$averageScore', 100] },
+                },
+            },
+        ]);
+        return results.map((r) => ({
+            workerId: r.workerId,
+            testerName: r.workerId,
+            averageScore: r.averageScore,
+            accuracy: r.accuracy,
+        }));
+    }
+    async recordTestResult(workerId, testId, score, feedback) {
+        const newResult = new this.testResultModel({
+            workerId,
+            testId,
+            score,
+            feedback,
+        });
+        return newResult.save();
+    }
+};
+exports.EvaluationService = EvaluationService;
+exports.EvaluationService = EvaluationService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(test_result_entity_1.TestResult.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], EvaluationService);
 
 
 /***/ }),
