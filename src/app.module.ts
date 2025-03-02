@@ -34,6 +34,7 @@ import { GQLErrFormatter } from '@app/gqlerr';
       introspection: true,
       playground: true,
       formatError: GQLErrFormatter,
+      context: ({ req, res }) => ({ req, res }),
     }),
     TasksModule,
     AuthModule,

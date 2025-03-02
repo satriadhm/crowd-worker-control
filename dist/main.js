@@ -916,6 +916,7 @@ exports.AppModule = AppModule = __decorate([
                 introspection: true,
                 playground: true,
                 formatError: gqlerr_1.GQLErrFormatter,
+                context: ({ req, res }) => ({ req, res }),
             }),
             tasks_module_1.TasksModule,
             auth_module_1.AuthModule,
