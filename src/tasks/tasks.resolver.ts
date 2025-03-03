@@ -56,4 +56,10 @@ export class TasksResolver {
   async deleteTask(@Args('id') id: string): Promise<TaskView> {
     return this.deleteTaskService.delete(id);
   }
+
+  @Query(() => Number)
+  @Roles(Role.WORKER, Role.ADMIN)
+  async getTotalTasks(): Promise<number> {
+    return this.getTaskService.getTotalTasks();
+  }
 }

@@ -49,4 +49,12 @@ export class GetUserService {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
   }
+
+  async getTotalUsers(): Promise<number> {
+    try {
+      return this.usersModel.countDocuments();
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
 }

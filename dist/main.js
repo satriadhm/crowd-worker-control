@@ -2547,6 +2547,14 @@ let GetTaskService = class GetTaskService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async getTotalTasks() {
+        try {
+            return this.taskModel.countDocuments();
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
 };
 exports.GetTaskService = GetTaskService;
 exports.GetTaskService = GetTaskService = __decorate([
@@ -2695,7 +2703,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TasksResolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -2736,6 +2744,9 @@ let TasksResolver = class TasksResolver {
     }
     async deleteTask(id) {
         return this.deleteTaskService.delete(id);
+    }
+    async getTotalTasks() {
+        return this.getTaskService.getTotalTasks();
     }
 };
 exports.TasksResolver = TasksResolver;
@@ -2779,6 +2790,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], TasksResolver.prototype, "deleteTask", null);
+__decorate([
+    (0, graphql_1.Query)(() => Number),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+], TasksResolver.prototype, "getTotalTasks", null);
 exports.TasksResolver = TasksResolver = __decorate([
     (0, graphql_1.Resolver)(() => task_1.Task),
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),
@@ -2912,9 +2930,21 @@ let UpdateUserInput = class UpdateUserInput extends (0, graphql_1.PartialType)(c
 };
 exports.UpdateUserInput = UpdateUserInput;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.Int),
-    __metadata("design:type", Number)
+    (0, graphql_1.Field)(() => String),
+    __metadata("design:type", String)
 ], UpdateUserInput.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "address1", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "address2", void 0);
 exports.UpdateUserInput = UpdateUserInput = __decorate([
     (0, graphql_1.InputType)()
 ], UpdateUserInput);
@@ -3307,6 +3337,14 @@ let GetUserService = class GetUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async getTotalUsers() {
+        try {
+            return this.usersModel.countDocuments();
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
 };
 exports.GetUserService = GetUserService;
 exports.GetUserService = GetUserService = __decorate([
@@ -3444,7 +3482,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UsersResolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -3462,6 +3500,7 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
+const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let UsersResolver = class UsersResolver {
     constructor(createUserService, updateUserService, deleteUserService, getUserService) {
         this.createUserService = createUserService;
@@ -3490,6 +3529,9 @@ let UsersResolver = class UsersResolver {
     async getUserById(id) {
         return this.getUserService.getUserById(id);
     }
+    async getTotalUsers() {
+        return this.getUserService.getTotalUsers();
+    }
 };
 exports.UsersResolver = UsersResolver;
 __decorate([
@@ -3508,7 +3550,7 @@ __decorate([
 ], UsersResolver.prototype, "updateUser", null);
 __decorate([
     (0, graphql_1.Mutation)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)('admin'),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -3516,7 +3558,7 @@ __decorate([
 ], UsersResolver.prototype, "deleteUser", null);
 __decorate([
     (0, graphql_2.Query)(() => [user_view_1.UserView]),
-    (0, role_decorator_1.Roles)('admin'),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [typeof (_k = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _k : Object]),
@@ -3524,6 +3566,7 @@ __decorate([
 ], UsersResolver.prototype, "getAllUsers", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)('username')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -3531,6 +3574,7 @@ __decorate([
 ], UsersResolver.prototype, "getUserByUsername", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -3538,11 +3582,19 @@ __decorate([
 ], UsersResolver.prototype, "getUserByEmail", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
 ], UsersResolver.prototype, "getUserById", null);
+__decorate([
+    (0, graphql_2.Query)(() => Number),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
+], UsersResolver.prototype, "getTotalUsers", null);
 exports.UsersResolver = UsersResolver = __decorate([
     (0, graphql_1.Resolver)(() => user_1.Users),
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),

@@ -13,6 +13,7 @@ import { UseGuards } from '@nestjs/common';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { Role } from 'src/lib/user.enum';
 
 @Resolver(() => Users)
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,18 +36,19 @@ export class UsersResolver {
   }
 
   @Mutation(() => UserView)
-  @Roles('admin')
+  @Roles(Role.ADMIN)
   async deleteUser(@Args('id') id: string): Promise<UserView> {
     return this.deleteUserService.delete(id);
   }
 
   @Query(() => [UserView])
-  @Roles('admin')
+  @Roles(Role.ADMIN)
   async getAllUsers(@Args() args: GetUserArgs): Promise<UserView[]> {
     return this.getUserService.getAllUsers(args);
   }
 
   @Query(() => UserView)
+  @Roles(Role.ADMIN)
   async getUserByUsername(
     @Args('username') userName: string,
   ): Promise<UserView> {
@@ -54,12 +56,20 @@ export class UsersResolver {
   }
 
   @Query(() => UserView)
+  @Roles(Role.ADMIN)
   async getUserByEmail(@Args('email') email: string): Promise<UserView> {
     return this.getUserService.getUserByEmail(email);
   }
 
   @Query(() => UserView)
+  @Roles(Role.ADMIN)
   async getUserById(@Args('id') id: string): Promise<UserView> {
     return this.getUserService.getUserById(id);
+  }
+
+  @Query(() => Number)
+  @Roles(Role.WORKER, Role.ADMIN)
+  async getTotalUsers(): Promise<number> {
+    return this.getUserService.getTotalUsers();
   }
 }

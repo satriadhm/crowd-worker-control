@@ -34,4 +34,12 @@ export class GetTaskService {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
   }
+
+  async getTotalTasks(): Promise<number> {
+    try {
+      return this.taskModel.countDocuments();
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
 }
