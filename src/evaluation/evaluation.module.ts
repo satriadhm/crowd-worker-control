@@ -10,7 +10,7 @@ import { TestResult, TestResultSchema } from './entities/test-result.entity';
       { name: TestResult.name, schema: TestResultSchema },
     ]),
   ],
-  providers: [EvaluationService,EvaluationResolver],
+  providers: [EvaluationService, EvaluationResolver],
   exports: [EvaluationService],
 })
 export class EvaluationModule {}

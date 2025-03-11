@@ -9,6 +9,7 @@ export enum Role {
   ADMIN = 'admin',
   WORKER = 'worker',
   COMPANY_REPRESENTATIVE = 'company_representative',
+  QUESTION_VALIDATOR = 'question_validator',
 }
 
 registerEnumType(Gender, {

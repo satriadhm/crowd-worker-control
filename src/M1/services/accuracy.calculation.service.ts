@@ -107,6 +107,7 @@ export class AccuracyCalculationService {
    * @param M Number of multiple-choice options.
    * @returns Array of accuracies corresponding to the workers.
    */
+
   private solveForAccuracies(
     QijMatrix: number[][],
     workers: string[],

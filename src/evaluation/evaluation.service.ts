@@ -11,7 +11,6 @@ export class EvaluationService {
     private testResultModel: Model<TestResultDocument>,
   ) {}
 
-  // Mendapatkan riwayat test berdasarkan workerId
   async getTestHistory(workerId: string): Promise<TestResult[]> {
     return this.testResultModel
       .find({ workerId })
@@ -19,12 +18,10 @@ export class EvaluationService {
       .exec();
   }
 
-  // Mendapatkan semua test result (untuk admin)
   async getAllTestResults(): Promise<TestResult[]> {
     return this.testResultModel.find().sort({ createdAt: -1 }).exec();
   }
 
-  // Mengagregasi data untuk analisis tester
   async getTesterAnalysis(): Promise<TesterAnalysisDto[]> {
     const results = await this.testResultModel.aggregate([
       {
@@ -38,7 +35,6 @@ export class EvaluationService {
         $project: {
           workerId: '$_id',
           averageScore: 1,
-          // Misalnya, accuracy didefinisikan sebagai averageScore/100
           accuracy: { $divide: ['$averageScore', 100] },
         },
       },
@@ -52,7 +48,6 @@ export class EvaluationService {
     }));
   }
 
-  // Mutation untuk merekam test result baru
   async recordTestResult(
     workerId: string,
     testId: string,
