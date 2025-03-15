@@ -4,7 +4,7 @@ import { Document, Types } from 'mongoose';
 @Schema({ timestamps: true })
 export class RecordedAnswer extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Task', required: true })
-  taskId: string; // <== Make sure this field exists!
+  taskId: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Worker', required: true })
   workerId: string;

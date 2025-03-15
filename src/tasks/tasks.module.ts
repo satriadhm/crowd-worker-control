@@ -8,7 +8,6 @@ import { UpdateTaskService } from './services/update.task.service';
 import { DeleteTaskService } from './services/delete.task.service';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
-import { CountTaskService } from './services/count.task.service';
 import { M1Module } from 'src/M1/m1.module';
 
 @Module({
@@ -24,14 +23,12 @@ import { M1Module } from 'src/M1/m1.module';
     GetTaskService,
     UpdateTaskService,
     DeleteTaskService,
-    CountTaskService,
   ],
   exports: [
     CreateTaskService,
     GetTaskService,
     UpdateTaskService,
     DeleteTaskService,
-    CountTaskService,
   ],
 })
 export class TasksModule {}

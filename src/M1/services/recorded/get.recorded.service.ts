@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { RecordedAnswer } from '../models/recorded';
+import { RecordedAnswer } from '../../models/recorded';
 import { Model } from 'mongoose';
 @Injectable()
 export class GetRecordedAnswerService {

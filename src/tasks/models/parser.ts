@@ -3,6 +3,7 @@ import { TaskView } from '../dto/views/task.view.input';
 export const parseToView = (input: any): TaskView => {
   return {
     id: input._id,
+    isValidQuestion: false,
     title: input.title,
     description: input.description,
     question: input.question,

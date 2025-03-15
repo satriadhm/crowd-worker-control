@@ -9,10 +9,8 @@ import { GetTaskArgs } from './dto/args/get.task.args';
 import { UpdateTaskService } from './services/update.task.service';
 import { UpdateTaskInput } from './dto/inputs/update.task.input';
 import { UseGuards } from '@nestjs/common';
-// import { Roles } from 'src/auth/decorators/role.decorator';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
-import { CountTaskService } from './services/count.task.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { Role } from 'src/lib/user.enum';
 
@@ -24,42 +22,47 @@ export class TasksResolver {
     private getTaskService: GetTaskService,
     private deleteTaskService: DeleteTaskService,
     private updateTaskService: UpdateTaskService,
-    private countTaskService: CountTaskService,
   ) {}
 
   @Mutation(() => TaskView)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
   async createTask(@Args('input') input: CreateTaskInput): Promise<TaskView> {
     return this.createTaskService.createTask(input);
   }
 
   @Mutation(() => TaskView)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
   async updateTask(@Args('input') input: UpdateTaskInput): Promise<TaskView> {
     return this.updateTaskService.updateTask(input);
   }
 
   @Query(() => TaskView)
-  @Roles(Role.ADMIN, Role.WORKER)
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR, Role.WORKER)
   async getTaskById(@Args('id') id: string): Promise<TaskView> {
     return this.getTaskService.getTaskById(id);
   }
 
   @Query(() => [TaskView])
-  @Roles(Role.ADMIN, Role.WORKER)
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR, Role.WORKER)
   async getTasks(@Args() args: GetTaskArgs): Promise<TaskView[]> {
     return this.getTaskService.getTasks(args);
   }
 
   @Mutation(() => TaskView)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
   async deleteTask(@Args('id') id: string): Promise<TaskView> {
     return this.deleteTaskService.delete(id);
   }
 
   @Query(() => Number)
-  @Roles(Role.WORKER, Role.ADMIN)
+  @Roles(Role.WORKER, Role.ADMIN, Role.QUESTION_VALIDATOR)
   async getTotalTasks(): Promise<number> {
     return this.getTaskService.getTotalTasks();
+  }
+
+  @Mutation(() => TaskView)
+  @Roles(Role.QUESTION_VALIDATOR)
+  async validateQuestionTask(@Args('id') id: string): Promise<void> {
+    return this.updateTaskService.validateQuestionTask(id);
   }
 }

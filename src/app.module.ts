@@ -10,7 +10,6 @@ import { UsersModule } from './users/users.module';
 import { M1Module } from './M1/m1.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GQLErrFormatter } from '@app/gqlerr';
-import { EvaluationModule } from './evaluation/evaluation.module';
 
 @Module({
   imports: [
@@ -41,7 +40,6 @@ import { EvaluationModule } from './evaluation/evaluation.module';
     AuthModule,
     UsersModule,
     M1Module,
-    EvaluationModule,
   ],
 })
 export class AppModule {}

@@ -18,6 +18,9 @@ export class TaskView {
   @Field()
   nAnswers: number;
 
+  @Field()
+  isValidQuestion: boolean;
+
   @Field(() => [Answer])
   answers: Answer[];
 }

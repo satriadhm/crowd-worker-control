@@ -29,4 +29,17 @@ export class UpdateTaskService {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
   }
+
+  async validateQuestionTask(id: string) {
+    try {
+      const task = await this.taskModel.findById(id);
+      if (!task) {
+        throw new ThrowGQL('Task not found', GQLThrowType.NOT_FOUND);
+      }
+      task.isValidQuestion = true;
+      task.save();
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
 }

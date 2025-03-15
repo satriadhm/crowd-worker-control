@@ -6,30 +6,18 @@ import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Role } from 'src/lib/user.enum';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
-import { TaskAssignmentService } from './services/task.assignment.service';
-import { EligibilityUpdateService } from './services/update.eligibility.service';
-import { CreateRecordedService } from './services/create.recorded.service';
+import { EligibilityUpdateService } from './services/eligibility/update.eligibility.service';
+import { CreateRecordedService } from './services/recorded/create.recorded.service';
 
 @Resolver()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class M1Resolver {
   constructor(
-    private readonly taskAssignmentService: TaskAssignmentService,
     private readonly accuracyCalculationService: AccuracyCalculationService,
     private readonly eligibilityUpdateService: EligibilityUpdateService,
     private readonly getTaskService: GetTaskService,
     private readonly createRecordedService: CreateRecordedService,
   ) {}
-
-  @Mutation(() => Boolean)
-  @Roles(Role.ADMIN)
-  async assignTask(
-    @Args('taskId') taskId: string,
-    @Args('workerId') workerId: string,
-  ): Promise<boolean> {
-    await this.taskAssignmentService.assignTaskToWorker(taskId, workerId);
-    return true;
-  }
 
   @Mutation(() => Boolean)
   @Roles(Role.WORKER)

@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Eligibility } from '../models/eligibility';
+import { Eligibility } from '../../models/eligibility';
 
 @Injectable()
 export class EligibilityUpdateService {

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { RecordedAnswer } from '../models/recorded';
+import { RecordedAnswer } from '../../models/recorded';
 import { Model } from 'mongoose';
-import { GetElibilityService } from './get.eligibility.service';
+import { GetElibilityService } from '../eligibility/get.eligibility.service';
 
 @Injectable()
 export class CreateRecordedService {

@@ -32,6 +32,10 @@ export class Task {
 
   @Field()
   @Prop({ required: true })
+  isValidQuestion: boolean;
+
+  @Field()
+  @Prop({ required: true })
   nAnswers: number;
 
   @Field(() => [Answer])
