@@ -7,4 +7,7 @@ export class CreateEligibilityInput {
 
   @Field()
   workerId: string;
+
+  @Field()
+  accuracy: number;
 }

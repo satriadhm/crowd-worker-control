@@ -14,7 +14,7 @@ export class Eligibility {
   @Prop({ type: Types.ObjectId, ref: 'Users', required: true })
   workerId: string;
 
-  @Field(() => [RecordedAnswer]) // Pastikan GraphQL mengetahui tipe data
+  @Field(() => [RecordedAnswer])
   @Prop({ type: [Types.ObjectId], ref: 'RecordedAnswer', default: [] })
   answers: RecordedAnswer[];
 
@@ -25,6 +25,14 @@ export class Eligibility {
   @Field(() => Boolean)
   @Prop({ default: false })
   eligible: boolean;
+
+  @Field(() => Date)
+  @Prop({ default: Date.now })
+  createdAt: Date;
+
+  @Field(() => Date)
+  @Prop({ default: Date.now })
+  updatedAt: Date;
 }
 
 export type EligibilityDocument = HydratedDocument<Eligibility>;

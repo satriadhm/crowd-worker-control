@@ -8,14 +8,10 @@ import { CreateTaskInput } from './dto/inputs/create.task.input';
 import { GetTaskArgs } from './dto/args/get.task.args';
 import { UpdateTaskService } from './services/update.task.service';
 import { UpdateTaskInput } from './dto/inputs/update.task.input';
-import { UseGuards } from '@nestjs/common';
-import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { Role } from 'src/lib/user.enum';
 
 @Resolver(() => Task)
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksResolver {
   constructor(
     private createTaskService: CreateTaskService,

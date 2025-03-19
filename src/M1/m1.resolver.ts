@@ -8,6 +8,8 @@ import { Role } from 'src/lib/user.enum';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
 import { EligibilityUpdateService } from './services/eligibility/update.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
+import { GetElibilityService } from './services/eligibility/get.eligibility.service';
+import { EligibilityView } from './dto/eligibility/views/eligibility.view';
 
 @Resolver()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -16,6 +18,7 @@ export class M1Resolver {
     private readonly accuracyCalculationService: AccuracyCalculationService,
     private readonly eligibilityUpdateService: EligibilityUpdateService,
     private readonly getTaskService: GetTaskService,
+    private readonly GetElibilityService: GetElibilityService,
     private readonly createRecordedService: CreateRecordedService,
   ) {}
 
@@ -31,9 +34,18 @@ export class M1Resolver {
     return true;
   }
 
+  @Query(() => [EligibilityView])
+  @Roles(Role.WORKER, Role.ADMIN)
+  async getEligibilityHistory(
+    @Args('taskId') taskId: string,
+    @Args('workerId') workerId: string,
+  ): Promise<EligibilityView[]> {
+    return this.GetElibilityService.getEligibilityHistoryWorkerId(workerId);
+  }
+
   @Query(() => [String])
   @Roles(Role.ADMIN)
-  async getEligibleWorkers(
+  async calculateEligibility(
     @Args('taskId') taskId: string,
     @Args('workerIds', { type: () => [String] }) workersId: string[],
   ): Promise<string[]> {

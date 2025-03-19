@@ -25,11 +25,9 @@ export class CreateRecordedService {
     workerId: string,
     answer: string,
   ): Promise<void> {
-    await this.getElibilityService.findOneAndUpdate(
-      { taskIds: taskId, workerId },
-      { $push: { answers: { taskId, workerId, answer } } },
-      { upsert: true, new: true },
-    );
+    await this.getElibilityService.getElibilityAndUpdate(taskId, {
+      $addToSet: { workerIds: workerId },
+    });
 
     await this.createRecordedAnswer(taskId, workerId, answer);
   }

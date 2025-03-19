@@ -138,6 +138,60 @@ exports.CThrowType = {
 
 /***/ }),
 
+/***/ "./src/M1/dto/eligibility/views/eligibility.view.ts":
+/*!**********************************************************!*\
+  !*** ./src/M1/dto/eligibility/views/eligibility.view.ts ***!
+  \**********************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EligibilityView = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let EligibilityView = class EligibilityView {
+};
+exports.EligibilityView = EligibilityView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "taskId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], EligibilityView.prototype, "accuracy", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "feedback", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], EligibilityView.prototype, "Date", void 0);
+exports.EligibilityView = EligibilityView = __decorate([
+    (0, graphql_1.ObjectType)()
+], EligibilityView);
+
+
+/***/ }),
+
 /***/ "./src/M1/m1.module.ts":
 /*!*****************************!*\
   !*** ./src/M1/m1.module.ts ***!
@@ -221,7 +275,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f;
+var _a, _b, _c, _d, _e, _f, _g, _h;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const get_task_service_1 = __webpack_require__(/*! ./../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
@@ -234,11 +288,14 @@ const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user
 const accuracy_calculation_service_1 = __webpack_require__(/*! ./services/accuracy.calculation.service */ "./src/M1/services/accuracy.calculation.service.ts");
 const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
+const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
+const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligibility.view */ "./src/M1/dto/eligibility/views/eligibility.view.ts");
 let M1Resolver = class M1Resolver {
-    constructor(accuracyCalculationService, eligibilityUpdateService, getTaskService, createRecordedService) {
+    constructor(accuracyCalculationService, eligibilityUpdateService, getTaskService, GetElibilityService, createRecordedService) {
         this.accuracyCalculationService = accuracyCalculationService;
         this.eligibilityUpdateService = eligibilityUpdateService;
         this.getTaskService = getTaskService;
+        this.GetElibilityService = GetElibilityService;
         this.createRecordedService = createRecordedService;
     }
     async submitAnswer(taskId, answer, context) {
@@ -246,7 +303,10 @@ let M1Resolver = class M1Resolver {
         await this.createRecordedService.recordAnswer(taskId, workerId, answer);
         return true;
     }
-    async getEligibleWorkers(taskId, workersId) {
+    async getEligibilityHistory(taskId, workerId) {
+        return this.GetElibilityService.getEligibilityHistoryWorkerId(workerId);
+    }
+    async calculateEligibility(taskId, workersId) {
         const task = await this.getTaskService.getTaskById(taskId);
         if (!task)
             throw new Error('Task not found');
@@ -268,8 +328,17 @@ __decorate([
     __param(2, (0, graphql_1.Context)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String, Object]),
-    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
 ], M1Resolver.prototype, "submitAnswer", null);
+__decorate([
+    (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('taskId')),
+    __param(1, (0, graphql_1.Args)('workerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
+], M1Resolver.prototype, "getEligibilityHistory", null);
 __decorate([
     (0, graphql_1.Query)(() => [String]),
     (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
@@ -277,12 +346,12 @@ __decorate([
     __param(1, (0, graphql_1.Args)('workerIds', { type: () => [String] })),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Array]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
-], M1Resolver.prototype, "getEligibleWorkers", null);
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], M1Resolver.prototype, "calculateEligibility", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),
-    __metadata("design:paramtypes", [typeof (_a = typeof accuracy_calculation_service_1.AccuracyCalculationService !== "undefined" && accuracy_calculation_service_1.AccuracyCalculationService) === "function" ? _a : Object, typeof (_b = typeof update_eligibility_service_1.EligibilityUpdateService !== "undefined" && update_eligibility_service_1.EligibilityUpdateService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object, typeof (_d = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _d : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof accuracy_calculation_service_1.AccuracyCalculationService !== "undefined" && accuracy_calculation_service_1.AccuracyCalculationService) === "function" ? _a : Object, typeof (_b = typeof update_eligibility_service_1.EligibilityUpdateService !== "undefined" && update_eligibility_service_1.EligibilityUpdateService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object, typeof (_d = typeof get_eligibility_service_1.GetElibilityService !== "undefined" && get_eligibility_service_1.GetElibilityService) === "function" ? _d : Object, typeof (_e = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _e : Object])
 ], M1Resolver);
 
 
@@ -304,6 +373,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EligibilitySchema = exports.Eligibility = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -338,11 +408,45 @@ __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
 ], Eligibility.prototype, "eligible", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date),
+    (0, mongoose_1.Prop)({ default: Date.now }),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], Eligibility.prototype, "createdAt", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date),
+    (0, mongoose_1.Prop)({ default: Date.now }),
+    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+], Eligibility.prototype, "updatedAt", void 0);
 exports.Eligibility = Eligibility = __decorate([
     (0, mongoose_1.Schema)(),
     (0, graphql_1.ObjectType)()
 ], Eligibility);
 exports.EligibilitySchema = mongoose_1.SchemaFactory.createForClass(Eligibility);
+
+
+/***/ }),
+
+/***/ "./src/M1/models/parser.ts":
+/*!*********************************!*\
+  !*** ./src/M1/models/parser.ts ***!
+  \*********************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseToViewEligibility = void 0;
+const parseToViewEligibility = (input) => {
+    return {
+        id: input._id,
+        workerId: input.workerId,
+        accuracy: input.accuracy,
+        feedback: input.feedback,
+        Date: input.Date,
+        taskId: input.taskId,
+    };
+};
+exports.parseToViewEligibility = parseToViewEligibility;
 
 
 /***/ }),
@@ -584,6 +688,7 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const parser_1 = __webpack_require__(/*! src/M1/models/parser */ "./src/M1/models/parser.ts");
 let GetElibilityService = class GetElibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
@@ -591,7 +696,7 @@ let GetElibilityService = class GetElibilityService {
     async getEligibility() {
         try {
             const res = await this.eligibilityModel.find();
-            return res;
+            return res.map((result) => (0, parser_1.parseToViewEligibility)(result));
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
@@ -600,33 +705,31 @@ let GetElibilityService = class GetElibilityService {
     async getEligibilityById(eligibilityId) {
         try {
             const res = await this.eligibilityModel.findById(eligibilityId);
-            return res;
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToViewEligibility)(res);
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
         }
     }
-    async findOne(query) {
+    async getEligibilityHistoryWorkerId(workerId) {
         try {
-            const res = await this.eligibilityModel.findOne(query);
-            return res;
+            const results = await this.eligibilityModel.find({ workerId });
+            return results.map((result) => (0, parser_1.parseToViewEligibility)(result));
         }
         catch (error) {
-            throw new gqlerr_1.ThrowGQL('Error finding eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-    }
-    async findOneAndUpdate(query, update, options) {
-        try {
-            await this.eligibilityModel.findOneAndUpdate(query, update, options);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL('Error updating eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
+            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
         }
     }
     async getElibilityAndUpdate(eligibilityId, update) {
         try {
             const res = await this.eligibilityModel.findByIdAndUpdate(eligibilityId, update, { new: true });
-            return res;
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToViewEligibility)(res);
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL('Error updating eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
@@ -731,7 +834,9 @@ let CreateRecordedService = class CreateRecordedService {
         return this.recordedAnswerModel.create({ taskId, workerId, answer });
     }
     async recordAnswer(taskId, workerId, answer) {
-        await this.getElibilityService.findOneAndUpdate({ taskIds: taskId, workerId }, { $push: { answers: { taskId, workerId, answer } } }, { upsert: true, new: true });
+        await this.getElibilityService.getElibilityAndUpdate(taskId, {
+            $addToSet: { workerIds: workerId },
+        });
         await this.createRecordedAnswer(taskId, workerId, answer);
     }
 };
@@ -1776,6 +1881,7 @@ const parseRequest = (input) => {
     return {
         title: input.title,
         description: input.description,
+        isValidQuestion: false,
         question: input.question,
         answers: input.answers,
         nAnswers: input.answers.length,
@@ -2231,10 +2337,7 @@ const create_task_input_1 = __webpack_require__(/*! ./dto/inputs/create.task.inp
 const get_task_args_1 = __webpack_require__(/*! ./dto/args/get.task.args */ "./src/tasks/dto/args/get.task.args.ts");
 const update_task_service_1 = __webpack_require__(/*! ./services/update.task.service */ "./src/tasks/services/update.task.service.ts");
 const update_task_input_1 = __webpack_require__(/*! ./dto/inputs/update.task.input */ "./src/tasks/dto/inputs/update.task.input.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let TasksResolver = class TasksResolver {
     constructor(createTaskService, getTaskService, deleteTaskService, updateTaskService) {
@@ -2323,7 +2426,6 @@ __decorate([
 ], TasksResolver.prototype, "validateQuestionTask", null);
 exports.TasksResolver = TasksResolver = __decorate([
     (0, graphql_1.Resolver)(() => task_1.Task),
-    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),
     __metadata("design:paramtypes", [typeof (_a = typeof create_task_service_1.CreateTaskService !== "undefined" && create_task_service_1.CreateTaskService) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof delete_task_service_1.DeleteTaskService !== "undefined" && delete_task_service_1.DeleteTaskService) === "function" ? _c : Object, typeof (_d = typeof update_task_service_1.UpdateTaskService !== "undefined" && update_task_service_1.UpdateTaskService) === "function" ? _d : Object])
 ], TasksResolver);
 

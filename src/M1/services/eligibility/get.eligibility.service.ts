@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Eligibility } from '../../models/eligibility';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { parseToViewEligibility } from 'src/M1/models/parser';
+import { EligibilityView } from 'src/M1/dto/eligibility/views/eligibility.view';
 
 @Injectable()
 export class GetElibilityService {
@@ -11,52 +13,52 @@ export class GetElibilityService {
     private readonly eligibilityModel: Model<Eligibility>,
   ) {}
 
-  async getEligibility(): Promise<Eligibility[]> {
+  async getEligibility(): Promise<EligibilityView[]> {
     try {
       const res = await this.eligibilityModel.find();
-      return res;
+      return res.map((result) => parseToViewEligibility(result));
     } catch (error) {
       throw new ThrowGQL('Error getting eligibility', GQLThrowType.NOT_FOUND);
     }
   }
 
-  async getEligibilityById(eligibilityId: string): Promise<Eligibility> {
+  async getEligibilityById(eligibilityId: string): Promise<EligibilityView> {
     try {
       const res = await this.eligibilityModel.findById(eligibilityId);
-      return res;
+      if (!res) {
+        throw new ThrowGQL('Eligibility not found', GQLThrowType.NOT_FOUND);
+      }
+      return parseToViewEligibility(res);
     } catch (error) {
       throw new ThrowGQL('Error getting eligibility', GQLThrowType.NOT_FOUND);
     }
   }
 
-  async findOne(query: any): Promise<Eligibility> {
+  async getEligibilityHistoryWorkerId(
+    workerId: string,
+  ): Promise<EligibilityView[]> {
     try {
-      const res = await this.eligibilityModel.findOne(query);
-      return res;
+      const results = await this.eligibilityModel.find({ workerId });
+      return results.map((result) => parseToViewEligibility(result));
     } catch (error) {
-      throw new ThrowGQL('Error finding eligibility', GQLThrowType.NOT_FOUND);
-    }
-  }
-
-  async findOneAndUpdate(query: any, update: any, options: any) {
-    try {
-      await this.eligibilityModel.findOneAndUpdate(query, update, options);
-    } catch (error) {
-      throw new ThrowGQL('Error updating eligibility', GQLThrowType.NOT_FOUND);
+      throw new ThrowGQL('Error getting eligibility', GQLThrowType.NOT_FOUND);
     }
   }
 
   async getElibilityAndUpdate(
     eligibilityId: string,
     update: any,
-  ): Promise<Eligibility> {
+  ): Promise<EligibilityView> {
     try {
       const res = await this.eligibilityModel.findByIdAndUpdate(
         eligibilityId,
         update,
         { new: true },
       );
-      return res;
+      if (!res) {
+        throw new ThrowGQL('Eligibility not found', GQLThrowType.NOT_FOUND);
+      }
+      return parseToViewEligibility(res);
     } catch (error) {
       throw new ThrowGQL('Error updating eligibility', GQLThrowType.NOT_FOUND);
     }
