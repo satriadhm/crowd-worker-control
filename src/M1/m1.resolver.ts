@@ -1,8 +1,5 @@
 import { GetTaskService } from './../tasks/services/get.task.service';
 import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { RolesGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Role } from 'src/lib/user.enum';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
@@ -12,7 +9,6 @@ import { GetElibilityService } from './services/eligibility/get.eligibility.serv
 import { EligibilityView } from './dto/eligibility/views/eligibility.view';
 
 @Resolver()
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class M1Resolver {
   constructor(
     private readonly accuracyCalculationService: AccuracyCalculationService,
@@ -29,6 +25,7 @@ export class M1Resolver {
     @Args('answer') answer: string,
     @Context() context: any,
   ): Promise<boolean> {
+    console.log(context.req.user);
     const workerId = context.req.user.id;
     await this.createRecordedService.recordAnswer(taskId, workerId, answer);
     return true;

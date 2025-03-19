@@ -58,7 +58,7 @@ export class TasksResolver {
 
   @Mutation(() => TaskView)
   @Roles(Role.QUESTION_VALIDATOR)
-  async validateQuestionTask(@Args('id') id: string): Promise<void> {
+  async validateQuestionTask(@Args('id') id: string): Promise<TaskView> {
     return this.updateTaskService.validateQuestionTask(id);
   }
 }

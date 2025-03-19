@@ -30,14 +30,15 @@ export class UpdateTaskService {
     }
   }
 
-  async validateQuestionTask(id: string) {
+  async validateQuestionTask(id: string): Promise<TaskView> {
     try {
       const task = await this.taskModel.findById(id);
       if (!task) {
         throw new ThrowGQL('Task not found', GQLThrowType.NOT_FOUND);
       }
       task.isValidQuestion = true;
-      task.save();
+      await task.save();
+      return parseToView(task);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
