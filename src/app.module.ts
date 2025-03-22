@@ -10,11 +10,13 @@ import { UsersModule } from './users/users.module';
 import { M1Module } from './M1/m1.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GQLErrFormatter } from '@app/gqlerr';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60, limit: 10 }] }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

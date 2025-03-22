@@ -26,7 +26,6 @@ export class AccuracyCalculationService {
     windowSize: number,
     M: number,
   ): Promise<Record<string, number>> {
-    // Fetch the task. We assume that task.answers is an array of the correct answers or metadata.
     const task = await this.getTaskService.getTaskById(taskId);
     if (!task) {
       throw new ThrowGQL(
@@ -34,16 +33,11 @@ export class AccuracyCalculationService {
         GQLThrowType.NOT_FOUND,
       );
     }
-
-    // Number of problems in this task.
     const N = task.answers.length;
-
-    // Fetch all recorded answers for this task.
-    // We assume that each RecordedAnswer now includes a property `questionIndex` (0-based index).
     const answers = await this.recordedAnswerModel.find({ taskId });
-
-    // Create a 2D array for Qij between each pair of workers.
     const numWorkers = workers.length;
+
+    // Initialize a 2D array to store Qij values.
     const QijMatrix: number[][] = Array.from({ length: numWorkers }, () =>
       Array(numWorkers).fill(0),
     );

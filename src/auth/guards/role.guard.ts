@@ -21,7 +21,6 @@ export class RolesGuard implements CanActivate {
 
     const ctx = GqlExecutionContext.create(context).getContext();
     const req = ctx.req;
-
     const authHeader = req.headers?.authorization;
     if (!authHeader) {
       throw new UnauthorizedException('Missing authorization header');

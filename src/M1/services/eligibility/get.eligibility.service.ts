@@ -60,7 +60,8 @@ export class GetElibilityService {
       }
       return parseToViewEligibility(res);
     } catch (error) {
-      throw new ThrowGQL('Error updating eligibility', GQLThrowType.NOT_FOUND);
+      console.log('Error', error);
+      throw new ThrowGQL(`Error ${error}`, GQLThrowType.NOT_FOUND);
     }
   }
 }
