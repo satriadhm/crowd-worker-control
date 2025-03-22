@@ -29,7 +29,7 @@ export class GetTaskService {
     }
   }
 
-  async getTasks(args: GetTaskArgs): Promise<TaskView[]> {
+  async getTasks(args?: GetTaskArgs): Promise<TaskView[]> {
     try {
       const res = await this.taskModel.find().skip(args.skip).limit(args.take);
       return res.map((task) => parseToView(task));

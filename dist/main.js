@@ -275,7 +275,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h;
+var _a, _b, _c, _d, _e, _f, _g;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const get_task_service_1 = __webpack_require__(/*! ./../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
@@ -290,7 +290,6 @@ const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligi
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 let M1Resolver = class M1Resolver {
     constructor(accuracyCalculationService, eligibilityUpdateService, getTaskService, GetElibilityService, createRecordedService) {
         this.accuracyCalculationService = accuracyCalculationService;
@@ -307,18 +306,6 @@ let M1Resolver = class M1Resolver {
     }
     async getEligibilityHistory(workerId) {
         return this.GetElibilityService.getEligibilityHistoryWorkerId(workerId);
-    }
-    async calculateEligibility(taskId, workersId) {
-        const task = await this.getTaskService.getTaskById(taskId);
-        if (!task)
-            throw new Error('Task not found');
-        const m = task.answers.length;
-        const accuracies = await this.accuracyCalculationService.calculateAccuracy(taskId, workersId, m, 3);
-        await this.eligibilityUpdateService.updateEligibility(taskId, accuracies);
-        const eligibleWorkers = Object.entries(accuracies)
-            .filter(([, accuracy]) => accuracy >= 0.7)
-            .map(([workerId]) => workerId);
-        return eligibleWorkers;
     }
 };
 exports.M1Resolver = M1Resolver;
@@ -340,16 +327,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
 ], M1Resolver.prototype, "getEligibilityHistory", null);
-__decorate([
-    (0, schedule_1.Cron)('0 0 0 * * *'),
-    (0, graphql_1.Query)(() => [String]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('taskId')),
-    __param(1, (0, graphql_1.Args)('workerIds', { type: () => [String] })),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Array]),
-    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
-], M1Resolver.prototype, "calculateEligibility", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
@@ -515,7 +492,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AccuracyCalculationService = void 0;
 const get_task_service_1 = __webpack_require__(/*! ./../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
@@ -524,9 +501,12 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const recorded_1 = __webpack_require__(/*! ../models/recorded */ "./src/M1/models/recorded.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const update_eligibility_service_1 = __webpack_require__(/*! ./eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 let AccuracyCalculationService = class AccuracyCalculationService {
-    constructor(recordedAnswerModel, getTaskService) {
+    constructor(recordedAnswerModel, eligibilityUpdateService, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
+        this.eligibilityUpdateService = eligibilityUpdateService;
         this.getTaskService = getTaskService;
     }
     async calculateAccuracy(taskId, workers, windowSize, M) {
@@ -603,12 +583,34 @@ let AccuracyCalculationService = class AccuracyCalculationService {
         });
         return accuracyMap;
     }
+    async calculateEligibility() {
+        const tasks = await this.getTaskService.getTasks();
+        if (!tasks)
+            throw new Error('Task not found');
+        for (const task of tasks) {
+            const recordedAnswers = await this.recordedAnswerModel.find({
+                taskId: task.id,
+            });
+            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
+            if (workerIds.length === 0)
+                continue;
+            const m = task.answers.length;
+            const accuracies = await this.calculateAccuracy(task.id, workerIds, m, 3);
+            await this.eligibilityUpdateService.updateEligibility(task.id, accuracies);
+        }
+    }
 };
 exports.AccuracyCalculationService = AccuracyCalculationService;
+__decorate([
+    (0, schedule_1.Cron)('0 0 0 * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AccuracyCalculationService.prototype, "calculateEligibility", null);
 exports.AccuracyCalculationService = AccuracyCalculationService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof update_eligibility_service_1.EligibilityUpdateService !== "undefined" && update_eligibility_service_1.EligibilityUpdateService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
 ], AccuracyCalculationService);
 
 

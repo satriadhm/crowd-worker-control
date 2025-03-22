@@ -10,7 +10,6 @@ import { EligibilityView } from './dto/eligibility/views/eligibility.view';
 import { UseGuards } from '@nestjs/common';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { Cron } from '@nestjs/schedule';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -42,30 +41,5 @@ export class M1Resolver {
     @Args('workerId') workerId: string,
   ): Promise<EligibilityView[]> {
     return this.GetElibilityService.getEligibilityHistoryWorkerId(workerId);
-  }
-
-  @Cron('0 0 0 * * *')
-  @Query(() => [String])
-  @Roles(Role.ADMIN)
-  async calculateEligibility(
-    @Args('taskId') taskId: string,
-    @Args('workerIds', { type: () => [String] }) workersId: string[],
-  ): Promise<string[]> {
-    const task = await this.getTaskService.getTaskById(taskId);
-    if (!task) throw new Error('Task not found');
-    const m = task.answers.length;
-    const accuracies = await this.accuracyCalculationService.calculateAccuracy(
-      taskId,
-      workersId,
-      m,
-      3,
-    );
-    await this.eligibilityUpdateService.updateEligibility(taskId, accuracies);
-
-    const eligibleWorkers = Object.entries(accuracies)
-      .filter(([, accuracy]) => accuracy >= 0.7)
-      .map(([workerId]) => workerId);
-
-    return eligibleWorkers;
   }
 }

@@ -4,12 +4,16 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { RecordedAnswer } from '../models/recorded';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
+import { EligibilityUpdateService } from './eligibility/update.eligibility.service';
+import { Cron } from '@nestjs/schedule';
+import { CronExpression } from 'src/lib/cron.enum';
 
 @Injectable()
 export class AccuracyCalculationService {
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    private readonly eligibilityUpdateService: EligibilityUpdateService,
     private readonly getTaskService: GetTaskService,
   ) {}
 
@@ -133,8 +137,6 @@ export class AccuracyCalculationService {
         // If for some reason count is 0 (should not happen), keep the old value.
         newA[i] = count > 0 ? sumEstimates / count : A[i];
       }
-
-      // Check for convergence
       let maxDiff = 0;
       for (let i = 0; i < numWorkers; i++) {
         maxDiff = Math.max(maxDiff, Math.abs(newA[i] - A[i]));
@@ -143,11 +145,31 @@ export class AccuracyCalculationService {
       if (maxDiff < tolerance) break;
     }
 
-    // Map results back to worker IDs
     const accuracyMap: Record<string, number> = {};
     workers.forEach((workerId, index) => {
       accuracyMap[workerId] = A[index];
     });
     return accuracyMap;
+  }
+
+  @Cron(CronExpression.EVERY_5_SECONDS)
+  async calculateEligibility() {
+    const tasks = await this.getTaskService.getTasks();
+    if (!tasks) throw new Error('Task not found');
+    for (const task of tasks) {
+      const recordedAnswers = await this.recordedAnswerModel.find({
+        taskId: task.id,
+      });
+      const workerIds = Array.from(
+        new Set(recordedAnswers.map((answer) => answer.workerId.toString())),
+      );
+      if (workerIds.length === 0) continue;
+      const m = task.answers.length;
+      const accuracies = await this.calculateAccuracy(task.id, workerIds, m, 3);
+      await this.eligibilityUpdateService.updateEligibility(
+        task.id,
+        accuracies,
+      );
+    }
   }
 }
