@@ -8,7 +8,6 @@ import { Cron } from '@nestjs/schedule';
 import { CronExpression } from 'src/lib/cron.enum';
 import { CreateEligibilityService } from './eligibility/create.eligibility.service';
 import { CreateEligibilityInput } from '../dto/eligibility/inputs/create.eligibility.input';
-import { configService } from 'src/config/config.service';
 
 @Injectable()
 export class AccuracyCalculationService {
@@ -229,9 +228,6 @@ export class AccuracyCalculationService {
   async calculateEligibility() {
     const tasks = await this.getTaskService.getTasks();
     if (!tasks) throw new Error('Task not found');
-
-    const threshold = Number(configService.getEnvValue('M1_THRESHOLD'));
-
     for (const task of tasks) {
       const recordedAnswers = await this.recordedAnswerModel.find({
         taskId: task.id,
@@ -246,12 +242,10 @@ export class AccuracyCalculationService {
       // Update eligibility untuk masing-masing worker berdasarkan threshold
       for (const workerId of workerIds) {
         const accuracy = accuracies[workerId];
-        const eligible = accuracy >= threshold;
         const eligibilityInput: CreateEligibilityInput = {
           taskId: task.id,
           workerId: workerId,
           accuracy: accuracy,
-          eligible: eligible,
         };
         await this.CreateEligibilityService.upSertEligibility(eligibilityInput);
       }

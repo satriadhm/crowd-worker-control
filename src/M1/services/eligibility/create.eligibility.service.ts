@@ -12,10 +12,10 @@ export class CreateEligibilityService {
   ) {}
 
   async upSertEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
-    const { taskId, workerId, accuracy, eligible } = input;
+    const { taskId, workerId, accuracy } = input;
     const eligibility = await this.eligibilityModel.findOneAndUpdate(
       { taskId, workerId },
-      { taskId, workerId, accuracy, eligible },
+      { taskId, workerId, accuracy },
       { upsert: true, new: true },
     );
     return eligibility;

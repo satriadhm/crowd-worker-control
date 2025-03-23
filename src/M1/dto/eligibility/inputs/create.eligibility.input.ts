@@ -10,7 +10,4 @@ export class CreateEligibilityInput {
 
   @Field()
   accuracy: number;
-
-  @Field()
-  eligible: boolean;
 }

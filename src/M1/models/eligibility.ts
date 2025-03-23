@@ -17,10 +17,6 @@ export class Eligibility {
   @Prop({ default: null })
   accuracy?: number;
 
-  @Field(() => Boolean)
-  @Prop({ default: false })
-  eligible: boolean;
-
   @Field(() => Date)
   createdAt: Date;
 

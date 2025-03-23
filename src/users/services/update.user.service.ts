@@ -51,19 +51,10 @@ export class UpdateUserService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async qualifyUser() {
-    try {
-      const users = await this.userModel.find();
-      if (!users.length) {
-        throw new ThrowGQL('No users found', GQLThrowType.NOT_FOUND);
-      }
-      for (const user of users) {
-        if (user.isDoneTaskIds.length >= 5) {
-          user.isEligible = true;
-          await user.save();
-        }
-      }
-    } catch (error) {
-      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
-    }
+    // TODO: ambil semua data eligibilities.
+    // TODO: hitung Hitung rata-rata dengan membagi total akurasi dengan jumlah task yang dijawab.
+    // Bandingkan rata-rata akurasi dengan threshold minimal (misalnya 0.7 atau 70%).
+    // – Jika rata-rata akurasi ≥ threshold, maka user dianggap eligible.
+    // – Jika rata-rata akurasi < threshold, maka user tidak memenuhi syarat.
   }
 }

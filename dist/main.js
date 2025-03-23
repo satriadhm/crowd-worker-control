@@ -215,11 +215,11 @@ const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/mod
 const recorded_1 = __webpack_require__(/*! ./models/recorded */ "./src/M1/models/recorded.ts");
 const eligibility_1 = __webpack_require__(/*! ./models/eligibility */ "./src/M1/models/eligibility.ts");
 const accuracy_calculation_service_1 = __webpack_require__(/*! ./services/accuracy.calculation.service */ "./src/M1/services/accuracy.calculation.service.ts");
-const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
 const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
 const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
+const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -238,8 +238,8 @@ exports.M1Module = M1Module = __decorate([
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetElibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
+            update_eligibility_service_1.UpdateEligibilityService,
             accuracy_calculation_service_1.AccuracyCalculationService,
-            update_eligibility_service_1.EligibilityUpdateService,
             m1_resolver_1.M1Resolver,
         ],
         exports: [
@@ -247,8 +247,8 @@ exports.M1Module = M1Module = __decorate([
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetElibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
+            update_eligibility_service_1.UpdateEligibilityService,
             accuracy_calculation_service_1.AccuracyCalculationService,
-            update_eligibility_service_1.EligibilityUpdateService,
         ],
     })
 ], M1Module);
@@ -275,15 +275,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
-const get_task_service_1 = __webpack_require__(/*! ./../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
 const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-const accuracy_calculation_service_1 = __webpack_require__(/*! ./services/accuracy.calculation.service */ "./src/M1/services/accuracy.calculation.service.ts");
-const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
 const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
 const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligibility.view */ "./src/M1/dto/eligibility/views/eligibility.view.ts");
@@ -291,10 +288,7 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 let M1Resolver = class M1Resolver {
-    constructor(accuracyCalculationService, eligibilityUpdateService, getTaskService, GetElibilityService, createRecordedService) {
-        this.accuracyCalculationService = accuracyCalculationService;
-        this.eligibilityUpdateService = eligibilityUpdateService;
-        this.getTaskService = getTaskService;
+    constructor(GetElibilityService, createRecordedService) {
         this.GetElibilityService = GetElibilityService;
         this.createRecordedService = createRecordedService;
     }
@@ -317,7 +311,7 @@ __decorate([
     __param(2, (0, graphql_1.Context)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String, Object]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
 ], M1Resolver.prototype, "submitAnswer", null);
 __decorate([
     (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
@@ -325,12 +319,12 @@ __decorate([
     __param(0, (0, graphql_1.Args)('workerId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
+    __metadata("design:returntype", typeof (_d = typeof Promise !== "undefined" && Promise) === "function" ? _d : Object)
 ], M1Resolver.prototype, "getEligibilityHistory", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [typeof (_a = typeof accuracy_calculation_service_1.AccuracyCalculationService !== "undefined" && accuracy_calculation_service_1.AccuracyCalculationService) === "function" ? _a : Object, typeof (_b = typeof update_eligibility_service_1.EligibilityUpdateService !== "undefined" && update_eligibility_service_1.EligibilityUpdateService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object, typeof (_d = typeof get_eligibility_service_1.GetElibilityService !== "undefined" && get_eligibility_service_1.GetElibilityService) === "function" ? _d : Object, typeof (_e = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _e : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof get_eligibility_service_1.GetElibilityService !== "undefined" && get_eligibility_service_1.GetElibilityService) === "function" ? _a : Object, typeof (_b = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _b : Object])
 ], M1Resolver);
 
 
@@ -376,11 +370,6 @@ __decorate([
     (0, mongoose_1.Prop)({ default: null }),
     __metadata("design:type", Number)
 ], Eligibility.prototype, "accuracy", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => Boolean),
-    (0, mongoose_1.Prop)({ default: false }),
-    __metadata("design:type", Boolean)
-], Eligibility.prototype, "eligible", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date),
     __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
@@ -497,7 +486,6 @@ const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ./eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
-const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
 let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCalculationService {
     constructor(recordedAnswerModel, CreateEligibilityService, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
@@ -614,7 +602,6 @@ let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCa
         const tasks = await this.getTaskService.getTasks();
         if (!tasks)
             throw new Error('Task not found');
-        const threshold = Number(config_service_1.configService.getEnvValue('M1_THRESHOLD'));
         for (const task of tasks) {
             const recordedAnswers = await this.recordedAnswerModel.find({
                 taskId: task.id,
@@ -625,12 +612,10 @@ let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCa
             const accuracies = await this.calculateAccuracy(task.id, workerIds, 3);
             for (const workerId of workerIds) {
                 const accuracy = accuracies[workerId];
-                const eligible = accuracy >= threshold;
                 const eligibilityInput = {
                     taskId: task.id,
                     workerId: workerId,
                     accuracy: accuracy,
-                    eligible: eligible,
                 };
                 await this.CreateEligibilityService.upSertEligibility(eligibilityInput);
             }
@@ -684,8 +669,8 @@ let CreateEligibilityService = class CreateEligibilityService {
         this.eligibilityModel = eligibilityModel;
     }
     async upSertEligibility(input) {
-        const { taskId, workerId, accuracy, eligible } = input;
-        const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy, eligible }, { upsert: true, new: true });
+        const { taskId, workerId, accuracy } = input;
+        const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy }, { upsert: true, new: true });
         return eligibility;
     }
 };
@@ -804,35 +789,26 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EligibilityUpdateService = void 0;
+exports.UpdateEligibilityService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
-let EligibilityUpdateService = class EligibilityUpdateService {
-    constructor(eligibilityModel) {
+const get_recorded_service_1 = __webpack_require__(/*! ../recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
+let UpdateEligibilityService = class UpdateEligibilityService {
+    constructor(eligibilityModel, getRecordedAnswerService) {
         this.eligibilityModel = eligibilityModel;
-    }
-    async updateEligibility(taskId, accuracies, threshold = 0.7) {
-        const updates = Object.entries(accuracies).map(([workerId, accuracy]) => ({
-            updateOne: {
-                filter: { taskId, workerId },
-                update: { $set: { accuracy, eligible: accuracy >= threshold } },
-            },
-        }));
-        if (updates.length > 0) {
-            await this.eligibilityModel.bulkWrite(updates);
-        }
+        this.getRecordedAnswerService = getRecordedAnswerService;
     }
 };
-exports.EligibilityUpdateService = EligibilityUpdateService;
-exports.EligibilityUpdateService = EligibilityUpdateService = __decorate([
+exports.UpdateEligibilityService = UpdateEligibilityService;
+exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], EligibilityUpdateService);
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
+], UpdateEligibilityService);
 
 
 /***/ }),
@@ -2927,6 +2903,11 @@ __decorate([
     (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Tasks', required: false }),
     __metadata("design:type", Array)
 ], Users.prototype, "isDoneTaskIds", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Boolean)
+], Users.prototype, "isEligible", void 0);
 exports.Users = Users = __decorate([
     (0, mongoose_1.Schema)(),
     (0, graphql_1.ObjectType)()
@@ -3167,6 +3148,7 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_1 = __webpack_require__(/*! ../models/user */ "./src/users/models/user.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 let UpdateUserService = class UpdateUserService {
     constructor(userModel) {
         this.userModel = userModel;
@@ -3185,8 +3167,32 @@ let UpdateUserService = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async userHasDoneTask(taskId, userId) {
+        try {
+            const user = await this.userModel.findById(userId);
+            if (!user) {
+                throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            if (!user.isDoneTaskIds.includes(taskId)) {
+                user.isDoneTaskIds.push(taskId);
+                await user.save();
+            }
+            return (0, parser_1.parseToView)(user);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async qualifyUser() {
+    }
 };
 exports.UpdateUserService = UpdateUserService;
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_10_SECONDS),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], UpdateUserService.prototype, "qualifyUser", null);
 exports.UpdateUserService = UpdateUserService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
@@ -3265,7 +3271,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UsersResolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -3299,6 +3305,9 @@ let UsersResolver = class UsersResolver {
     }
     async deleteUser(id) {
         return this.deleteUserService.delete(id);
+    }
+    async userHasDoneTask(taskId, userId) {
+        return this.updateUserService.userHasDoneTask(taskId, userId);
     }
     async getAllUsers(args) {
         return this.getUserService.getAllUsers(args);
@@ -3340,12 +3349,21 @@ __decorate([
     __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
 ], UsersResolver.prototype, "deleteUser", null);
 __decorate([
+    (0, graphql_1.Mutation)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
+    __param(0, (0, graphql_1.Args)('taskId')),
+    __param(1, (0, graphql_1.Args)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
+], UsersResolver.prototype, "userHasDoneTask", null);
+__decorate([
     (0, graphql_2.Query)(() => [user_view_1.UserView]),
     (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_k = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _k : Object]),
-    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
+    __metadata("design:paramtypes", [typeof (_l = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _l : Object]),
+    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
 ], UsersResolver.prototype, "getAllUsers", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3353,7 +3371,7 @@ __decorate([
     __param(0, (0, graphql_1.Args)('username')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
+    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], UsersResolver.prototype, "getUserByUsername", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3361,7 +3379,7 @@ __decorate([
     __param(0, (0, graphql_1.Args)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
 ], UsersResolver.prototype, "getUserByEmail", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3369,14 +3387,14 @@ __decorate([
     __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
 ], UsersResolver.prototype, "getUserById", null);
 __decorate([
     (0, graphql_2.Query)(() => Number),
     (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
+    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
 ], UsersResolver.prototype, "getTotalUsers", null);
 exports.UsersResolver = UsersResolver = __decorate([
     (0, graphql_1.Resolver)(() => user_1.Users),
