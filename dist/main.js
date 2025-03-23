@@ -505,7 +505,7 @@ let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCa
         this.getTaskService = getTaskService;
         this.logger = new common_1.Logger(AccuracyCalculationService_1.name);
     }
-    async calculateAccuracy(taskId, workers, windowSize, M) {
+    async calculateAccuracy(taskId, workers, windowSize) {
         this.logger.log(`Mulai perhitungan accuracy untuk taskId: ${taskId}`);
         const task = await this.getTaskService.getTaskById(taskId);
         if (!task) {
@@ -513,83 +513,102 @@ let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCa
             throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
         }
         const N = task.answers.length;
-        this.logger.log(`Task ditemukan, jumlah soal: ${N}`);
+        const M = task.nAnswers || 4;
+        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
         const answers = await this.recordedAnswerModel.find({ taskId });
         const numWorkers = workers.length;
         this.logger.log(`Jumlah pekerja: ${numWorkers}`);
-        const QijMatrix = Array.from({ length: numWorkers }, () => Array(numWorkers).fill(0));
+        const estimatesMap = {};
+        workers.forEach((workerId) => (estimatesMap[workerId] = []));
         for (let start = 0; start <= numWorkers - windowSize; start++) {
-            const subsetWorkers = workers.slice(start, start + windowSize);
-            this.logger.debug(`Memproses subset pekerja: ${subsetWorkers.join(', ')}`);
-            for (let i = 0; i < subsetWorkers.length; i++) {
-                for (let j = i + 1; j < subsetWorkers.length; j++) {
-                    let Tij = 0;
-                    for (let k = 0; k < N; k++) {
-                        const answerI = answers.find((a) => a.workerId.toString() === subsetWorkers[i] &&
-                            a.taskId.toString() === taskId &&
-                            a['questionIndex'] === k);
-                        const answerJ = answers.find((a) => a.workerId.toString() === subsetWorkers[j] &&
-                            a.taskId.toString() === taskId &&
-                            a['questionIndex'] === k);
-                        if (answerI && answerJ && answerI.answer === answerJ.answer) {
-                            Tij++;
-                        }
-                    }
-                    this.logger.debug(`Tij antara worker ${subsetWorkers[i]} dan ${subsetWorkers[j]}: ${Tij}`);
-                    const Qij = Tij / N;
-                    this.logger.debug(`Qij antara worker ${subsetWorkers[i]} dan ${subsetWorkers[j]}: ${Qij}`);
-                    const indexI = workers.indexOf(subsetWorkers[i]);
-                    const indexJ = workers.indexOf(subsetWorkers[j]);
-                    QijMatrix[indexI][indexJ] = Qij;
-                    QijMatrix[indexJ][indexI] = Qij;
-                }
-            }
-        }
-        const accuracies = this.solveForAccuracies(QijMatrix, workers, M);
-        this.logger.log(`Perhitungan selesai. Akurasi akhir: ${JSON.stringify(accuracies)}`);
-        return accuracies;
-    }
-    solveForAccuracies(QijMatrix, workers, M) {
-        const numWorkers = workers.length;
-        let A = Array(numWorkers).fill(0.5);
-        const tolerance = 0.0001;
-        let maxIterations = 1000;
-        const epsilon = 1e-6;
-        let iteration = 0;
-        while (maxIterations > 0) {
-            iteration++;
-            maxIterations--;
-            const newA = new Array(numWorkers).fill(0);
-            for (let i = 0; i < numWorkers; i++) {
-                let sumEstimates = 0;
-                let count = 0;
-                for (let j = 0; j < numWorkers; j++) {
-                    if (i === j)
-                        continue;
-                    const Qij = QijMatrix[i][j];
-                    if (Math.abs(M * A[j] - 1) < epsilon)
-                        continue;
-                    const estimate = ((M - 1) * Qij + A[j] - 1) / (M * A[j] - 1);
-                    sumEstimates += estimate;
-                    count++;
-                    this.logger.debug(`Iterasi ${iteration} - Estimasi A[${i}] berdasarkan worker ${j}: ${estimate}`);
-                }
-                newA[i] = count > 0 ? sumEstimates / count : A[i];
-            }
-            let maxDiff = 0;
-            for (let i = 0; i < numWorkers; i++) {
-                maxDiff = Math.max(maxDiff, Math.abs(newA[i] - A[i]));
-            }
-            this.logger.debug(`Iterasi ${iteration} - Max diff: ${maxDiff}`);
-            A = newA;
-            if (maxDiff < tolerance)
-                break;
+            const workerTriple = workers.slice(start, start + windowSize);
+            this.logger.debug(`Memproses window: ${workerTriple.join(', ')}`);
+            const { Q12, Q13, Q23 } = this.computeTripleQ(taskId, workerTriple, answers, N);
+            this.logger.debug(`Window ${workerTriple.join(', ')}: Q12=${Q12.toFixed(2)}, Q13=${Q13.toFixed(2)}, Q23=${Q23.toFixed(2)}`);
+            const [A1, A2, A3] = this.solveTriple(Q12, Q13, Q23, M);
+            this.logger.debug(`Hasil window: ${workerTriple[0]}=${A1}, ${workerTriple[1]}=${A2}, ${workerTriple[2]}=${A3}`);
+            estimatesMap[workerTriple[0]].push(A1);
+            estimatesMap[workerTriple[1]].push(A2);
+            estimatesMap[workerTriple[2]].push(A3);
         }
         const accuracyMap = {};
-        workers.forEach((workerId, index) => {
-            accuracyMap[workerId] = A[index];
+        workers.forEach((workerId) => {
+            const arr = estimatesMap[workerId];
+            const avg = arr.reduce((sum, val) => sum + val, 0) / (arr.length || 1);
+            accuracyMap[workerId] = parseFloat(avg.toFixed(2));
         });
+        this.logger.log(`Perhitungan selesai. Akurasi akhir: ${JSON.stringify(accuracyMap)}`);
         return accuracyMap;
+    }
+    computeTripleQ(taskId, workerTriple, answers, N) {
+        let T12 = 0, T13 = 0, T23 = 0;
+        for (let k = 0; k < N; k++) {
+            const a1 = answers.find((a) => a.workerId.toString() === workerTriple[0] &&
+                a.taskId.toString() === taskId);
+            const a2 = answers.find((a) => a.workerId.toString() === workerTriple[1] &&
+                a.taskId.toString() === taskId);
+            const a3 = answers.find((a) => a.workerId.toString() === workerTriple[2] &&
+                a.taskId.toString() === taskId);
+            if (a1 && a2 && a1.answer === a2.answer)
+                T12++;
+            if (a1 && a3 && a1.answer === a3.answer)
+                T13++;
+            if (a2 && a3 && a2.answer === a3.answer)
+                T23++;
+        }
+        return {
+            Q12: T12 / N,
+            Q13: T13 / N,
+            Q23: T23 / N,
+        };
+    }
+    solveTriple(Q12, Q13, Q23, M) {
+        let A1 = 0.5, A2 = 0.5, A3 = 0.5;
+        const tolerance = 0.0001;
+        let iterations = 1000;
+        while (iterations-- > 0) {
+            let newA1, newA2, newA3;
+            const numeratorQ12 = (M + 1) * Q12 - (M - 1) + (M - 1) * A2;
+            const denominatorQ12 = 2 * M * A2 - (M - 1);
+            const termQ12 = denominatorQ12 !== 0 ? numeratorQ12 / denominatorQ12 : A1;
+            const numeratorQ13 = (M + 1) * Q13 - (M - 1) + (M - 1) * A3;
+            const denominatorQ13 = 2 * M * A3 - (M - 1);
+            const termQ13 = denominatorQ13 !== 0 ? numeratorQ13 / denominatorQ13 : A1;
+            newA1 = (termQ12 + termQ13) / 2;
+            const numeratorQ21 = (M + 1) * Q12 - (M - 1) + (M - 1) * A1;
+            const denominatorQ21 = 2 * M * A1 - (M - 1);
+            const termQ21 = denominatorQ21 !== 0 ? numeratorQ21 / denominatorQ21 : A2;
+            const numeratorQ23 = (M + 1) * Q23 - (M - 1) + (M - 1) * A3;
+            const denominatorQ23 = 2 * M * A3 - (M - 1);
+            const termQ23 = denominatorQ23 !== 0 ? numeratorQ23 / denominatorQ23 : A2;
+            newA2 = (termQ21 + termQ23) / 2;
+            const numeratorQ31 = (M + 1) * Q13 - (M - 1) + (M - 1) * A1;
+            const denominatorQ31 = 2 * M * A1 - (M - 1);
+            const termQ31 = denominatorQ31 !== 0 ? numeratorQ31 / denominatorQ31 : A3;
+            const numeratorQ32 = (M + 1) * Q23 - (M - 1) + (M - 1) * A2;
+            const denominatorQ32 = 2 * M * A2 - (M - 1);
+            const termQ32 = denominatorQ32 !== 0 ? numeratorQ32 / denominatorQ32 : A3;
+            newA3 = (termQ31 + termQ32) / 2;
+            newA1 = Math.max(0, Math.min(1, newA1));
+            newA2 = Math.max(0, Math.min(1, newA2));
+            newA3 = Math.max(0, Math.min(1, newA3));
+            if (Math.abs(newA1 - A1) < tolerance &&
+                Math.abs(newA2 - A2) < tolerance &&
+                Math.abs(newA3 - A3) < tolerance) {
+                A1 = newA1;
+                A2 = newA2;
+                A3 = newA3;
+                break;
+            }
+            A1 = newA1;
+            A2 = newA2;
+            A3 = newA3;
+        }
+        return [
+            parseFloat(A1.toFixed(2)),
+            parseFloat(A2.toFixed(2)),
+            parseFloat(A3.toFixed(2)),
+        ];
     }
     async calculateEligibility() {
         const tasks = await this.getTaskService.getTasks();
@@ -601,10 +620,9 @@ let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCa
                 taskId: task.id,
             });
             const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-            if (workerIds.length === 0)
+            if (workerIds.length < 3)
                 continue;
-            const m = task.answers.length;
-            const accuracies = await this.calculateAccuracy(task.id, workerIds, m, 3);
+            const accuracies = await this.calculateAccuracy(task.id, workerIds, 3);
             for (const workerId of workerIds) {
                 const accuracy = accuracies[workerId];
                 const eligible = accuracy >= threshold;
