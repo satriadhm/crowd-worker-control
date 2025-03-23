@@ -41,6 +41,15 @@ export class UsersResolver {
     return this.deleteUserService.delete(id);
   }
 
+  @Mutation(() => UserView)
+  @Roles(Role.WORKER)
+  async userHasDoneTask(
+    @Args('taskId') taskId: string,
+    @Args('userId') userId: string,
+  ): Promise<UserView> {
+    return this.updateUserService.userHasDoneTask(taskId, userId);
+  }
+
   @Query(() => [UserView])
   @Roles(Role.ADMIN)
   async getAllUsers(@Args() args: GetUserArgs): Promise<UserView[]> {

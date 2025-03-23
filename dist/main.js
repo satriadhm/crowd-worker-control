@@ -2857,6 +2857,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UsersSchema = exports.Users = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let Users = class Users {
 };
@@ -2921,6 +2922,11 @@ __decorate([
     (0, mongoose_1.Prop)({ required: false }),
     __metadata("design:type", String)
 ], Users.prototype, "address2", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [String]),
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Tasks', required: false }),
+    __metadata("design:type", Array)
+], Users.prototype, "isDoneTaskIds", void 0);
 exports.Users = Users = __decorate([
     (0, mongoose_1.Schema)(),
     (0, graphql_1.ObjectType)()

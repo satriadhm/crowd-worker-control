@@ -54,9 +54,13 @@ export class Users {
   @Prop({ required: false })
   address2: string;
 
-  @Field()
+  @Field(() => [String])
   @Prop({ type: Types.ObjectId, ref: 'Tasks', required: false })
   isDoneTaskIds: string[];
+
+  @Field()
+  @Prop({ required: true })
+  isEligible: boolean;
 }
 
 export type UserDocument = HydratedDocument<Users>;

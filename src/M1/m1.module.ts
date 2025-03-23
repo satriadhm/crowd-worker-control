@@ -7,11 +7,11 @@ import { Task, TaskSchema } from 'src/tasks/models/task';
 import { RecordedAnswer, RecordedAnswerSchema } from './models/recorded';
 import { Eligibility, EligibilitySchema } from './models/eligibility';
 import { AccuracyCalculationService } from './services/accuracy.calculation.service';
-import { EligibilityUpdateService } from './services/eligibility/update.eligibility.service';
 import { GetRecordedAnswerService } from './services/recorded/get.recorded.service';
 import { CreateEligibilityService } from './services/eligibility/create.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
 import { GetElibilityService } from './services/eligibility/get.eligibility.service';
+import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 
 @Module({
   imports: [
@@ -27,8 +27,8 @@ import { GetElibilityService } from './services/eligibility/get.eligibility.serv
     CreateEligibilityService,
     GetElibilityService,
     GetRecordedAnswerService,
+    UpdateEligibilityService,
     AccuracyCalculationService,
-    EligibilityUpdateService,
     M1Resolver,
   ],
   exports: [
@@ -36,8 +36,8 @@ import { GetElibilityService } from './services/eligibility/get.eligibility.serv
     CreateEligibilityService,
     GetElibilityService,
     GetRecordedAnswerService,
+    UpdateEligibilityService,
     AccuracyCalculationService,
-    EligibilityUpdateService,
   ],
 })
 export class M1Module {}

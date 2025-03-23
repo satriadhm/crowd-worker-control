@@ -5,7 +5,7 @@ import { Model } from 'mongoose';
 import { Eligibility } from '../../models/eligibility';
 
 @Injectable()
-export class EligibilityUpdateService {
+export class UpdateEligibilityService {
   constructor(
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<Eligibility>,
