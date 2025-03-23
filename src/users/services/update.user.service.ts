@@ -7,12 +7,14 @@ import { UserView } from '../dto/views/user.view';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { parseToView } from '../models/parser';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
 
 @Injectable()
 export class UpdateUserService {
   constructor(
     @InjectModel(Users.name)
     private userModel: Model<Users>,
+    private readonly getEligibilityService: GetEligibilityService,
   ) {}
 
   async updateUser(input: UpdateUserInput): Promise<UserView> {
@@ -51,10 +53,33 @@ export class UpdateUserService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async qualifyUser() {
-    // TODO: ambil semua data eligibilities.
-    // TODO: hitung Hitung rata-rata dengan membagi total akurasi dengan jumlah task yang dijawab.
-    // Bandingkan rata-rata akurasi dengan threshold minimal (misalnya 0.7 atau 70%).
-    // – Jika rata-rata akurasi ≥ threshold, maka user dianggap eligible.
-    // – Jika rata-rata akurasi < threshold, maka user tidak memenuhi syarat.
+    try {
+      const threshold = 0.7;
+      const allUsers = await this.userModel.find({ role: 'worker' }).exec();
+
+      for (const user of allUsers) {
+        const eligibilities =
+          await this.getEligibilityService.getEligibilityWorkerId(
+            user._id.toString(),
+          );
+
+        if (eligibilities.length === 0) {
+          user.isEligible = false;
+          await user.save();
+          continue;
+        }
+
+        const totalAccuracy = eligibilities.reduce(
+          (sum, e) => sum + (e.accuracy || 0),
+          0,
+        );
+        const averageAccuracy = totalAccuracy / eligibilities.length;
+
+        user.isEligible = averageAccuracy >= threshold;
+        await user.save();
+      }
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
   }
 }

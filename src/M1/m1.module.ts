@@ -10,7 +10,7 @@ import { AccuracyCalculationService } from './services/accuracy.calculation.serv
 import { GetRecordedAnswerService } from './services/recorded/get.recorded.service';
 import { CreateEligibilityService } from './services/eligibility/create.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
-import { GetElibilityService } from './services/eligibility/get.eligibility.service';
+import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 
 @Module({
@@ -25,7 +25,7 @@ import { UpdateEligibilityService } from './services/eligibility/update.eligibil
   providers: [
     CreateRecordedService,
     CreateEligibilityService,
-    GetElibilityService,
+    GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
     AccuracyCalculationService,
@@ -34,7 +34,7 @@ import { UpdateEligibilityService } from './services/eligibility/update.eligibil
   exports: [
     CreateRecordedService,
     CreateEligibilityService,
-    GetElibilityService,
+    GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
     AccuracyCalculationService,

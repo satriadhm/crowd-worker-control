@@ -7,7 +7,7 @@ import { parseToViewEligibility } from 'src/M1/models/parser';
 import { EligibilityView } from 'src/M1/dto/eligibility/views/eligibility.view';
 
 @Injectable()
-export class GetElibilityService {
+export class GetEligibilityService {
   constructor(
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<Eligibility>,
@@ -34,9 +34,7 @@ export class GetElibilityService {
     }
   }
 
-  async getEligibilityHistoryWorkerId(
-    workerId: string,
-  ): Promise<EligibilityView[]> {
+  async getEligibilityWorkerId(workerId: string): Promise<EligibilityView[]> {
     try {
       const results = await this.eligibilityModel.find({ workerId });
       return results.map((result) => parseToViewEligibility(result));
