@@ -11,12 +11,13 @@ export class CreateEligibilityService {
     private readonly eligibilityModel: Model<EligibilityDocument>,
   ) {}
 
-  async createEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
-    return await this.eligibilityModel.create({
-      taskIds: [input.taskId],
-      workerId: input.workerId,
-      answers: [],
-      eligible: false,
-    });
+  async upSertEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
+    const { taskId, workerId, accuracy, eligible } = input;
+    const eligibility = await this.eligibilityModel.findOneAndUpdate(
+      { taskId, workerId },
+      { taskId, workerId, accuracy, eligible },
+      { upsert: true, new: true },
+    );
+    return eligibility;
   }
 }

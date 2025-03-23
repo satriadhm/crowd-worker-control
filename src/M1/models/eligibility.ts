@@ -1,22 +1,17 @@
 import { ObjectType, Field } from '@nestjs/graphql';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { RecordedAnswer } from './recorded';
 
-@Schema()
+@Schema({ timestamps: true })
 @ObjectType()
 export class Eligibility {
-  @Field(() => [String]) // Pastikan GraphQL mengetahui tipe data
-  @Prop({ type: [Types.ObjectId], ref: 'WorkerTasks', default: [] })
-  taskIds: string[];
+  @Field(() => String)
+  @Prop({ type: Types.ObjectId, ref: 'Task', required: true })
+  taskId: string;
 
   @Field(() => String)
-  @Prop({ type: Types.ObjectId, ref: 'Users', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   workerId: string;
-
-  @Field(() => [RecordedAnswer])
-  @Prop({ type: [Types.ObjectId], ref: 'RecordedAnswer', default: [] })
-  answers: RecordedAnswer[];
 
   @Field({ nullable: true })
   @Prop({ default: null })
@@ -27,11 +22,9 @@ export class Eligibility {
   eligible: boolean;
 
   @Field(() => Date)
-  @Prop({ default: Date.now })
   createdAt: Date;
 
   @Field(() => Date)
-  @Prop({ default: Date.now })
   updatedAt: Date;
 }
 
