@@ -54,13 +54,23 @@ export class Users {
   @Prop({ required: false })
   address2: string;
 
-  @Field(() => [String])
-  @Prop({ type: Types.ObjectId, ref: 'Tasks', required: false })
-  isDoneTaskIds: string[];
-
-  @Field()
-  @Prop({ required: true })
+  @Prop({
+    required: function () {
+      return this.role === 'worker';
+    },
+    default: false,
+  })
   isEligible: boolean;
+
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Tasks',
+    required: function () {
+      return this.role === 'worker';
+    },
+    default: [],
+  })
+  isDoneTaskIds: string[];
 }
 
 export type UserDocument = HydratedDocument<Users>;
