@@ -1,6 +1,6 @@
 import { ObjectType, Field } from '@nestjs/graphql';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { Gender, Role } from 'src/lib/user.enum';
 
 @Schema()
@@ -53,6 +53,10 @@ export class Users {
   @Field()
   @Prop({ required: false })
   address2: string;
+
+  @Field()
+  @Prop({ type: Types.ObjectId, ref: 'Tasks', required: false })
+  isDoneTaskIds: string[];
 }
 
 export type UserDocument = HydratedDocument<Users>;
