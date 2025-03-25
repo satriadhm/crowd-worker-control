@@ -43,5 +43,5 @@ export class UserView {
   isEligible: boolean;
 
   @Field(() => [TaskCompletion], { nullable: true })
-  completedTask: TaskCompletion[];
+  completedTasks: TaskCompletion[];
 }

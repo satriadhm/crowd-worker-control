@@ -7,7 +7,7 @@ export const parseToView = (input: any): UserView => {
     lastName: input.lastName,
     userName: input.userName,
     email: input.email,
-    completedTask: input.completedTask,
+    completedTasks: input.completedTasks,
     isEligible: input.isEligible,
     age: input.age,
     role: input.role,

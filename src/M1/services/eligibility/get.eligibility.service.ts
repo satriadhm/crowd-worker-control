@@ -58,7 +58,6 @@ export class GetEligibilityService {
       }
       return parseToViewEligibility(res);
     } catch (error) {
-      console.log('Error', error);
       throw new ThrowGQL(`Error ${error}`, GQLThrowType.NOT_FOUND);
     }
   }

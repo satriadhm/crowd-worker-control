@@ -26,7 +26,6 @@ export class M1Resolver {
     @Context() context: any,
   ): Promise<boolean> {
     const workerId = context.req.user.id;
-    console.log(workerId);
     await this.createRecordedService.recordAnswer(taskId, workerId, answer);
     await this.updateUserService.userHasDoneTask(taskId, workerId, answer);
     return true;
