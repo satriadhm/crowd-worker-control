@@ -1,4 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
+import { TaskCompletion } from 'src/users/models/user';
 
 @ObjectType()
 export class UserView {
@@ -37,4 +38,10 @@ export class UserView {
 
   @Field({ nullable: true })
   address2: string;
+
+  @Field({ nullable: true })
+  isEligible: boolean;
+
+  @Field(() => [TaskCompletion], { nullable: true })
+  completedTask: TaskCompletion[];
 }

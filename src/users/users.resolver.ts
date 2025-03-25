@@ -46,8 +46,9 @@ export class UsersResolver {
   async userHasDoneTask(
     @Args('taskId') taskId: string,
     @Args('userId') userId: string,
+    @Args('answerId') answerId: string,
   ): Promise<UserView> {
-    return this.updateUserService.userHasDoneTask(taskId, userId);
+    return this.updateUserService.userHasDoneTask(taskId, userId, answerId);
   }
 
   @Query(() => [UserView])

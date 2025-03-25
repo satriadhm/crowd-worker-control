@@ -12,10 +12,12 @@ import { CreateEligibilityService } from './services/eligibility/create.eligibil
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
     forwardRef(() => TasksModule),
+    forwardRef(() => UsersModule),
     MongooseModule.forFeature([
       { name: Task.name, schema: TaskSchema },
       { name: RecordedAnswer.name, schema: RecordedAnswerSchema },

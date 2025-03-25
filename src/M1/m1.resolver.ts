@@ -7,6 +7,7 @@ import { EligibilityView } from './dto/eligibility/views/eligibility.view';
 import { UseGuards } from '@nestjs/common';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { UpdateUserService } from '../users/services/update.user.service';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -14,6 +15,7 @@ export class M1Resolver {
   constructor(
     private readonly GetEligibilityService: GetEligibilityService,
     private readonly createRecordedService: CreateRecordedService,
+    private readonly updateUserService: UpdateUserService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -26,6 +28,7 @@ export class M1Resolver {
     const workerId = context.req.user.id;
     console.log(workerId);
     await this.createRecordedService.recordAnswer(taskId, workerId, answer);
+    await this.updateUserService.userHasDoneTask(taskId, workerId, answer);
     return true;
   }
 

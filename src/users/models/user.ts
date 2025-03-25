@@ -3,6 +3,15 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Gender, Role } from 'src/lib/user.enum';
 
+@ObjectType()
+export class TaskCompletion {
+  @Field()
+  taskId: string;
+
+  @Field()
+  answer: string;
+}
+
 @Schema()
 @ObjectType()
 export class Users {
@@ -62,6 +71,7 @@ export class Users {
   })
   isEligible: boolean;
 
+  @Field(() => [TaskCompletion])
   @Prop({
     type: [Types.ObjectId],
     ref: 'Tasks',
@@ -70,7 +80,7 @@ export class Users {
     },
     default: [],
   })
-  isDoneTaskIds: string[];
+  completedTasks: { taskId: string; answer: string }[];
 }
 
 export type UserDocument = HydratedDocument<Users>;

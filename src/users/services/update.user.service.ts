@@ -35,14 +35,18 @@ export class UpdateUserService {
     }
   }
 
-  async userHasDoneTask(taskId: string, userId: string): Promise<UserView> {
+  async userHasDoneTask(
+    taskId: string,
+    userId: string,
+    answerId: string,
+  ): Promise<UserView> {
     try {
       const user = await this.userModel.findById(userId);
       if (!user) {
         throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
       }
-      if (!user.isDoneTaskIds.includes(taskId)) {
-        user.isDoneTaskIds.push(taskId);
+      if (!user.completedTasks.some((t) => t.taskId === taskId)) {
+        user.completedTasks.push({ taskId, answer: answerId });
         await user.save();
       }
       return parseToView(user);
