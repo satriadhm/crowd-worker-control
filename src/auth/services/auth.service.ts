@@ -25,12 +25,18 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<AuthView> {
     try {
-      const user = await this.getUserService.getUserByEmail(input.email);
+      let user: UserView;
+      const { identifier, password } = input;
+      if (identifier.includes('@')) {
+        user = await this.getUserService.getUserByEmail(identifier);
+      } else {
+        user = await this.getUserService.getUserByUsername(identifier);
+      }
+      if (!user) {
+        throw new ThrowGQL('Invalid credentials', GQLThrowType.NOT_AUTHORIZED);
+      }
       const secretKey = configService.getEnvValue('SECRET_KEY');
-      const isPasswordValid = await bcrypt.compare(
-        input.password,
-        user.password,
-      );
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         throw new ThrowGQL('Invalid credentials', GQLThrowType.NOT_AUTHORIZED);
       }

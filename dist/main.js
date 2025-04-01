@@ -1194,10 +1194,15 @@ let LoginInput = class LoginInput {
 exports.LoginInput = LoginInput;
 __decorate([
     (0, graphql_1.Field)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], LoginInput.prototype, "email", void 0);
+], LoginInput.prototype, "identifier", void 0);
 __decorate([
     (0, graphql_1.Field)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MinLength)(6),
     __metadata("design:type", String)
 ], LoginInput.prototype, "password", void 0);
 exports.LoginInput = LoginInput = __decorate([
@@ -1501,9 +1506,19 @@ let AuthService = class AuthService {
     }
     async login(input) {
         try {
-            const user = await this.getUserService.getUserByEmail(input.email);
+            let user;
+            const { identifier, password } = input;
+            if (identifier.includes('@')) {
+                user = await this.getUserService.getUserByEmail(identifier);
+            }
+            else {
+                user = await this.getUserService.getUserByUsername(identifier);
+            }
+            if (!user) {
+                throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+            }
             const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
-            const isPasswordValid = await bcrypt.compare(input.password, user.password);
+            const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
                 throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
             }
