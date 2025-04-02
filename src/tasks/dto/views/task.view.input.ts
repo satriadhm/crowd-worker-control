@@ -1,5 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
-import { Answer } from 'src/tasks/models/task';
+import { Answer, GherkinsQuestion } from 'src/tasks/models/task';
 
 @ObjectType()
 export class TaskView {
@@ -12,8 +12,8 @@ export class TaskView {
   @Field({ nullable: true })
   description: string;
 
-  @Field()
-  question: string;
+  @Field(() => GherkinsQuestion)
+  question: GherkinsQuestion;
 
   @Field()
   nAnswers: number;

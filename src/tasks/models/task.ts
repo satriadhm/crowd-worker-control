@@ -11,6 +11,25 @@ export class Answer {
   @Prop({ required: false })
   stats: number;
 }
+
+@ObjectType()
+export class GherkinsQuestion {
+  @Field()
+  @Prop({ required: true })
+  scenario: string;
+
+  @Field()
+  @Prop({ required: true })
+  given: string;
+
+  @Field()
+  @Prop({ required: true })
+  when: string;
+
+  @Field()
+  @Prop({ required: true })
+  then: string;
+}
 @Schema()
 @ObjectType()
 export class Task {
@@ -28,7 +47,7 @@ export class Task {
 
   @Field()
   @Prop({ required: true })
-  question: string;
+  question: GherkinsQuestion;
 
   @Field()
   @Prop({ required: true })

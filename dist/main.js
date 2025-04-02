@@ -1859,7 +1859,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateTaskInput = exports.AnswerInput = void 0;
+exports.CreateTaskInput = exports.GherkinsQuestionInput = exports.AnswerInput = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
 let AnswerInput = class AnswerInput {
 };
@@ -1875,6 +1875,28 @@ __decorate([
 exports.AnswerInput = AnswerInput = __decorate([
     (0, graphql_1.InputType)()
 ], AnswerInput);
+let GherkinsQuestionInput = class GherkinsQuestionInput {
+};
+exports.GherkinsQuestionInput = GherkinsQuestionInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "scenario", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "given", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "when", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "then", void 0);
+exports.GherkinsQuestionInput = GherkinsQuestionInput = __decorate([
+    (0, graphql_1.InputType)()
+], GherkinsQuestionInput);
 let CreateTaskInput = class CreateTaskInput {
 };
 exports.CreateTaskInput = CreateTaskInput;
@@ -1887,8 +1909,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTaskInput.prototype, "description", void 0);
 __decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
+    (0, graphql_1.Field)(() => GherkinsQuestionInput),
+    __metadata("design:type", GherkinsQuestionInput)
 ], CreateTaskInput.prototype, "question", void 0);
 __decorate([
     (0, graphql_1.Field)(() => [AnswerInput]),
@@ -1925,8 +1947,8 @@ let UpdateTaskInput = class UpdateTaskInput extends (0, graphql_1.PartialType)(c
 };
 exports.UpdateTaskInput = UpdateTaskInput;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.Int),
-    __metadata("design:type", Number)
+    (0, graphql_1.Field)(() => String),
+    __metadata("design:type", String)
 ], UpdateTaskInput.prototype, "id", void 0);
 exports.UpdateTaskInput = UpdateTaskInput = __decorate([
     (0, graphql_1.InputType)()
@@ -1951,6 +1973,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskView = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -1971,8 +1994,8 @@ __decorate([
     __metadata("design:type", String)
 ], TaskView.prototype, "description", void 0);
 __decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
+    (0, graphql_1.Field)(() => task_1.GherkinsQuestion),
+    __metadata("design:type", typeof (_a = typeof task_1.GherkinsQuestion !== "undefined" && task_1.GherkinsQuestion) === "function" ? _a : Object)
 ], TaskView.prototype, "question", void 0);
 __decorate([
     (0, graphql_1.Field)(),
@@ -2003,25 +2026,37 @@ exports.TaskView = TaskView = __decorate([
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseRequest = exports.parseToView = void 0;
 const parseToView = (input) => {
+    const answers = Array.isArray(input.answers) ? input.answers : [];
     return {
-        id: input._id,
+        id: input._id?.toString() || '',
         isValidQuestion: input.isValidQuestion,
         title: input.title,
         description: input.description,
-        question: input.question,
-        nAnswers: input.answers.length,
-        answers: input.answers,
+        question: {
+            scenario: input.question?.scenario || '',
+            given: input.question?.given || '',
+            when: input.question?.when || '',
+            then: input.question?.then || '',
+        },
+        nAnswers: answers.length,
+        answers,
     };
 };
 exports.parseToView = parseToView;
 const parseRequest = (input) => {
+    const answers = Array.isArray(input.answers) ? input.answers : [];
     return {
         title: input.title,
         description: input.description,
         isValidQuestion: false,
-        question: input.question,
-        answers: input.answers,
-        nAnswers: input.answers.length,
+        question: {
+            scenario: input.question?.scenario || '',
+            given: input.question?.given || '',
+            when: input.question?.when || '',
+            then: input.question?.then || '',
+        },
+        answers,
+        nAnswers: answers.length,
     };
 };
 exports.parseRequest = parseRequest;
@@ -2046,7 +2081,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TaskSchema = exports.Task = exports.Answer = void 0;
+exports.TaskSchema = exports.Task = exports.GherkinsQuestion = exports.Answer = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 let Answer = class Answer {
@@ -2065,6 +2100,32 @@ __decorate([
 exports.Answer = Answer = __decorate([
     (0, graphql_1.ObjectType)()
 ], Answer);
+let GherkinsQuestion = class GherkinsQuestion {
+};
+exports.GherkinsQuestion = GherkinsQuestion;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "scenario", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "given", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "when", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "then", void 0);
+exports.GherkinsQuestion = GherkinsQuestion = __decorate([
+    (0, graphql_1.ObjectType)()
+], GherkinsQuestion);
 let Task = class Task {
 };
 exports.Task = Task;
@@ -2086,7 +2147,7 @@ __decorate([
 __decorate([
     (0, graphql_1.Field)(),
     (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", GherkinsQuestion)
 ], Task.prototype, "question", void 0);
 __decorate([
     (0, graphql_1.Field)(),

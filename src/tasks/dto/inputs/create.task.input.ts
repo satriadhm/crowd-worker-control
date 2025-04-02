@@ -10,6 +10,21 @@ export class AnswerInput {
 }
 
 @InputType()
+export class GherkinsQuestionInput {
+  @Field()
+  scenario: string;
+
+  @Field()
+  given: string;
+
+  @Field()
+  when: string;
+
+  @Field()
+  then: string;
+}
+
+@InputType()
 export class CreateTaskInput {
   @Field()
   title: string;
@@ -17,8 +32,8 @@ export class CreateTaskInput {
   @Field({ nullable: true })
   description: string;
 
-  @Field()
-  question: string;
+  @Field(() => GherkinsQuestionInput)
+  question: GherkinsQuestionInput;
 
   @Field(() => [AnswerInput])
   answers: AnswerInput[];

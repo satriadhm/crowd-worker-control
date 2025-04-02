@@ -1,24 +1,36 @@
 import { TaskView } from '../dto/views/task.view.input';
 
 export const parseToView = (input: any): TaskView => {
+  const answers = Array.isArray(input.answers) ? input.answers : [];
   return {
-    id: input._id,
+    id: input._id?.toString() || '',
     isValidQuestion: input.isValidQuestion,
     title: input.title,
     description: input.description,
-    question: input.question,
-    nAnswers: input.answers.length,
-    answers: input.answers,
+    question: {
+      scenario: input.question?.scenario || '',
+      given: input.question?.given || '',
+      when: input.question?.when || '',
+      then: input.question?.then || '',
+    },
+    nAnswers: answers.length,
+    answers,
   };
 };
 
 export const parseRequest = (input: any): any => {
+  const answers = Array.isArray(input.answers) ? input.answers : [];
   return {
     title: input.title,
     description: input.description,
-    isValidQuestion: false,
-    question: input.question,
-    answers: input.answers,
-    nAnswers: input.answers.length,
+    isValidQuestion: false, // default untuk request baru
+    question: {
+      scenario: input.question?.scenario || '',
+      given: input.question?.given || '',
+      when: input.question?.when || '',
+      then: input.question?.then || '',
+    },
+    answers,
+    nAnswers: answers.length,
   };
 };
