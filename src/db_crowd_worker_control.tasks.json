@@ -1,0 +1,540 @@
+[{
+  "_id": "67ed04a361bbf0a2320d371d",
+  "title": "Form Validation Failure",
+  "description": "Check Gherkin Type of Question",
+  "isValidQuestion": true,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "The system immediately displays an inline error message right below the job category field, such as \"Job category is required.\""
+    },
+    {
+      "answer": "The system prevents the form from being submitted by disabling the \"Submit\" button until a job category is selected, possibly highlighting the field with a red border."
+    },
+    {
+      "answer": "Upon clicking \"Submit,\" the system shows a modal dialog alerting the user that a required field (job category) is missing."
+    },
+    {
+      "answer": "The system displays a tooltip or popover near the job category field that explains the requirement (e.g., \"Please select a job category before submitting\") while also marking the field with an error indicator"
+    }
+  ],
+  "question": {
+    "scenario": "Form validation failure during job posting.",
+    "given": "The user has entered the job title and budget fields.",
+    "when": "The user clicks the \"Submit\" button without selecting a job category.",
+    "then": "What do you expect the system to do in this case?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d371e",
+  "title": "Missing Email Field",
+  "description": "Registration form without email input",
+  "isValidQuestion": true,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an inline error message stating \"Email is required.\""
+    },
+    {
+      "answer": "Disable the submit button until the email field is completed."
+    },
+    {
+      "answer": "Highlight the email field with a red border and prompt the user to enter a valid email address."
+    },
+    {
+      "answer": "Show a modal alert that the email field cannot be left blank."
+    }
+  ],
+  "question": {
+    "scenario": "User registration form submitted without an email address.",
+    "given": "The user has filled out all fields except the email field.",
+    "when": "The user submits the registration form.",
+    "then": "What error message should be displayed regarding the missing email?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d371f",
+  "title": "Invalid Password Format",
+  "description": "Check password format enforcement",
+  "isValidQuestion": true,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Show an inline error message indicating the password does not meet the criteria."
+    },
+    {
+      "answer": "Disable the registration process until a strong password is provided."
+    },
+    {
+      "answer": "Highlight the password field with an error indicator and provide guidelines for a strong password."
+    },
+    {
+      "answer": "Display a modal dialog explaining the password requirements."
+    }
+  ],
+  "question": {
+    "scenario": "User attempts to register with a weak password.",
+    "given": "The user has entered a password that does not meet the security criteria.",
+    "when": "The user submits the registration form.",
+    "then": "How should the system notify the user about the weak password format?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3720",
+  "title": "Incomplete Registration Form",
+  "description": "Missing mandatory fields in registration",
+  "isValidQuestion": true,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Highlight each missing field with an error message indicating that the field is required."
+    },
+    {
+      "answer": "Prevent form submission and display a summary of all missing fields."
+    },
+    {
+      "answer": "Disable the submit button until all mandatory fields are filled out."
+    },
+    {
+      "answer": "Show a modal alert listing the fields that need to be completed."
+    }
+  ],
+  "question": {
+    "scenario": "User submits a registration form with missing mandatory fields.",
+    "given": "The user leaves some required fields blank.",
+    "when": "The user clicks the submit button.",
+    "then": "What feedback should the system provide to indicate the missing information?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3721",
+  "title": "Error in Payment Processing",
+  "description": "Failure during payment transaction",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating the payment was unsuccessful."
+    },
+    {
+      "answer": "Show a modal dialog with details about the payment failure."
+    },
+    {
+      "answer": "Offer the user an option to retry the payment process."
+    },
+    {
+      "answer": "Highlight the payment section and prompt the user to check their payment details."
+    }
+  ],
+  "question": {
+    "scenario": "Payment processing fails during checkout.",
+    "given": "The user has entered all required payment details.",
+    "when": "The payment gateway returns an error.",
+    "then": "How should the system inform the user about the payment failure?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3722",
+  "title": "User Login Failure",
+  "description": "Login attempt with incorrect credentials",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an inline error message indicating the credentials are invalid."
+    },
+    {
+      "answer": "Lock the account after several unsuccessful attempts."
+    },
+    {
+      "answer": "Provide a password recovery option."
+    },
+    {
+      "answer": "Show a modal alert suggesting the user check their credentials."
+    }
+  ],
+  "question": {
+    "scenario": "User attempts to log in with invalid credentials.",
+    "given": "The user has entered an incorrect username or password.",
+    "when": "The user clicks the login button.",
+    "then": "What should the system do to handle the failed login attempt?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3723",
+  "title": "Data Fetching Timeout",
+  "description": "Handling slow network responses",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display a timeout error message and suggest trying again later."
+    },
+    {
+      "answer": "Show a loading spinner with a timeout warning."
+    },
+    {
+      "answer": "Offer the user an option to manually retry the data fetching."
+    },
+    {
+      "answer": "Automatically retry the request a set number of times before failing."
+    }
+  ],
+  "question": {
+    "scenario": "A data fetching operation times out due to slow network.",
+    "given": "The network response is slower than expected.",
+    "when": "The user initiates a data request.",
+    "then": "How should the system handle and notify the user about the timeout?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3724",
+  "title": "Server Response Delay",
+  "description": "Handling delays in server responses",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display a loading indicator with a message about the delay."
+    },
+    {
+      "answer": "Inform the user about the delay and provide an option to cancel the request."
+    },
+    {
+      "answer": "Automatically retry the request after a short interval."
+    },
+    {
+      "answer": "Show a modal dialog advising the user to check their network connection."
+    }
+  ],
+  "question": {
+    "scenario": "The server takes too long to respond.",
+    "given": "The user has submitted a request.",
+    "when": "The server does not respond within the expected time.",
+    "then": "What should the system do to manage the delayed response?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3725",
+  "title": "Unexpected System Crash",
+  "description": "System crashes unexpectedly during operation",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error screen with a restart option."
+    },
+    {
+      "answer": "Log the error and automatically restart the application."
+    },
+    {
+      "answer": "Show a modal dialog with troubleshooting steps."
+    },
+    {
+      "answer": "Prompt the user to report the issue with detailed error information."
+    }
+  ],
+  "question": {
+    "scenario": "The system crashes unexpectedly during user interaction.",
+    "given": "The user is performing a task when the crash occurs.",
+    "when": "The system experiences an unexpected error.",
+    "then": "What steps should be taken to recover from the crash?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3726",
+  "title": "Database Connection Error",
+  "description": "Issue connecting to the database",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating a database connection issue."
+    },
+    {
+      "answer": "Log the error and alert the system administrator."
+    },
+    {
+      "answer": "Retry the connection a few times before failing."
+    },
+    {
+      "answer": "Show a modal dialog with troubleshooting steps for the connection issue."
+    }
+  ],
+  "question": {
+    "scenario": "The application fails to connect to the database.",
+    "given": "The database is unreachable due to network or configuration issues.",
+    "when": "The application attempts to establish a database connection.",
+    "then": "How should the system handle the connection error?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3727",
+  "title": "API Endpoint Not Found",
+  "description": "Handling 404 errors for API endpoints",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Return a 404 error message indicating the endpoint was not found."
+    },
+    {
+      "answer": "Log the error for further analysis."
+    },
+    {
+      "answer": "Redirect the client to a default error page."
+    },
+    {
+      "answer": "Show a modal dialog informing the user about the missing resource."
+    }
+  ],
+  "question": {
+    "scenario": "The API endpoint requested by the client does not exist.",
+    "given": "The client sends a request to an undefined endpoint.",
+    "when": "The server cannot find the requested resource.",
+    "then": "What response should the system provide to the client?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3728",
+  "title": "Access Denied on Resource",
+  "description": "Unauthorized access attempt to a protected resource",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an access denied message."
+    },
+    {
+      "answer": "Redirect the user to a login page."
+    },
+    {
+      "answer": "Log the unauthorized access attempt."
+    },
+    {
+      "answer": "Show a modal dialog explaining the access restrictions."
+    }
+  ],
+  "question": {
+    "scenario": "A user tries to access a resource without proper permissions.",
+    "given": "The user is not authorized to access the resource.",
+    "when": "The user attempts to access the protected resource.",
+    "then": "How should the system respond to this unauthorized access?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3729",
+  "title": "Permission Error During Update",
+  "description": "Insufficient permissions to update resource",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating insufficient permissions."
+    },
+    {
+      "answer": "Prevent the update operation and log the attempt."
+    },
+    {
+      "answer": "Highlight the restricted area and notify the user."
+    },
+    {
+      "answer": "Show a modal dialog with details on required permissions."
+    }
+  ],
+  "question": {
+    "scenario": "A user attempts to update a resource without sufficient permissions.",
+    "given": "The user does not have the necessary rights to perform the update.",
+    "when": "The update action is triggered.",
+    "then": "What error message should the system display?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372a",
+  "title": "File Upload Failure",
+  "description": "Error encountered during file upload",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating the file upload failed."
+    },
+    {
+      "answer": "Allow the user to retry the upload."
+    },
+    {
+      "answer": "Log the error and provide troubleshooting tips."
+    },
+    {
+      "answer": "Show a modal dialog with details on the failure."
+    }
+  ],
+  "question": {
+    "scenario": "A file upload operation fails during the process.",
+    "given": "The user selects a file to upload.",
+    "when": "The upload process encounters an error.",
+    "then": "How should the system notify the user about the file upload failure?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372b",
+  "title": "Session Expired",
+  "description": "User session has expired due to inactivity",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display a session expired message and redirect to the login page."
+    },
+    {
+      "answer": "Prompt the user to re-login with a modal dialog."
+    },
+    {
+      "answer": "Automatically log the user out and show an alert."
+    },
+    {
+      "answer": "Provide a re-authentication option on the same page."
+    }
+  ],
+  "question": {
+    "scenario": "User session expires after a period of inactivity.",
+    "given": "The user is inactive for a predefined duration.",
+    "when": "The user tries to perform an action after session expiry.",
+    "then": "What should the system do to handle the expired session?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372c",
+  "title": "Token Authentication Error",
+  "description": "Issue with validating user token during authentication",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating the token is invalid."
+    },
+    {
+      "answer": "Prompt the user to login again to refresh the token."
+    },
+    {
+      "answer": "Log the authentication error for further analysis."
+    },
+    {
+      "answer": "Show a modal dialog with details about the token issue."
+    }
+  ],
+  "question": {
+    "scenario": "Token authentication fails during the login process.",
+    "given": "The user has a token that is expired or invalid.",
+    "when": "The system attempts to validate the token.",
+    "then": "What should the system do in response to the authentication error?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372d",
+  "title": "Image Load Failure",
+  "description": "Image fails to load on the page",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display a placeholder image indicating the image could not be loaded."
+    },
+    {
+      "answer": "Show an error icon or message in place of the image."
+    },
+    {
+      "answer": "Log the error and provide an option to retry loading the image."
+    },
+    {
+      "answer": "Show a modal dialog explaining the image load failure."
+    }
+  ],
+  "question": {
+    "scenario": "An image fails to load due to a broken URL or network error.",
+    "given": "The image URL is invalid or the network is down.",
+    "when": "The page attempts to display the image.",
+    "then": "What should the system display in place of the image?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372e",
+  "title": "Network Disconnected",
+  "description": "User's network connection is lost during operation",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message about the lost connection."
+    },
+    {
+      "answer": "Automatically retry the network connection."
+    },
+    {
+      "answer": "Notify the user with a modal dialog about the disconnection."
+    },
+    {
+      "answer": "Suggest the user check their network settings."
+    }
+  ],
+  "question": {
+    "scenario": "The user's network connection is lost during an operation.",
+    "given": "The user is performing an online action when the network disconnects.",
+    "when": "The network connection is interrupted.",
+    "then": "What should the system do to handle the network disconnection?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d372f",
+  "title": "Payment Gateway Timeout",
+  "description": "Payment process times out due to gateway delay",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display a timeout error message to the user."
+    },
+    {
+      "answer": "Automatically retry the payment transaction."
+    },
+    {
+      "answer": "Show a modal dialog advising the user of the delay."
+    },
+    {
+      "answer": "Log the timeout error and prompt the user to try again later."
+    }
+  ],
+  "question": {
+    "scenario": "The payment gateway times out during a transaction.",
+    "given": "The user has entered all payment details.",
+    "when": "The system does not receive a response from the payment gateway in time.",
+    "then": "What should the system do to handle the timeout?"
+  }
+},
+{
+  "_id": "67ed04a361bbf0a2320d3730",
+  "title": "Unexpected Redirect Error",
+  "description": "User is unexpectedly redirected during navigation",
+  "isValidQuestion": false,
+  "nAnswers": 4,
+  "answers": [
+    {
+      "answer": "Display an error message indicating an unexpected redirect."
+    },
+    {
+      "answer": "Log the error and notify the system administrators."
+    },
+    {
+      "answer": "Redirect the user back to the intended page automatically."
+    },
+    {
+      "answer": "Show a modal dialog explaining the unexpected behavior."
+    }
+  ],
+  "question": {
+    "scenario": "The system unexpectedly redirects the user to another page.",
+    "given": "The user is navigating within the application.",
+    "when": "An unexpected redirect occurs.",
+    "then": "What should be the appropriate system response?"
+  }
+}]

@@ -8,6 +8,7 @@ import { UseGuards } from '@nestjs/common';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { UpdateUserService } from '../users/services/update.user.service';
+import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -21,13 +22,12 @@ export class M1Resolver {
   @Mutation(() => Boolean)
   @Roles(Role.WORKER)
   async submitAnswer(
-    @Args('taskId') taskId: string,
-    @Args('answer') answer: string,
+    @Args('input') input: CreateRecordedAnswerInput,
     @Context() context: any,
   ): Promise<boolean> {
     const workerId = context.req.user.id;
-    await this.createRecordedService.recordAnswer(taskId, workerId, answer);
-    await this.updateUserService.userHasDoneTask(taskId, workerId, answer);
+    await this.createRecordedService.recordAnswer(input, workerId);
+    await this.updateUserService.userHasDoneTask(input, workerId);
     return true;
   }
 

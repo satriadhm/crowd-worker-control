@@ -6,13 +6,14 @@ import { M1Resolver } from './m1.resolver';
 import { Task, TaskSchema } from 'src/tasks/models/task';
 import { RecordedAnswer, RecordedAnswerSchema } from './models/recorded';
 import { Eligibility, EligibilitySchema } from './models/eligibility';
-import { AccuracyCalculationService } from './services/accuracy.calculation.service';
+// import { AccuracyCalculationService } from './services/accuracy.calculation.service';
 import { GetRecordedAnswerService } from './services/recorded/get.recorded.service';
 import { CreateEligibilityService } from './services/eligibility/create.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
+import { AccuracyCalculationServiceMX } from './services/mx.calculation.service';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { UsersModule } from 'src/users/users.module';
     GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
-    AccuracyCalculationService,
+    // AccuracyCalculationService,
+    AccuracyCalculationServiceMX,
     M1Resolver,
   ],
   exports: [
@@ -39,7 +41,8 @@ import { UsersModule } from 'src/users/users.module';
     GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
-    AccuracyCalculationService,
+    AccuracyCalculationServiceMX,
+    // AccuracyCalculationService,
   ],
 })
 export class M1Module {}

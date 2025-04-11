@@ -214,13 +214,13 @@ const m1_resolver_1 = __webpack_require__(/*! ./m1.resolver */ "./src/M1/m1.reso
 const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
 const recorded_1 = __webpack_require__(/*! ./models/recorded */ "./src/M1/models/recorded.ts");
 const eligibility_1 = __webpack_require__(/*! ./models/eligibility */ "./src/M1/models/eligibility.ts");
-const accuracy_calculation_service_1 = __webpack_require__(/*! ./services/accuracy.calculation.service */ "./src/M1/services/accuracy.calculation.service.ts");
 const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
 const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
 const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
 const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
+const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx.calculation.service */ "./src/M1/services/mx.calculation.service.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -241,7 +241,7 @@ exports.M1Module = M1Module = __decorate([
             get_eligibility_service_1.GetEligibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
             update_eligibility_service_1.UpdateEligibilityService,
-            accuracy_calculation_service_1.AccuracyCalculationService,
+            mx_calculation_service_1.AccuracyCalculationServiceMX,
             m1_resolver_1.M1Resolver,
         ],
         exports: [
@@ -250,7 +250,7 @@ exports.M1Module = M1Module = __decorate([
             get_eligibility_service_1.GetEligibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
             update_eligibility_service_1.UpdateEligibilityService,
-            accuracy_calculation_service_1.AccuracyCalculationService,
+            mx_calculation_service_1.AccuracyCalculationServiceMX,
         ],
     })
 ], M1Module);
@@ -458,190 +458,6 @@ exports.RecordedAnswerSchema = mongoose_1.SchemaFactory.createForClass(RecordedA
 
 /***/ }),
 
-/***/ "./src/M1/services/accuracy.calculation.service.ts":
-/*!*********************************************************!*\
-  !*** ./src/M1/services/accuracy.calculation.service.ts ***!
-  \*********************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var AccuracyCalculationService_1;
-var _a, _b, _c;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AccuracyCalculationService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const get_task_service_1 = __webpack_require__(/*! ./../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! ../models/recorded */ "./src/M1/models/recorded.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ./eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
-let AccuracyCalculationService = AccuracyCalculationService_1 = class AccuracyCalculationService {
-    constructor(recordedAnswerModel, CreateEligibilityService, getTaskService) {
-        this.recordedAnswerModel = recordedAnswerModel;
-        this.CreateEligibilityService = CreateEligibilityService;
-        this.getTaskService = getTaskService;
-        this.logger = new common_1.Logger(AccuracyCalculationService_1.name);
-    }
-    async calculateAccuracy(taskId, workers, windowSize) {
-        this.logger.log(`Mulai perhitungan accuracy untuk taskId: ${taskId}`);
-        const task = await this.getTaskService.getTaskById(taskId);
-        if (!task) {
-            this.logger.error(`Task dengan ID ${taskId} tidak ditemukan`);
-            throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-        const N = task.answers.length;
-        const M = task.nAnswers || 4;
-        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
-        const answers = await this.recordedAnswerModel.find({ taskId });
-        const numWorkers = workers.length;
-        this.logger.log(`Jumlah pekerja: ${numWorkers}`);
-        const estimatesMap = {};
-        workers.forEach((workerId) => (estimatesMap[workerId] = []));
-        for (let start = 0; start <= numWorkers - windowSize; start++) {
-            const workerTriple = workers.slice(start, start + windowSize);
-            this.logger.debug(`Memproses window: ${workerTriple.join(', ')}`);
-            const { Q12, Q13, Q23 } = this.computeTripleQ(taskId, workerTriple, answers, N);
-            this.logger.debug(`Window ${workerTriple.join(', ')}: Q12=${Q12.toFixed(2)}, Q13=${Q13.toFixed(2)}, Q23=${Q23.toFixed(2)}`);
-            const [A1, A2, A3] = this.solveTriple(Q12, Q13, Q23, M);
-            this.logger.debug(`Hasil window: ${workerTriple[0]}=${A1}, ${workerTriple[1]}=${A2}, ${workerTriple[2]}=${A3}`);
-            estimatesMap[workerTriple[0]].push(A1);
-            estimatesMap[workerTriple[1]].push(A2);
-            estimatesMap[workerTriple[2]].push(A3);
-        }
-        const accuracyMap = {};
-        workers.forEach((workerId) => {
-            const arr = estimatesMap[workerId];
-            const avg = arr.reduce((sum, val) => sum + val, 0) / (arr.length || 1);
-            accuracyMap[workerId] = parseFloat(avg.toFixed(2));
-        });
-        this.logger.log(`Perhitungan selesai. Akurasi akhir: ${JSON.stringify(accuracyMap)}`);
-        return accuracyMap;
-    }
-    computeTripleQ(taskId, workerTriple, answers, N) {
-        let T12 = 0, T13 = 0, T23 = 0;
-        for (let k = 0; k < N; k++) {
-            const a1 = answers.find((a) => a.workerId.toString() === workerTriple[0] &&
-                a.taskId.toString() === taskId);
-            const a2 = answers.find((a) => a.workerId.toString() === workerTriple[1] &&
-                a.taskId.toString() === taskId);
-            const a3 = answers.find((a) => a.workerId.toString() === workerTriple[2] &&
-                a.taskId.toString() === taskId);
-            if (a1 && a2 && a1.answer === a2.answer)
-                T12++;
-            if (a1 && a3 && a1.answer === a3.answer)
-                T13++;
-            if (a2 && a3 && a2.answer === a3.answer)
-                T23++;
-        }
-        return {
-            Q12: T12 / N,
-            Q13: T13 / N,
-            Q23: T23 / N,
-        };
-    }
-    solveTriple(Q12, Q13, Q23, M) {
-        let A1 = 0.5, A2 = 0.5, A3 = 0.5;
-        const tolerance = 0.0001;
-        let iterations = 1000;
-        while (iterations-- > 0) {
-            let newA1, newA2, newA3;
-            const numeratorQ12 = (M + 1) * Q12 - (M - 1) + (M - 1) * A2;
-            const denominatorQ12 = 2 * M * A2 - (M - 1);
-            const termQ12 = denominatorQ12 !== 0 ? numeratorQ12 / denominatorQ12 : A1;
-            const numeratorQ13 = (M + 1) * Q13 - (M - 1) + (M - 1) * A3;
-            const denominatorQ13 = 2 * M * A3 - (M - 1);
-            const termQ13 = denominatorQ13 !== 0 ? numeratorQ13 / denominatorQ13 : A1;
-            newA1 = (termQ12 + termQ13) / 2;
-            const numeratorQ21 = (M + 1) * Q12 - (M - 1) + (M - 1) * A1;
-            const denominatorQ21 = 2 * M * A1 - (M - 1);
-            const termQ21 = denominatorQ21 !== 0 ? numeratorQ21 / denominatorQ21 : A2;
-            const numeratorQ23 = (M + 1) * Q23 - (M - 1) + (M - 1) * A3;
-            const denominatorQ23 = 2 * M * A3 - (M - 1);
-            const termQ23 = denominatorQ23 !== 0 ? numeratorQ23 / denominatorQ23 : A2;
-            newA2 = (termQ21 + termQ23) / 2;
-            const numeratorQ31 = (M + 1) * Q13 - (M - 1) + (M - 1) * A1;
-            const denominatorQ31 = 2 * M * A1 - (M - 1);
-            const termQ31 = denominatorQ31 !== 0 ? numeratorQ31 / denominatorQ31 : A3;
-            const numeratorQ32 = (M + 1) * Q23 - (M - 1) + (M - 1) * A2;
-            const denominatorQ32 = 2 * M * A2 - (M - 1);
-            const termQ32 = denominatorQ32 !== 0 ? numeratorQ32 / denominatorQ32 : A3;
-            newA3 = (termQ31 + termQ32) / 2;
-            newA1 = Math.max(0, Math.min(1, newA1));
-            newA2 = Math.max(0, Math.min(1, newA2));
-            newA3 = Math.max(0, Math.min(1, newA3));
-            if (Math.abs(newA1 - A1) < tolerance &&
-                Math.abs(newA2 - A2) < tolerance &&
-                Math.abs(newA3 - A3) < tolerance) {
-                A1 = newA1;
-                A2 = newA2;
-                A3 = newA3;
-                break;
-            }
-            A1 = newA1;
-            A2 = newA2;
-            A3 = newA3;
-        }
-        return [
-            parseFloat(A1.toFixed(2)),
-            parseFloat(A2.toFixed(2)),
-            parseFloat(A3.toFixed(2)),
-        ];
-    }
-    async calculateEligibility() {
-        const tasks = await this.getTaskService.getTasks();
-        if (!tasks)
-            throw new Error('Task not found');
-        for (const task of tasks) {
-            const recordedAnswers = await this.recordedAnswerModel.find({
-                taskId: task.id,
-            });
-            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-            if (workerIds.length < 3)
-                continue;
-            const accuracies = await this.calculateAccuracy(task.id, workerIds, 3);
-            for (const workerId of workerIds) {
-                const accuracy = accuracies[workerId];
-                const eligibilityInput = {
-                    taskId: task.id,
-                    workerId: workerId,
-                    accuracy: accuracy,
-                };
-                await this.CreateEligibilityService.upSertEligibility(eligibilityInput);
-            }
-        }
-    }
-};
-exports.AccuracyCalculationService = AccuracyCalculationService;
-__decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_5_SECONDS),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AccuracyCalculationService.prototype, "calculateEligibility", null);
-exports.AccuracyCalculationService = AccuracyCalculationService = AccuracyCalculationService_1 = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
-], AccuracyCalculationService);
-
-
-/***/ }),
-
 /***/ "./src/M1/services/eligibility/create.eligibility.service.ts":
 /*!*******************************************************************!*\
   !*** ./src/M1/services/eligibility/create.eligibility.service.ts ***!
@@ -812,6 +628,178 @@ exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
 ], UpdateEligibilityService);
+
+
+/***/ }),
+
+/***/ "./src/M1/services/mx.calculation.service.ts":
+/*!***************************************************!*\
+  !*** ./src/M1/services/mx.calculation.service.ts ***!
+  \***************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var AccuracyCalculationServiceMX_1;
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AccuracyCalculationServiceMX = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const get_task_service_1 = __webpack_require__(/*! ./../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const recorded_1 = __webpack_require__(/*! ../models/recorded */ "./src/M1/models/recorded.ts");
+const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
+const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
+const create_eligibility_service_1 = __webpack_require__(/*! ./eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
+let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
+    constructor(recordedAnswerModel, createEligibilityService, getTaskService) {
+        this.recordedAnswerModel = recordedAnswerModel;
+        this.createEligibilityService = createEligibilityService;
+        this.getTaskService = getTaskService;
+        this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
+    }
+    async calculateAccuracyMX(taskId, workers) {
+        this.logger.log(`Memulai perhitungan akurasi M-X untuk taskId: ${taskId}`);
+        const task = await this.getTaskService.getTaskById(taskId);
+        if (!task) {
+            this.logger.error(`Task dengan ID ${taskId} tidak ditemukan`);
+            throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+        const N = task.answers.length;
+        const M = task.nAnswers || 4;
+        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
+        const answers = await this.recordedAnswerModel.find({ taskId });
+        const finalAccuracies = {};
+        workers.forEach((workerId) => {
+            finalAccuracies[workerId] = 1.0;
+        });
+        const workerAnswersMap = {};
+        for (const workerId of workers) {
+            const workerAnswers = answers
+                .filter((a) => a.workerId.toString() === workerId)
+                .map((a) => a.answer);
+            workerAnswersMap[workerId] = workerAnswers;
+        }
+        for (let optionIdx = 0; optionIdx < M; optionIdx++) {
+            this.logger.debug(`Memproses opsi ${optionIdx + 1} dari ${M}`);
+            const binaryAnswersMap = {};
+            for (const workerId of workers) {
+                binaryAnswersMap[workerId] = workerAnswersMap[workerId].map((ans) => parseInt(ans) === optionIdx ? 1 : 0);
+            }
+            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap, N);
+            for (const workerId of workers) {
+                finalAccuracies[workerId] *= optionAccuracies[workerId];
+            }
+        }
+        for (const workerId of workers) {
+            finalAccuracies[workerId] = parseFloat(finalAccuracies[workerId].toFixed(2));
+        }
+        this.logger.log(`Perhitungan selesai. Akurasi M-X akhir: ${JSON.stringify(finalAccuracies)}`);
+        return finalAccuracies;
+    }
+    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap, N) {
+        let accuracies = {};
+        workers.forEach((workerId) => {
+            accuracies[workerId] = 0.5;
+        });
+        const maxIterations = 100;
+        const tolerance = 0.0001;
+        let iterations = 0;
+        let converged = false;
+        while (!converged && iterations < maxIterations) {
+            iterations++;
+            const newAccuracies = {};
+            for (const i of workers) {
+                const estimates = [];
+                for (const j of workers) {
+                    if (i === j)
+                        continue;
+                    let agreementCount = 0;
+                    for (let k = 0; k < N; k++) {
+                        if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
+                            agreementCount++;
+                        }
+                    }
+                    const Qij = agreementCount / N;
+                    const Aj = accuracies[j];
+                    const numerator = 2 * Qij - 1 + (1 - Aj);
+                    const denominator = 2 * Aj - 1;
+                    if (Math.abs(denominator) > 0.001) {
+                        estimates.push(numerator / denominator);
+                    }
+                }
+                if (estimates.length > 0) {
+                    const avg = estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
+                    newAccuracies[i] = Math.max(0, Math.min(1, avg));
+                }
+                else {
+                    newAccuracies[i] = accuracies[i];
+                }
+            }
+            converged = true;
+            for (const workerId of workers) {
+                if (Math.abs(newAccuracies[workerId] - accuracies[workerId]) > tolerance) {
+                    converged = false;
+                    break;
+                }
+            }
+            accuracies = { ...newAccuracies };
+        }
+        const result = {};
+        for (const workerId of workers) {
+            result[workerId] = parseFloat(accuracies[workerId].toFixed(2));
+        }
+        return result;
+    }
+    async calculateEligibility() {
+        const tasks = await this.getTaskService.getValidatedTasks();
+        if (!tasks)
+            throw new Error('Task not found');
+        for (const task of tasks) {
+            const recordedAnswers = await this.recordedAnswerModel.find({
+                taskId: task.id,
+            });
+            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
+            if (workerIds.length < 3)
+                continue;
+            const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
+            for (const workerId of workerIds) {
+                const accuracy = accuracies[workerId];
+                const eligibilityInput = {
+                    taskId: task.id,
+                    workerId: workerId,
+                    accuracy: accuracy,
+                };
+                await this.createEligibilityService.upSertEligibility(eligibilityInput);
+            }
+        }
+    }
+};
+exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
+__decorate([
+    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_5_SECONDS),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AccuracyCalculationServiceMX.prototype, "calculateEligibility", null);
+exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
+], AccuracyCalculationServiceMX);
 
 
 /***/ }),
@@ -2091,6 +2079,11 @@ __decorate([
     (0, graphql_1.Field)({ nullable: true }),
     (0, mongoose_1.Prop)({ required: false }),
     __metadata("design:type", String)
+], Answer.prototype, "answerId", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
 ], Answer.prototype, "answer", void 0);
 __decorate([
     (0, graphql_1.Field)({ nullable: true }),
@@ -2338,6 +2331,15 @@ let GetTaskService = class GetTaskService {
             }
             const res = await query;
             return res.map((task) => (0, parser_1.parseToView)(task));
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getValidatedTasks() {
+        try {
+            const tasks = await this.taskModel.find({ isValidQuestion: true });
+            return tasks.map((task) => (0, parser_1.parseToView)(task));
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);

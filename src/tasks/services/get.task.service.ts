@@ -45,6 +45,15 @@ export class GetTaskService {
     }
   }
 
+  async getValidatedTasks(): Promise<TaskView[]> {
+    try {
+      const tasks = await this.taskModel.find({ isValidQuestion: true });
+      return tasks.map((task) => parseToView(task));
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
+
   async getTotalTasks(): Promise<number> {
     try {
       return this.taskModel.countDocuments();

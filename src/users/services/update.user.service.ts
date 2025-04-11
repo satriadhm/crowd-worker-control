@@ -8,6 +8,7 @@ import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { parseToView } from '../models/parser';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
+import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
 
 @Injectable()
 export class UpdateUserService {
@@ -36,17 +37,17 @@ export class UpdateUserService {
   }
 
   async userHasDoneTask(
-    taskId: string,
+    input: CreateRecordedAnswerInput,
     userId: string,
-    answerId: string,
   ): Promise<UserView> {
     try {
+      const { taskId, answer } = input;
       const user = await this.userModel.findById(userId);
       if (!user) {
         throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
       }
       if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-        user.completedTasks.push({ taskId, answer: answerId });
+        user.completedTasks.push({ taskId, answer });
         await user.save();
       }
       return parseToView(user);

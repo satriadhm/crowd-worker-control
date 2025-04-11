@@ -1,33 +1,47 @@
+import { ThrowGQL } from '@app/gqlerr';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { RecordedAnswer } from '../../models/recorded';
 import { Model } from 'mongoose';
-import { ThrowGQL } from '@app/gqlerr';
+import { RecordedAnswer } from 'src/M1/models/recorded';
+import { GetTaskService } from 'src/tasks/services/get.task.service';
+import { CreateRecordedAnswerInput } from '../../dto/recorded/create.recorded.input';
 
 @Injectable()
 export class CreateRecordedService {
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    private readonly getTaskService: GetTaskService,
   ) {}
 
   async createRecordedAnswer(
     taskId: string,
     workerId: string,
-    answer: string,
+    answerId: number,
   ): Promise<RecordedAnswer> {
     try {
-      return this.recordedAnswerModel.create({ taskId, workerId, answer });
+      // Optionally fetch the task to get the text answer for reference
+      const task = await this.getTaskService.getTaskById(taskId);
+      const answerText =
+        task?.answers.find((a) => a.answerId === answerId)?.answer || '';
+
+      return this.recordedAnswerModel.create({
+        taskId,
+        workerId,
+        answerId,
+        answer: answerText, // Store the text for reference
+      });
     } catch (error) {
       throw new ThrowGQL('Error in creating recorded answer', error);
     }
   }
 
   async recordAnswer(
-    taskId: string,
+    input: CreateRecordedAnswerInput,
     workerId: string,
-    answer: string,
   ): Promise<void> {
-    await this.createRecordedAnswer(taskId, workerId, answer);
+    const answerId = input.answerId;
+    const taskId = input.taskId;
+    await this.createRecordedAnswer(taskId, workerId, answerId);
   }
 }

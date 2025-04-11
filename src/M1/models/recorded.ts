@@ -10,6 +10,9 @@ export class RecordedAnswer extends Document {
   workerId: string;
 
   @Prop({ required: true })
+  answerId: number;
+
+  @Prop({ required: false })
   answer: string;
 }
 

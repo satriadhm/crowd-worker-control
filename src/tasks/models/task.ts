@@ -6,6 +6,9 @@ import { HydratedDocument } from 'mongoose';
 export class Answer {
   @Field({ nullable: true })
   @Prop({ required: false })
+  answerId: number;
+  @Field({ nullable: true })
+  @Prop({ required: false })
   answer: string;
   @Field({ nullable: true })
   @Prop({ required: false })
