@@ -14,6 +14,7 @@ import { Roles } from 'src/auth/decorators/role.decorator';
 import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { Role } from 'src/lib/user.enum';
+import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
 
 @Resolver(() => Users)
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -44,11 +45,10 @@ export class UsersResolver {
   @Mutation(() => UserView)
   @Roles(Role.WORKER)
   async userHasDoneTask(
-    @Args('taskId') taskId: string,
+    @Args('input') input: CreateRecordedAnswerInput,
     @Args('userId') userId: string,
-    @Args('answerId') answerId: string,
   ): Promise<UserView> {
-    return this.updateUserService.userHasDoneTask(taskId, userId, answerId);
+    return this.updateUserService.userHasDoneTask(input, userId);
   }
 
   @Query(() => [UserView])

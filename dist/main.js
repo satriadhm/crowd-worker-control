@@ -192,6 +192,47 @@ exports.EligibilityView = EligibilityView = __decorate([
 
 /***/ }),
 
+/***/ "./src/M1/dto/recorded/create.recorded.input.ts":
+/*!******************************************************!*\
+  !*** ./src/M1/dto/recorded/create.recorded.input.ts ***!
+  \******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateRecordedAnswerInput = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let CreateRecordedAnswerInput = class CreateRecordedAnswerInput {
+};
+exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateRecordedAnswerInput.prototype, "taskId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateRecordedAnswerInput.prototype, "answer", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], CreateRecordedAnswerInput.prototype, "answerId", void 0);
+exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput = __decorate([
+    (0, graphql_1.InputType)()
+], CreateRecordedAnswerInput);
+
+
+/***/ }),
+
 /***/ "./src/M1/m1.module.ts":
 /*!*****************************!*\
   !*** ./src/M1/m1.module.ts ***!
@@ -221,6 +262,7 @@ const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility
 const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
 const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx.calculation.service */ "./src/M1/services/mx.calculation.service.ts");
+const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -236,6 +278,7 @@ exports.M1Module = M1Module = __decorate([
             ]),
         ],
         providers: [
+            create_recorded_input_1.CreateRecordedAnswerInput,
             create_recorded_service_1.CreateRecordedService,
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetEligibilityService,
@@ -245,6 +288,7 @@ exports.M1Module = M1Module = __decorate([
             m1_resolver_1.M1Resolver,
         ],
         exports: [
+            create_recorded_input_1.CreateRecordedAnswerInput,
             create_recorded_service_1.CreateRecordedService,
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetEligibilityService,
@@ -277,7 +321,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -290,16 +334,17 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 const update_user_service_1 = __webpack_require__(/*! ../users/services/update.user.service */ "./src/users/services/update.user.service.ts");
+const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
 let M1Resolver = class M1Resolver {
     constructor(GetEligibilityService, createRecordedService, updateUserService) {
         this.GetEligibilityService = GetEligibilityService;
         this.createRecordedService = createRecordedService;
         this.updateUserService = updateUserService;
     }
-    async submitAnswer(taskId, answer, context) {
+    async submitAnswer(input, context) {
         const workerId = context.req.user.id;
-        await this.createRecordedService.recordAnswer(taskId, workerId, answer);
-        await this.updateUserService.userHasDoneTask(taskId, workerId, answer);
+        await this.createRecordedService.recordAnswer(input, workerId);
+        await this.updateUserService.userHasDoneTask(input, workerId);
         return true;
     }
     async getEligibilityHistory(workerId) {
@@ -310,12 +355,11 @@ exports.M1Resolver = M1Resolver;
 __decorate([
     (0, graphql_1.Mutation)(() => Boolean),
     (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)('taskId')),
-    __param(1, (0, graphql_1.Args)('answer')),
-    __param(2, (0, graphql_1.Context)()),
+    __param(0, (0, graphql_1.Args)('input')),
+    __param(1, (0, graphql_1.Context)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
-    __metadata("design:returntype", typeof (_d = typeof Promise !== "undefined" && Promise) === "function" ? _d : Object)
+    __metadata("design:paramtypes", [typeof (_d = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _d : Object, Object]),
+    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
 ], M1Resolver.prototype, "submitAnswer", null);
 __decorate([
     (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
@@ -323,7 +367,7 @@ __decorate([
     __param(0, (0, graphql_1.Args)('workerId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
 ], M1Resolver.prototype, "getEligibilityHistory", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
@@ -448,6 +492,10 @@ __decorate([
 ], RecordedAnswer.prototype, "workerId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], RecordedAnswer.prototype, "answerId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
     __metadata("design:type", String)
 ], RecordedAnswer.prototype, "answer", void 0);
 exports.RecordedAnswer = RecordedAnswer = __decorate([
@@ -823,35 +871,46 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateRecordedService = void 0;
+const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 let CreateRecordedService = class CreateRecordedService {
-    constructor(recordedAnswerModel) {
+    constructor(recordedAnswerModel, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
+        this.getTaskService = getTaskService;
     }
-    async createRecordedAnswer(taskId, workerId, answer) {
+    async createRecordedAnswer(taskId, workerId, answerId) {
         try {
-            return this.recordedAnswerModel.create({ taskId, workerId, answer });
+            const task = await this.getTaskService.getTaskById(taskId);
+            const answerText = task?.answers.find((a) => a.answerId === answerId)?.answer || '';
+            return this.recordedAnswerModel.create({
+                taskId,
+                workerId,
+                answerId,
+                answer: answerText,
+            });
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL('Error in creating recorded answer', error);
         }
     }
-    async recordAnswer(taskId, workerId, answer) {
-        await this.createRecordedAnswer(taskId, workerId, answer);
+    async recordAnswer(input, workerId) {
+        const answerId = input.answerId;
+        const taskId = input.taskId;
+        await this.createRecordedAnswer(taskId, workerId, answerId);
     }
 };
 exports.CreateRecordedService = CreateRecordedService;
 exports.CreateRecordedService = CreateRecordedService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object])
 ], CreateRecordedService);
 
 
@@ -2078,7 +2137,7 @@ exports.Answer = Answer;
 __decorate([
     (0, graphql_1.Field)({ nullable: true }),
     (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
+    __metadata("design:type", Number)
 ], Answer.prototype, "answerId", void 0);
 __decorate([
     (0, graphql_1.Field)({ nullable: true }),
@@ -3286,14 +3345,15 @@ let UpdateUserService = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
-    async userHasDoneTask(taskId, userId, answerId) {
+    async userHasDoneTask(input, userId) {
         try {
+            const { taskId, answer } = input;
             const user = await this.userModel.findById(userId);
             if (!user) {
                 throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
             }
             if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-                user.completedTasks.push({ taskId, answer: answerId });
+                user.completedTasks.push({ taskId, answer });
                 await user.save();
             }
             return (0, parser_1.parseToView)(user);
@@ -3411,7 +3471,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UsersResolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -3430,6 +3490,7 @@ const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decora
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
+const create_recorded_input_1 = __webpack_require__(/*! src/M1/dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
 let UsersResolver = class UsersResolver {
     constructor(createUserService, updateUserService, deleteUserService, getUserService) {
         this.createUserService = createUserService;
@@ -3446,8 +3507,8 @@ let UsersResolver = class UsersResolver {
     async deleteUser(id) {
         return this.deleteUserService.delete(id);
     }
-    async userHasDoneTask(taskId, userId, answerId) {
-        return this.updateUserService.userHasDoneTask(taskId, userId, answerId);
+    async userHasDoneTask(input, userId) {
+        return this.updateUserService.userHasDoneTask(input, userId);
     }
     async getAllUsers(args) {
         return this.getUserService.getAllUsers(args);
@@ -3491,20 +3552,19 @@ __decorate([
 __decorate([
     (0, graphql_1.Mutation)(() => user_view_1.UserView),
     (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)('taskId')),
+    __param(0, (0, graphql_1.Args)('input')),
     __param(1, (0, graphql_1.Args)('userId')),
-    __param(2, (0, graphql_1.Args)('answerId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String]),
-    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
+    __metadata("design:paramtypes", [typeof (_k = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _k : Object, String]),
+    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
 ], UsersResolver.prototype, "userHasDoneTask", null);
 __decorate([
     (0, graphql_2.Query)(() => [user_view_1.UserView]),
     (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
     __param(0, (0, graphql_1.Args)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_l = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _l : Object]),
-    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
+    __metadata("design:paramtypes", [typeof (_m = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _m : Object]),
+    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], UsersResolver.prototype, "getAllUsers", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3512,7 +3572,7 @@ __decorate([
     __param(0, (0, graphql_1.Args)('username')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
 ], UsersResolver.prototype, "getUserByUsername", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3520,7 +3580,7 @@ __decorate([
     __param(0, (0, graphql_1.Args)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
 ], UsersResolver.prototype, "getUserByEmail", null);
 __decorate([
     (0, graphql_2.Query)(() => user_view_1.UserView),
@@ -3528,14 +3588,14 @@ __decorate([
     __param(0, (0, graphql_1.Args)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
+    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
 ], UsersResolver.prototype, "getUserById", null);
 __decorate([
     (0, graphql_2.Query)(() => Number),
     (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
+    __metadata("design:returntype", typeof (_s = typeof Promise !== "undefined" && Promise) === "function" ? _s : Object)
 ], UsersResolver.prototype, "getTotalUsers", null);
 exports.UsersResolver = UsersResolver = __decorate([
     (0, graphql_1.Resolver)(() => user_1.Users),

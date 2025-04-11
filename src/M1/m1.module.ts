@@ -14,6 +14,7 @@ import { GetEligibilityService } from './services/eligibility/get.eligibility.se
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
 import { AccuracyCalculationServiceMX } from './services/mx.calculation.service';
+import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AccuracyCalculationServiceMX } from './services/mx.calculation.service'
     ]),
   ],
   providers: [
+    CreateRecordedAnswerInput,
     CreateRecordedService,
     CreateEligibilityService,
     GetEligibilityService,
@@ -36,6 +38,7 @@ import { AccuracyCalculationServiceMX } from './services/mx.calculation.service'
     M1Resolver,
   ],
   exports: [
+    CreateRecordedAnswerInput,
     CreateRecordedService,
     CreateEligibilityService,
     GetEligibilityService,
