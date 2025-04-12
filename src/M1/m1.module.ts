@@ -1,4 +1,3 @@
-// src/M1/m1.module.ts
 import { TasksModule } from './../tasks/tasks.module';
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -6,15 +5,15 @@ import { M1Resolver } from './m1.resolver';
 import { Task, TaskSchema } from 'src/tasks/models/task';
 import { RecordedAnswer, RecordedAnswerSchema } from './models/recorded';
 import { Eligibility, EligibilitySchema } from './models/eligibility';
-// import { AccuracyCalculationService } from './services/accuracy.calculation.service';
 import { GetRecordedAnswerService } from './services/recorded/get.recorded.service';
 import { CreateEligibilityService } from './services/eligibility/create.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
-import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
 import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
+import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
+import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
 
 @Module({
   imports: [
@@ -33,8 +32,8 @@ import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input'
     GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
-    // AccuracyCalculationService,
     AccuracyCalculationServiceMX,
+    WorkerAnalysisService,
     M1Resolver,
   ],
   exports: [
@@ -45,7 +44,7 @@ import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input'
     GetRecordedAnswerService,
     UpdateEligibilityService,
     AccuracyCalculationServiceMX,
-    // AccuracyCalculationService,
+    WorkerAnalysisService,
   ],
 })
 export class M1Module {}

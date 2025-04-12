@@ -9,14 +9,21 @@ import { RolesGuard } from 'src/auth/guards/role.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { UpdateUserService } from '../users/services/update.user.service';
 import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
+import {
+  AlgorithmPerformanceData,
+  TesterAnalysisView,
+  TestResultView,
+} from './dto/worker-analysis/woker-analysis.view';
+import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
 export class M1Resolver {
   constructor(
-    private readonly GetEligibilityService: GetEligibilityService,
+    private readonly getEligibilityService: GetEligibilityService,
     private readonly createRecordedService: CreateRecordedService,
     private readonly updateUserService: UpdateUserService,
+    private readonly workerAnalysisService: WorkerAnalysisService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -36,6 +43,26 @@ export class M1Resolver {
   async getEligibilityHistory(
     @Args('workerId') workerId: string,
   ): Promise<EligibilityView[]> {
-    return this.GetEligibilityService.getEligibilityWorkerId(workerId);
+    return this.getEligibilityService.getEligibilityWorkerId(workerId);
+  }
+
+  // New APIs for Worker Analysis Page
+
+  @Query(() => [AlgorithmPerformanceData])
+  @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
+  async getAlgorithmPerformance(): Promise<AlgorithmPerformanceData[]> {
+    return this.workerAnalysisService.getAlgorithmPerformance();
+  }
+
+  @Query(() => [TesterAnalysisView])
+  @Roles(Role.ADMIN)
+  async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
+    return this.workerAnalysisService.getTesterAnalysis();
+  }
+
+  @Query(() => [TestResultView])
+  @Roles(Role.ADMIN)
+  async getTestResults(): Promise<TestResultView[]> {
+    return this.workerAnalysisService.getTestResults();
   }
 }
