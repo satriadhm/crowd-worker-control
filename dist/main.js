@@ -1176,7 +1176,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var WorkerAnalysisService_1;
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WorkerAnalysisService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1186,10 +1186,12 @@ const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
 const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
-    constructor(eligibilityModel, recordedAnswerModel) {
+    constructor(eligibilityModel, recordedAnswerModel, getUserService) {
         this.eligibilityModel = eligibilityModel;
         this.recordedAnswerModel = recordedAnswerModel;
+        this.getUserService = getUserService;
         this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
         this.performanceHistory = [];
         this.startDate = new Date('2025-01-01');
@@ -1220,15 +1222,13 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
     }
     async getTesterAnalysis() {
         try {
-            const eligibilities = await this.eligibilityModel
-                .find()
-                .populate('workerId', 'firstName lastName')
-                .exec();
+            const eligibilities = await this.eligibilityModel.find().exec();
             const workerMap = new Map();
-            eligibilities.forEach((eligibility) => {
+            for (const eligibility of eligibilities) {
                 const workerId = eligibility.workerId.toString();
-                const workerName = eligibility.workerId['firstName']
-                    ? `${eligibility.workerId['firstName']} ${eligibility.workerId['lastName']}`
+                const worker = await this.getUserService.getUserById(workerId);
+                const workerName = worker
+                    ? `${worker.firstName} ${worker.lastName}`
                     : 'Unknown Worker';
                 if (!workerMap.has(workerId)) {
                     workerMap.set(workerId, {
@@ -1240,7 +1240,7 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 if (eligibility.accuracy) {
                     workerMap.get(workerId).scores.push(eligibility.accuracy);
                 }
-            });
+            }
             const result = [];
             workerMap.forEach(({ scores, name, workerId }) => {
                 if (scores.length === 0)
@@ -1267,17 +1267,20 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 .find()
                 .sort({ createdAt: -1 })
                 .limit(50)
-                .populate('workerId', 'firstName lastName')
-                .populate('taskId', 'title')
                 .exec();
-            return eligibilities.map((eligibility) => ({
-                id: eligibility._id.toString(),
-                workerId: eligibility.workerId.toString(),
-                testId: eligibility.taskId.toString(),
-                score: eligibility.accuracy || 0.5,
-                feedback: `Automatically evaluated by M-X algorithm. Task: ${eligibility.taskId['title'] || 'Unknown Task'}`,
-                createdAt: eligibility.createdAt,
-            }));
+            const results = [];
+            for (const eligibility of eligibilities) {
+                const worker = await this.getUserService.getUserById(eligibility.workerId.toString());
+                results.push({
+                    id: eligibility._id.toString(),
+                    workerId: eligibility.workerId.toString(),
+                    testId: eligibility.taskId.toString(),
+                    score: eligibility.accuracy || 0.5,
+                    feedback: `Automatically evaluated by M-X algorithm. Task ID: ${eligibility.taskId.toString()}`,
+                    createdAt: eligibility.createdAt,
+                });
+            }
+            return results;
         }
         catch (error) {
             this.logger.error('Error getting test results data', error);
@@ -1345,7 +1348,7 @@ exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __param(1, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _c : Object])
 ], WorkerAnalysisService);
 
 

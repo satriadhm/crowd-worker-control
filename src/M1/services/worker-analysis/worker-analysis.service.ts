@@ -10,6 +10,7 @@ import {
 } from 'src/M1/dto/worker-analysis/woker-analysis.view';
 import { Eligibility } from 'src/M1/models/eligibility';
 import { RecordedAnswer } from 'src/M1/models/recorded';
+import { GetUserService } from 'src/users/services/get.user.service';
 
 @Injectable()
 export class WorkerAnalysisService {
@@ -22,6 +23,7 @@ export class WorkerAnalysisService {
     private readonly eligibilityModel: Model<Eligibility>,
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    private readonly getUserService: GetUserService,
   ) {
     // Initialize performance history with sample data
     this.initializePerformanceHistory();
@@ -63,10 +65,7 @@ export class WorkerAnalysisService {
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
       // Get all eligibility records
-      const eligibilities = await this.eligibilityModel
-        .find()
-        .populate('workerId', 'firstName lastName')
-        .exec();
+      const eligibilities = await this.eligibilityModel.find().exec();
 
       // Group by worker
       const workerMap = new Map<
@@ -78,10 +77,14 @@ export class WorkerAnalysisService {
         }
       >();
 
-      eligibilities.forEach((eligibility) => {
+      // Process each eligibility record
+      for (const eligibility of eligibilities) {
         const workerId = eligibility.workerId.toString();
-        const workerName = eligibility.workerId['firstName']
-          ? `${eligibility.workerId['firstName']} ${eligibility.workerId['lastName']}`
+
+        // Get worker details using the user service instead of populate
+        const worker = await this.getUserService.getUserById(workerId);
+        const workerName = worker
+          ? `${worker.firstName} ${worker.lastName}`
           : 'Unknown Worker';
 
         if (!workerMap.has(workerId)) {
@@ -95,7 +98,7 @@ export class WorkerAnalysisService {
         if (eligibility.accuracy) {
           workerMap.get(workerId).scores.push(eligibility.accuracy);
         }
-      });
+      }
 
       // Calculate average scores and format response
       const result: TesterAnalysisView[] = [];
@@ -128,23 +131,36 @@ export class WorkerAnalysisService {
   // Get test results for visualization
   async getTestResults(): Promise<TestResultView[]> {
     try {
-      // For this example, we'll convert eligibility records to test results
+      // Get eligibility records
       const eligibilities = await this.eligibilityModel
         .find()
         .sort({ createdAt: -1 })
         .limit(50)
-        .populate('workerId', 'firstName lastName')
-        .populate('taskId', 'title')
         .exec();
 
-      return eligibilities.map((eligibility) => ({
-        id: eligibility._id.toString(),
-        workerId: eligibility.workerId.toString(),
-        testId: eligibility.taskId.toString(),
-        score: eligibility.accuracy || 0.5,
-        feedback: `Automatically evaluated by M-X algorithm. Task: ${eligibility.taskId['title'] || 'Unknown Task'}`,
-        createdAt: eligibility.createdAt,
-      }));
+      const results: TestResultView[] = [];
+
+      // Process each eligibility record
+      for (const eligibility of eligibilities) {
+        // Get worker details
+        const worker = await this.getUserService.getUserById(
+          eligibility.workerId.toString(),
+        );
+
+        // Get task details - this would need a task service if you want to include task titles
+        // For now, we'll just use the task ID
+
+        results.push({
+          id: eligibility._id.toString(),
+          workerId: eligibility.workerId.toString(),
+          testId: eligibility.taskId.toString(),
+          score: eligibility.accuracy || 0.5,
+          feedback: `Automatically evaluated by M-X algorithm. Task ID: ${eligibility.taskId.toString()}`,
+          createdAt: eligibility.createdAt,
+        });
+      }
+
+      return results;
     } catch (error) {
       this.logger.error('Error getting test results data', error);
       throw new ThrowGQL(
