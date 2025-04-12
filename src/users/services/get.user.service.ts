@@ -6,6 +6,7 @@ import { GetUserArgs } from '../dto/args/get.user.args';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { parseToView } from '../models/parser';
 import { UserView } from '../dto/views/user.view';
+import { Role } from 'src/lib/user.enum';
 
 @Injectable()
 export class GetUserService {
@@ -52,7 +53,7 @@ export class GetUserService {
 
   async getTotalUsers(): Promise<number> {
     try {
-      return this.usersModel.countDocuments();
+      return this.usersModel.countDocuments({ role: Role.WORKER });
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }

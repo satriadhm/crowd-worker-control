@@ -9,6 +9,11 @@ import { CronExpression } from 'src/lib/cron.enum';
 import { CreateEligibilityService } from './eligibility/create.eligibility.service';
 import { CreateEligibilityInput } from '../dto/eligibility/inputs/create.eligibility.input';
 
+interface WorkerAnswer {
+  answerId: number;
+  answer: string;
+}
+
 @Injectable()
 export class AccuracyCalculationServiceMX {
   private readonly logger = new Logger(AccuracyCalculationServiceMX.name);
@@ -49,53 +54,101 @@ export class AccuracyCalculationServiceMX {
     // Get recorded answers for the task
     const answers = await this.recordedAnswerModel.find({ taskId });
 
+    if (answers.length === 0) {
+      this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
+      return workers.reduce((acc, workerId) => {
+        acc[workerId] = 0.5; // Default accuracy when no data available
+        return acc;
+      }, {});
+    }
+
     // Hasil akhir akurasi tiap worker
     const finalAccuracies: Record<string, number> = {};
     workers.forEach((workerId) => {
       finalAccuracies[workerId] = 1.0; // Initial value for product
     });
 
-    // Map untuk menyimpan jawaban worker
-    const workerAnswersMap: Record<string, string[]> = {};
+    // Map untuk menyimpan jawaban worker dengan answerId dan answer text
+    const workerAnswersMap: Record<string, WorkerAnswer[]> = {};
+
     for (const workerId of workers) {
-      const workerAnswers = answers
-        .filter((a) => a.workerId.toString() === workerId)
-        .map((a) => a.answer);
-      workerAnswersMap[workerId] = workerAnswers;
+      const workerRecords = answers.filter(
+        (a) => a.workerId.toString() === workerId,
+      );
+
+      // Store both answerId and answer text
+      workerAnswersMap[workerId] = workerRecords.map((record) => ({
+        answerId: record.answerId,
+        answer: record.answer,
+      }));
+
+      // Debug log to verify data
+      this.logger.debug(
+        `Worker ${workerId} answers: ${JSON.stringify(workerAnswersMap[workerId])}`,
+      );
     }
 
-    // Step 2-9: Untuk setiap opsi jawaban, hitung akurasi pekerja
-    for (let optionIdx = 0; optionIdx < M; optionIdx++) {
-      this.logger.debug(`Memproses opsi ${optionIdx + 1} dari ${M}`);
+    // Step 2-9: Process each answer option separately
+    // For each possible answerId, create a binary problem
+    const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort(
+      (a, b) => a - b,
+    );
 
-      // Konversi jawaban menjadi biner (1 jika sama dengan opsi saat ini, 0 jika tidak)
+    this.logger.debug(`Processing answer options: ${answerIds.join(', ')}`);
+
+    const optionsToProcess =
+      answerIds.length > 0 ? answerIds : Array.from({ length: M }, (_, i) => i);
+
+    for (const answerId of optionsToProcess) {
+      this.logger.debug(`Processing answer option ID: ${answerId}`);
+
       const binaryAnswersMap: Record<string, number[]> = {};
+
       for (const workerId of workers) {
-        binaryAnswersMap[workerId] = workerAnswersMap[workerId].map((ans) =>
-          parseInt(ans) === optionIdx ? 1 : 0,
+        const workerAnswers = workerAnswersMap[workerId] || [];
+
+        binaryAnswersMap[workerId] = workerAnswers.map((wa) =>
+          wa.answerId === answerId ? 1 : 0,
+        );
+
+        this.logger.debug(
+          `Worker ${workerId} binary for answer ${answerId}: ${binaryAnswersMap[workerId].join(',')}`,
         );
       }
 
-      // Hitung akurasi untuk opsi saat ini menggunakan metode fixed-point
+      // Calculate accuracy for this option using fixed-point method
       const optionAccuracies = await this.calculateBinaryOptionAccuracy(
         taskId,
         workers,
         binaryAnswersMap,
-        N,
       );
 
-      // Simpan akurasi per opsi
+      // Accumulate accuracies with multiplication per M-X algorithm
       for (const workerId of workers) {
-        // Akumulasi dengan perkalian (sesuai dengan algoritma M-X)
-        finalAccuracies[workerId] *= optionAccuracies[workerId];
+        // Avoid multiplying by extremely small values that would zero out everything
+        const optionAccuracy = Math.max(0.1, optionAccuracies[workerId]);
+        finalAccuracies[workerId] *= optionAccuracy;
+
+        this.logger.debug(
+          `Worker ${workerId} option ${answerId} accuracy: ${optionAccuracies[workerId]}, cumulative: ${finalAccuracies[workerId]}`,
+        );
       }
     }
 
-    // Format hasil akhir
+    // Normalize results to avoid extremely low values due to multiplication
+    // and format the final results
     for (const workerId of workers) {
-      finalAccuracies[workerId] = parseFloat(
-        finalAccuracies[workerId].toFixed(2),
+      // Apply root to normalize the product
+      const normalizedAccuracy = Math.pow(
+        finalAccuracies[workerId],
+        1 / optionsToProcess.length,
       );
+
+      // Apply scaling to avoid all workers getting the same low accuracy
+      // This helps differentiate worker performance better
+      const scaledAccuracy = 0.4 + normalizedAccuracy * 0.6;
+
+      finalAccuracies[workerId] = parseFloat(scaledAccuracy.toFixed(2));
     }
 
     this.logger.log(
@@ -112,7 +165,6 @@ export class AccuracyCalculationServiceMX {
     taskId: string,
     workers: string[],
     binaryAnswersMap: Record<string, number[]>,
-    N: number,
   ): Promise<Record<string, number>> {
     // Estimasi awal akurasi
     let accuracies: Record<string, number> = {};
@@ -140,21 +192,36 @@ export class AccuracyCalculationServiceMX {
 
           // Hitung nilai Q (tingkat kesamaan jawaban) antara worker i dan j
           let agreementCount = 0;
-          for (let k = 0; k < N; k++) {
+          for (
+            let k = 0;
+            k <
+            Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length);
+            k++
+          ) {
             if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
               agreementCount++;
             }
           }
-          const Qij = agreementCount / N;
+
+          // Use actual array length for normalization
+          const effectiveN = Math.min(
+            binaryAnswersMap[i].length,
+            binaryAnswersMap[j].length,
+          );
+          const Qij = effectiveN > 0 ? agreementCount / effectiveN : 0.5;
 
           // Rumus dari algoritma 2 yang dimodifikasi untuk kasus biner
           const Aj = accuracies[j];
           const numerator = 2 * Qij - 1 + (1 - Aj);
           const denominator = 2 * Aj - 1;
 
-          // Hindari pembagian dengan nol
-          if (Math.abs(denominator) > 0.001) {
-            estimates.push(numerator / denominator);
+          // Hindari pembagian dengan nol dan extreme values
+          if (Math.abs(denominator) > 0.01) {
+            const estimate = numerator / denominator;
+            // Add reasonable bounds to avoid extreme estimates
+            if (estimate >= 0 && estimate <= 1) {
+              estimates.push(estimate);
+            }
           }
         }
 
@@ -162,10 +229,15 @@ export class AccuracyCalculationServiceMX {
         if (estimates.length > 0) {
           const avg =
             estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
-          newAccuracies[i] = Math.max(0, Math.min(1, avg));
+          newAccuracies[i] = Math.max(0.1, Math.min(0.95, avg));
         } else {
-          // Jika tidak ada estimasi valid, gunakan nilai sebelumnya
-          newAccuracies[i] = accuracies[i];
+          // If no valid estimates, keep current accuracy with slight randomization
+          // to break symmetry
+          const randomAdjustment = Math.random() * 0.1 - 0.05;
+          newAccuracies[i] = Math.max(
+            0.1,
+            Math.min(0.9, accuracies[i] + randomAdjustment),
+          );
         }
       }
 
@@ -200,7 +272,10 @@ export class AccuracyCalculationServiceMX {
   @Cron(CronExpression.EVERY_5_SECONDS)
   async calculateEligibility() {
     const tasks = await this.getTaskService.getValidatedTasks();
-    if (!tasks) throw new Error('Task not found');
+    if (!tasks) {
+      this.logger.warn('No validated tasks found');
+      return;
+    }
 
     for (const task of tasks) {
       const recordedAnswers = await this.recordedAnswerModel.find({
@@ -211,7 +286,12 @@ export class AccuracyCalculationServiceMX {
         new Set(recordedAnswers.map((answer) => answer.workerId.toString())),
       );
 
-      if (workerIds.length < 3) continue; // Minimal 3 worker diperlukan
+      if (workerIds.length < 3) {
+        this.logger.debug(
+          `Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`,
+        );
+        continue; // Minimal 3 worker diperlukan
+      }
 
       // Gunakan algoritma M-X untuk menghitung akurasi
       const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
@@ -225,6 +305,10 @@ export class AccuracyCalculationServiceMX {
           accuracy: accuracy,
         };
         await this.createEligibilityService.upSertEligibility(eligibilityInput);
+
+        this.logger.debug(
+          `Updated eligibility for worker ${workerId}: ${accuracy}`,
+        );
       }
     }
   }

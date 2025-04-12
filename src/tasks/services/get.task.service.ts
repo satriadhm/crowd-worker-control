@@ -56,7 +56,7 @@ export class GetTaskService {
 
   async getTotalTasks(): Promise<number> {
     try {
-      return this.taskModel.countDocuments();
+      return this.taskModel.countDocuments({ isValidQuestion: true });
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }

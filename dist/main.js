@@ -730,35 +730,53 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         const M = task.nAnswers || 4;
         this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
         const answers = await this.recordedAnswerModel.find({ taskId });
+        if (answers.length === 0) {
+            this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
+            return workers.reduce((acc, workerId) => {
+                acc[workerId] = 0.5;
+                return acc;
+            }, {});
+        }
         const finalAccuracies = {};
         workers.forEach((workerId) => {
             finalAccuracies[workerId] = 1.0;
         });
         const workerAnswersMap = {};
         for (const workerId of workers) {
-            const workerAnswers = answers
-                .filter((a) => a.workerId.toString() === workerId)
-                .map((a) => a.answer);
-            workerAnswersMap[workerId] = workerAnswers;
+            const workerRecords = answers.filter((a) => a.workerId.toString() === workerId);
+            workerAnswersMap[workerId] = workerRecords.map((record) => ({
+                answerId: record.answerId,
+                answer: record.answer,
+            }));
+            this.logger.debug(`Worker ${workerId} answers: ${JSON.stringify(workerAnswersMap[workerId])}`);
         }
-        for (let optionIdx = 0; optionIdx < M; optionIdx++) {
-            this.logger.debug(`Memproses opsi ${optionIdx + 1} dari ${M}`);
+        const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
+        this.logger.debug(`Processing answer options: ${answerIds.join(', ')}`);
+        const optionsToProcess = answerIds.length > 0 ? answerIds : Array.from({ length: M }, (_, i) => i);
+        for (const answerId of optionsToProcess) {
+            this.logger.debug(`Processing answer option ID: ${answerId}`);
             const binaryAnswersMap = {};
             for (const workerId of workers) {
-                binaryAnswersMap[workerId] = workerAnswersMap[workerId].map((ans) => parseInt(ans) === optionIdx ? 1 : 0);
+                const workerAnswers = workerAnswersMap[workerId] || [];
+                binaryAnswersMap[workerId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
+                this.logger.debug(`Worker ${workerId} binary for answer ${answerId}: ${binaryAnswersMap[workerId].join(',')}`);
             }
-            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap, N);
+            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap);
             for (const workerId of workers) {
-                finalAccuracies[workerId] *= optionAccuracies[workerId];
+                const optionAccuracy = Math.max(0.1, optionAccuracies[workerId]);
+                finalAccuracies[workerId] *= optionAccuracy;
+                this.logger.debug(`Worker ${workerId} option ${answerId} accuracy: ${optionAccuracies[workerId]}, cumulative: ${finalAccuracies[workerId]}`);
             }
         }
         for (const workerId of workers) {
-            finalAccuracies[workerId] = parseFloat(finalAccuracies[workerId].toFixed(2));
+            const normalizedAccuracy = Math.pow(finalAccuracies[workerId], 1 / optionsToProcess.length);
+            const scaledAccuracy = 0.4 + normalizedAccuracy * 0.6;
+            finalAccuracies[workerId] = parseFloat(scaledAccuracy.toFixed(2));
         }
         this.logger.log(`Perhitungan selesai. Akurasi M-X akhir: ${JSON.stringify(finalAccuracies)}`);
         return finalAccuracies;
     }
-    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap, N) {
+    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap) {
         let accuracies = {};
         workers.forEach((workerId) => {
             accuracies[workerId] = 0.5;
@@ -776,25 +794,31 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     if (i === j)
                         continue;
                     let agreementCount = 0;
-                    for (let k = 0; k < N; k++) {
+                    for (let k = 0; k <
+                        Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length); k++) {
                         if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
                             agreementCount++;
                         }
                     }
-                    const Qij = agreementCount / N;
+                    const effectiveN = Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length);
+                    const Qij = effectiveN > 0 ? agreementCount / effectiveN : 0.5;
                     const Aj = accuracies[j];
                     const numerator = 2 * Qij - 1 + (1 - Aj);
                     const denominator = 2 * Aj - 1;
-                    if (Math.abs(denominator) > 0.001) {
-                        estimates.push(numerator / denominator);
+                    if (Math.abs(denominator) > 0.01) {
+                        const estimate = numerator / denominator;
+                        if (estimate >= 0 && estimate <= 1) {
+                            estimates.push(estimate);
+                        }
                     }
                 }
                 if (estimates.length > 0) {
                     const avg = estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
-                    newAccuracies[i] = Math.max(0, Math.min(1, avg));
+                    newAccuracies[i] = Math.max(0.1, Math.min(0.95, avg));
                 }
                 else {
-                    newAccuracies[i] = accuracies[i];
+                    const randomAdjustment = Math.random() * 0.1 - 0.05;
+                    newAccuracies[i] = Math.max(0.1, Math.min(0.9, accuracies[i] + randomAdjustment));
                 }
             }
             converged = true;
@@ -814,15 +838,19 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
     }
     async calculateEligibility() {
         const tasks = await this.getTaskService.getValidatedTasks();
-        if (!tasks)
-            throw new Error('Task not found');
+        if (!tasks) {
+            this.logger.warn('No validated tasks found');
+            return;
+        }
         for (const task of tasks) {
             const recordedAnswers = await this.recordedAnswerModel.find({
                 taskId: task.id,
             });
             const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-            if (workerIds.length < 3)
+            if (workerIds.length < 3) {
+                this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
                 continue;
+            }
             const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
             for (const workerId of workerIds) {
                 const accuracy = accuracies[workerId];
@@ -832,6 +860,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     accuracy: accuracy,
                 };
                 await this.createEligibilityService.upSertEligibility(eligibilityInput);
+                this.logger.debug(`Updated eligibility for worker ${workerId}: ${accuracy}`);
             }
         }
     }
@@ -2406,7 +2435,7 @@ let GetTaskService = class GetTaskService {
     }
     async getTotalTasks() {
         try {
-            return this.taskModel.countDocuments();
+            return this.taskModel.countDocuments({ isValidQuestion: true });
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
@@ -3237,6 +3266,7 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
+const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let GetUserService = class GetUserService {
     constructor(usersModel) {
         this.usersModel = usersModel;
@@ -3279,7 +3309,7 @@ let GetUserService = class GetUserService {
     }
     async getTotalUsers() {
         try {
-            return this.usersModel.countDocuments();
+            return this.usersModel.countDocuments({ role: user_enum_1.Role.WORKER });
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
