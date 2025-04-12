@@ -13,7 +13,7 @@ import { CreateRecordedService } from './services/recorded/create.recorded.servi
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
-import { AccuracyCalculationServiceMX } from './services/mx.calculation.service';
+import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
 import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
 
 @Module({

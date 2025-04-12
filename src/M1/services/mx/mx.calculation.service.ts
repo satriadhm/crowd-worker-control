@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GetTaskService } from './../../tasks/services/get.task.service';
+import { GetTaskService } from '../../../tasks/services/get.task.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { RecordedAnswer } from '../models/recorded';
+import { RecordedAnswer } from '../../models/recorded';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { Cron } from '@nestjs/schedule';
 import { CronExpression } from 'src/lib/cron.enum';
-import { CreateEligibilityService } from './eligibility/create.eligibility.service';
-import { CreateEligibilityInput } from '../dto/eligibility/inputs/create.eligibility.input';
+import { CreateEligibilityService } from '../eligibility/create.eligibility.service';
+import { CreateEligibilityInput } from '../../dto/eligibility/inputs/create.eligibility.input';
 
 interface WorkerAnswer {
   answerId: number;
@@ -269,7 +269,7 @@ export class AccuracyCalculationServiceMX {
    * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    */
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  @Cron(CronExpression.EVERY_HOUR) // Change from EVERY_5_SECONDS to less frequent
   async calculateEligibility() {
     const tasks = await this.getTaskService.getValidatedTasks();
     if (!tasks) {
@@ -290,24 +290,45 @@ export class AccuracyCalculationServiceMX {
         this.logger.debug(
           `Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`,
         );
-        continue; // Minimal 3 worker diperlukan
+        continue;
       }
 
-      // Gunakan algoritma M-X untuk menghitung akurasi
-      const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
+      // Only calculate for workers who don't already have eligibility
+      const eligibilityRecords =
+        await this.createEligibilityService.getEligibilityByTaskId(task.id);
+      const workersWithEligibility = eligibilityRecords.map((e) =>
+        e.workerId.toString(),
+      );
 
-      // Update eligibility untuk masing-masing worker berdasarkan threshold
-      for (const workerId of workerIds) {
+      // Filter out workers who already have eligibility calculated
+      const workersToCalculate = workerIds.filter(
+        (id) => !workersWithEligibility.includes(id),
+      );
+
+      if (workersToCalculate.length === 0) {
+        this.logger.debug(
+          `All workers for task ${task.id} already have eligibility calculated`,
+        );
+        continue;
+      }
+
+      // Calculate only for workers who don't have eligibility yet
+      const accuracies = await this.calculateAccuracyMX(
+        task.id,
+        workersToCalculate,
+      );
+
+      // Update eligibility only for workers who don't have it yet
+      for (const workerId of workersToCalculate) {
         const accuracy = accuracies[workerId];
         const eligibilityInput: CreateEligibilityInput = {
           taskId: task.id,
           workerId: workerId,
           accuracy: accuracy,
         };
-        await this.createEligibilityService.upSertEligibility(eligibilityInput);
-
+        await this.createEligibilityService.createEligibility(eligibilityInput);
         this.logger.debug(
-          `Updated eligibility for worker ${workerId}: ${accuracy}`,
+          `Created eligibility for worker ${workerId}: ${accuracy}`,
         );
       }
     }
