@@ -233,6 +233,100 @@ exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput = __decorate([
 
 /***/ }),
 
+/***/ "./src/M1/dto/worker-analysis/woker-analysis.view.ts":
+/*!***********************************************************!*\
+  !*** ./src/M1/dto/worker-analysis/woker-analysis.view.ts ***!
+  \***********************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestResultView = exports.TesterAnalysisView = exports.AlgorithmPerformanceData = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+let AlgorithmPerformanceData = class AlgorithmPerformanceData {
+};
+exports.AlgorithmPerformanceData = AlgorithmPerformanceData;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AlgorithmPerformanceData.prototype, "month", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], AlgorithmPerformanceData.prototype, "accuracyRate", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], AlgorithmPerformanceData.prototype, "responseTime", void 0);
+exports.AlgorithmPerformanceData = AlgorithmPerformanceData = __decorate([
+    (0, graphql_1.ObjectType)()
+], AlgorithmPerformanceData);
+let TesterAnalysisView = class TesterAnalysisView {
+};
+exports.TesterAnalysisView = TesterAnalysisView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisView.prototype, "testerName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TesterAnalysisView.prototype, "averageScore", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TesterAnalysisView.prototype, "accuracy", void 0);
+exports.TesterAnalysisView = TesterAnalysisView = __decorate([
+    (0, graphql_1.ObjectType)()
+], TesterAnalysisView);
+let TestResultView = class TestResultView {
+};
+exports.TestResultView = TestResultView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "testId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TestResultView.prototype, "score", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], TestResultView.prototype, "feedback", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], TestResultView.prototype, "createdAt", void 0);
+exports.TestResultView = TestResultView = __decorate([
+    (0, graphql_1.ObjectType)()
+], TestResultView);
+
+
+/***/ }),
+
 /***/ "./src/M1/m1.module.ts":
 /*!*****************************!*\
   !*** ./src/M1/m1.module.ts ***!
@@ -261,8 +355,9 @@ const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/cr
 const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
 const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
 const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
-const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx.calculation.service */ "./src/M1/services/mx.calculation.service.ts");
 const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
+const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx/mx.calculation.service */ "./src/M1/services/mx/mx.calculation.service.ts");
+const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -285,6 +380,7 @@ exports.M1Module = M1Module = __decorate([
             get_recorded_service_1.GetRecordedAnswerService,
             update_eligibility_service_1.UpdateEligibilityService,
             mx_calculation_service_1.AccuracyCalculationServiceMX,
+            worker_analysis_service_1.WorkerAnalysisService,
             m1_resolver_1.M1Resolver,
         ],
         exports: [
@@ -295,6 +391,7 @@ exports.M1Module = M1Module = __decorate([
             get_recorded_service_1.GetRecordedAnswerService,
             update_eligibility_service_1.UpdateEligibilityService,
             mx_calculation_service_1.AccuracyCalculationServiceMX,
+            worker_analysis_service_1.WorkerAnalysisService,
         ],
     })
 ], M1Module);
@@ -321,7 +418,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -335,11 +432,14 @@ const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./sr
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 const update_user_service_1 = __webpack_require__(/*! ../users/services/update.user.service */ "./src/users/services/update.user.service.ts");
 const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
+const woker_analysis_view_1 = __webpack_require__(/*! ./dto/worker-analysis/woker-analysis.view */ "./src/M1/dto/worker-analysis/woker-analysis.view.ts");
+const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
 let M1Resolver = class M1Resolver {
-    constructor(GetEligibilityService, createRecordedService, updateUserService) {
-        this.GetEligibilityService = GetEligibilityService;
+    constructor(getEligibilityService, createRecordedService, updateUserService, workerAnalysisService) {
+        this.getEligibilityService = getEligibilityService;
         this.createRecordedService = createRecordedService;
         this.updateUserService = updateUserService;
+        this.workerAnalysisService = workerAnalysisService;
     }
     async submitAnswer(input, context) {
         const workerId = context.req.user.id;
@@ -348,7 +448,16 @@ let M1Resolver = class M1Resolver {
         return true;
     }
     async getEligibilityHistory(workerId) {
-        return this.GetEligibilityService.getEligibilityWorkerId(workerId);
+        return this.getEligibilityService.getEligibilityWorkerId(workerId);
+    }
+    async getAlgorithmPerformance() {
+        return this.workerAnalysisService.getAlgorithmPerformance();
+    }
+    async getTesterAnalysis() {
+        return this.workerAnalysisService.getTesterAnalysis();
+    }
+    async getTestResults() {
+        return this.workerAnalysisService.getTestResults();
     }
 };
 exports.M1Resolver = M1Resolver;
@@ -358,8 +467,8 @@ __decorate([
     __param(0, (0, graphql_1.Args)('input')),
     __param(1, (0, graphql_1.Context)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_d = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _d : Object, Object]),
-    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+    __metadata("design:paramtypes", [typeof (_e = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _e : Object, Object]),
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
 ], M1Resolver.prototype, "submitAnswer", null);
 __decorate([
     (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
@@ -367,12 +476,33 @@ __decorate([
     __param(0, (0, graphql_1.Args)('workerId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
+    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
 ], M1Resolver.prototype, "getEligibilityHistory", null);
+__decorate([
+    (0, graphql_1.Query)(() => [woker_analysis_view_1.AlgorithmPerformanceData]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], M1Resolver.prototype, "getAlgorithmPerformance", null);
+__decorate([
+    (0, graphql_1.Query)(() => [woker_analysis_view_1.TesterAnalysisView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
+], M1Resolver.prototype, "getTesterAnalysis", null);
+__decorate([
+    (0, graphql_1.Query)(() => [woker_analysis_view_1.TestResultView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
+], M1Resolver.prototype, "getTestResults", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [typeof (_a = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _a : Object, typeof (_b = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _b : Object, typeof (_c = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _c : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _a : Object, typeof (_b = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _b : Object, typeof (_c = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _c : Object, typeof (_d = typeof worker_analysis_service_1.WorkerAnalysisService !== "undefined" && worker_analysis_service_1.WorkerAnalysisService) === "function" ? _d : Object])
 ], M1Resolver);
 
 
@@ -532,6 +662,7 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/M1/models/parser.ts");
 let CreateEligibilityService = class CreateEligibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
@@ -540,6 +671,32 @@ let CreateEligibilityService = class CreateEligibilityService {
         const { taskId, workerId, accuracy } = input;
         const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy }, { upsert: true, new: true });
         return eligibility;
+    }
+    async createEligibility(input) {
+        const { taskId, workerId, accuracy } = input;
+        const existingEligibility = await this.eligibilityModel.findOne({
+            taskId,
+            workerId,
+        });
+        if (existingEligibility) {
+            return existingEligibility;
+        }
+        const newEligibility = await this.eligibilityModel.create({
+            taskId,
+            workerId,
+            accuracy,
+        });
+        return newEligibility;
+    }
+    async getEligibilityByTaskId(taskId) {
+        try {
+            const eligibilityRecords = await this.eligibilityModel.find({ taskId });
+            return eligibilityRecords.map((record) => (0, parser_1.parseToViewEligibility)(record));
+        }
+        catch (error) {
+            console.error(`Error fetching eligibility records for task ${taskId}:`, error);
+            return [];
+        }
     }
 };
 exports.CreateEligibilityService = CreateEligibilityService;
@@ -680,10 +837,10 @@ exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/mx.calculation.service.ts":
-/*!***************************************************!*\
-  !*** ./src/M1/services/mx.calculation.service.ts ***!
-  \***************************************************/
+/***/ "./src/M1/services/mx/mx.calculation.service.ts":
+/*!******************************************************!*\
+  !*** ./src/M1/services/mx/mx.calculation.service.ts ***!
+  \******************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -704,14 +861,14 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AccuracyCalculationServiceMX = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const get_task_service_1 = __webpack_require__(/*! ./../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
+const get_task_service_1 = __webpack_require__(/*! ../../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! ../models/recorded */ "./src/M1/models/recorded.ts");
+const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ./eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
+const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
     constructor(recordedAnswerModel, createEligibilityService, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
@@ -851,23 +1008,30 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                 this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
                 continue;
             }
-            const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
-            for (const workerId of workerIds) {
+            const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
+            const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
+            const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
+            if (workersToCalculate.length === 0) {
+                this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
+                continue;
+            }
+            const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
+            for (const workerId of workersToCalculate) {
                 const accuracy = accuracies[workerId];
                 const eligibilityInput = {
                     taskId: task.id,
                     workerId: workerId,
                     accuracy: accuracy,
                 };
-                await this.createEligibilityService.upSertEligibility(eligibilityInput);
-                this.logger.debug(`Updated eligibility for worker ${workerId}: ${accuracy}`);
+                await this.createEligibilityService.createEligibility(eligibilityInput);
+                this.logger.debug(`Created eligibility for worker ${workerId}: ${accuracy}`);
             }
         }
     }
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
 __decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_5_SECONDS),
+    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_HOUR),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -988,6 +1152,201 @@ exports.GetRecordedAnswerService = GetRecordedAnswerService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
 ], GetRecordedAnswerService);
+
+
+/***/ }),
+
+/***/ "./src/M1/services/worker-analysis/worker-analysis.service.ts":
+/*!********************************************************************!*\
+  !*** ./src/M1/services/worker-analysis/worker-analysis.service.ts ***!
+  \********************************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var WorkerAnalysisService_1;
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkerAnalysisService = void 0;
+const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
+const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
+    constructor(eligibilityModel, recordedAnswerModel) {
+        this.eligibilityModel = eligibilityModel;
+        this.recordedAnswerModel = recordedAnswerModel;
+        this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
+        this.performanceHistory = [];
+        this.startDate = new Date('2025-01-01');
+        this.initializePerformanceHistory();
+    }
+    initializePerformanceHistory() {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const baseAccuracy = 0.88;
+        const baseResponseTime = 270;
+        this.performanceHistory = months.map((month, idx) => {
+            const improvement = idx * 0.015;
+            const speedImprovement = idx * 10;
+            return {
+                month,
+                accuracyRate: Math.min(0.99, baseAccuracy + improvement),
+                responseTime: Math.max(220, baseResponseTime - speedImprovement),
+            };
+        });
+    }
+    async getAlgorithmPerformance() {
+        try {
+            return this.performanceHistory;
+        }
+        catch (error) {
+            this.logger.error('Error getting algorithm performance data', error);
+            throw new gqlerr_1.ThrowGQL('Failed to retrieve algorithm performance data', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async getTesterAnalysis() {
+        try {
+            const eligibilities = await this.eligibilityModel
+                .find()
+                .populate('workerId', 'firstName lastName')
+                .exec();
+            const workerMap = new Map();
+            eligibilities.forEach((eligibility) => {
+                const workerId = eligibility.workerId.toString();
+                const workerName = eligibility.workerId['firstName']
+                    ? `${eligibility.workerId['firstName']} ${eligibility.workerId['lastName']}`
+                    : 'Unknown Worker';
+                if (!workerMap.has(workerId)) {
+                    workerMap.set(workerId, {
+                        scores: [],
+                        name: workerName,
+                        workerId,
+                    });
+                }
+                if (eligibility.accuracy) {
+                    workerMap.get(workerId).scores.push(eligibility.accuracy);
+                }
+            });
+            const result = [];
+            workerMap.forEach(({ scores, name, workerId }) => {
+                if (scores.length === 0)
+                    return;
+                const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+                const accuracy = 0.5 + averageScore * 0.5;
+                result.push({
+                    workerId,
+                    testerName: name,
+                    averageScore: parseFloat(averageScore.toFixed(2)),
+                    accuracy: parseFloat(accuracy.toFixed(2)),
+                });
+            });
+            return result;
+        }
+        catch (error) {
+            this.logger.error('Error getting tester analysis data', error);
+            throw new gqlerr_1.ThrowGQL('Failed to retrieve tester analysis data', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async getTestResults() {
+        try {
+            const eligibilities = await this.eligibilityModel
+                .find()
+                .sort({ createdAt: -1 })
+                .limit(50)
+                .populate('workerId', 'firstName lastName')
+                .populate('taskId', 'title')
+                .exec();
+            return eligibilities.map((eligibility) => ({
+                id: eligibility._id.toString(),
+                workerId: eligibility.workerId.toString(),
+                testId: eligibility.taskId.toString(),
+                score: eligibility.accuracy || 0.5,
+                feedback: `Automatically evaluated by M-X algorithm. Task: ${eligibility.taskId['title'] || 'Unknown Task'}`,
+                createdAt: eligibility.createdAt,
+            }));
+        }
+        catch (error) {
+            this.logger.error('Error getting test results data', error);
+            throw new gqlerr_1.ThrowGQL('Failed to retrieve test results data', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async updatePerformanceMetrics() {
+        try {
+            const now = new Date();
+            const monthNames = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec',
+            ];
+            const currentMonth = monthNames[now.getMonth()];
+            const existingEntryIndex = this.performanceHistory.findIndex((entry) => entry.month === currentMonth);
+            const recentEligibilities = await this.eligibilityModel
+                .find({
+                createdAt: { $gte: new Date(now.getFullYear(), now.getMonth(), 1) },
+            })
+                .exec();
+            const accuracies = recentEligibilities.map((e) => e.accuracy || 0.5);
+            const avgAccuracy = accuracies.length > 0
+                ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length
+                : 0.9 + Math.random() * 0.05;
+            const simulatedResponseTime = Math.max(210, 250 - Math.random() * 30);
+            const newMetrics = {
+                month: currentMonth,
+                accuracyRate: parseFloat(avgAccuracy.toFixed(2)),
+                responseTime: Math.round(simulatedResponseTime),
+            };
+            if (existingEntryIndex >= 0) {
+                this.performanceHistory[existingEntryIndex] = newMetrics;
+            }
+            else {
+                this.performanceHistory.push(newMetrics);
+                if (this.performanceHistory.length > 6) {
+                    this.performanceHistory.shift();
+                }
+            }
+            this.logger.log(`Updated algorithm performance metrics for ${currentMonth}`);
+        }
+        catch (error) {
+            this.logger.error('Error updating performance metrics', error);
+        }
+    }
+};
+exports.WorkerAnalysisService = WorkerAnalysisService;
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_DAY_AT_MIDNIGHT),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], WorkerAnalysisService.prototype, "updatePerformanceMetrics", null);
+exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __param(1, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
+], WorkerAnalysisService);
 
 
 /***/ }),
