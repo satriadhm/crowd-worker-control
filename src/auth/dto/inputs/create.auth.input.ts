@@ -25,7 +25,7 @@ export class RegisterInput {
   password: string;
 
   @Field()
-  @MinLength(8)
+  @MinLength(7)
   passwordConfirmation: string;
 
   @Field(() => Role)
