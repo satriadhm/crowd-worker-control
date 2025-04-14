@@ -129,6 +129,7 @@ export class WorkerAnalysisService {
   }
 
   // Get test results for visualization
+  // Get test results for visualization
   async getTestResults(): Promise<TestResultView[]> {
     try {
       // Get eligibility records
@@ -147,15 +148,17 @@ export class WorkerAnalysisService {
           eligibility.workerId.toString(),
         );
 
-        // Get task details - this would need a task service if you want to include task titles
-        // For now, we'll just use the task ID
+        // Include worker name in feedback if available
+        const workerInfo = worker
+          ? `Worker: ${worker.firstName} ${worker.lastName}`
+          : '';
 
         results.push({
           id: eligibility._id.toString(),
           workerId: eligibility.workerId.toString(),
           testId: eligibility.taskId.toString(),
           score: eligibility.accuracy || 0.5,
-          feedback: `Automatically evaluated by M-X algorithm. Task ID: ${eligibility.taskId.toString()}`,
+          feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
           createdAt: eligibility.createdAt,
         });
       }

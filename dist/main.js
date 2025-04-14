@@ -1271,12 +1271,15 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             const results = [];
             for (const eligibility of eligibilities) {
                 const worker = await this.getUserService.getUserById(eligibility.workerId.toString());
+                const workerInfo = worker
+                    ? `Worker: ${worker.firstName} ${worker.lastName}`
+                    : '';
                 results.push({
                     id: eligibility._id.toString(),
                     workerId: eligibility.workerId.toString(),
                     testId: eligibility.taskId.toString(),
                     score: eligibility.accuracy || 0.5,
-                    feedback: `Automatically evaluated by M-X algorithm. Task ID: ${eligibility.taskId.toString()}`,
+                    feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
                     createdAt: eligibility.createdAt,
                 });
             }
