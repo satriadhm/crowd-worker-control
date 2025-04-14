@@ -7,7 +7,7 @@ import {
   AlgorithmPerformanceData,
   TesterAnalysisView,
   TestResultView,
-} from 'src/M1/dto/worker-analysis/woker-analysis.view';
+} from 'src/M1/dto/worker-analysis/worker-analysis.view';
 import { Eligibility } from 'src/M1/models/eligibility';
 import { RecordedAnswer } from 'src/M1/models/recorded';
 import { GetUserService } from 'src/users/services/get.user.service';

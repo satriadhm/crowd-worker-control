@@ -11,9 +11,11 @@ import { CreateRecordedService } from './services/recorded/create.recorded.servi
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
 import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
+import { Users, UsersSchema } from 'src/users/models/user';
 import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
 import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
 import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
+import { DashboardService } from './services/dashboard/dashboard.service';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { WorkerAnalysisService } from './services/worker-analysis/worker-analysi
       { name: Task.name, schema: TaskSchema },
       { name: RecordedAnswer.name, schema: RecordedAnswerSchema },
       { name: Eligibility.name, schema: EligibilitySchema },
+      { name: Users.name, schema: UsersSchema }, // Added Users model
     ]),
   ],
   providers: [
@@ -34,6 +37,7 @@ import { WorkerAnalysisService } from './services/worker-analysis/worker-analysi
     UpdateEligibilityService,
     AccuracyCalculationServiceMX,
     WorkerAnalysisService,
+    DashboardService,
     M1Resolver,
   ],
   exports: [
@@ -43,6 +47,7 @@ import { WorkerAnalysisService } from './services/worker-analysis/worker-analysi
     GetEligibilityService,
     GetRecordedAnswerService,
     UpdateEligibilityService,
+    DashboardService,
     AccuracyCalculationServiceMX,
     WorkerAnalysisService,
   ],

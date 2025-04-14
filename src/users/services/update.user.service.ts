@@ -70,9 +70,13 @@ export class UpdateUserService {
             user._id.toString(),
           );
 
+        // Jika tidak ada eligibility, jangan ubah isEligible jika sudah ada nilai
         if (eligibilities.length === 0) {
-          user.isEligible = false;
-          await user.save();
+          // Hanya ubah jika belum ada nilai (null) atau jika memang ingin diubah menjadi false
+          if (user.isEligible === null) {
+            user.isEligible = false;
+            await user.save();
+          }
           continue;
         }
 

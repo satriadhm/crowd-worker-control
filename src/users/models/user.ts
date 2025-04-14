@@ -64,10 +64,8 @@ export class Users {
   address2: string;
 
   @Prop({
-    required: function () {
-      return this.role === 'worker';
-    },
-    default: false,
+    default: undefined,
+    required: false,
   })
   isEligible: boolean;
 
@@ -81,6 +79,12 @@ export class Users {
     default: [],
   })
   completedTasks: { taskId: string; answer: string }[];
+
+  @Field(() => Date, { nullable: true })
+  createdAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  updatedAt?: Date;
 }
 
 export type UserDocument = HydratedDocument<Users>;

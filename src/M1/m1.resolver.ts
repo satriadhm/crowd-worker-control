@@ -13,8 +13,10 @@ import {
   AlgorithmPerformanceData,
   TesterAnalysisView,
   TestResultView,
-} from './dto/worker-analysis/woker-analysis.view';
+} from './dto/worker-analysis/worker-analysis.view';
 import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
+import { DashboardSummary } from './dto/dashboard/dashboard.view';
+import { DashboardService } from './services/dashboard/dashboard.service';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -24,6 +26,7 @@ export class M1Resolver {
     private readonly createRecordedService: CreateRecordedService,
     private readonly updateUserService: UpdateUserService,
     private readonly workerAnalysisService: WorkerAnalysisService,
+    private readonly dashboardService: DashboardService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -64,5 +67,11 @@ export class M1Resolver {
   @Roles(Role.ADMIN)
   async getTestResults(): Promise<TestResultView[]> {
     return this.workerAnalysisService.getTestResults();
+  }
+
+  @Query(() => DashboardSummary)
+  @Roles(Role.ADMIN, Role.WORKER)
+  async getDashboardSummary(): Promise<DashboardSummary> {
+    return this.dashboardService.getDashboardSummary();
   }
 }

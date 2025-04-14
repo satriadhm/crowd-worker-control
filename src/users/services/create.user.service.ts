@@ -17,9 +17,12 @@ export class CreateUserService {
 
   async create(createUserInput: CreateUserInput): Promise<UserView> {
     try {
+      const isEligible = null;
+
       const user = await new this.userModel({
         _id: new ObjectId(),
         ...createUserInput,
+        isEligible, // Gunakan nilai yang sudah ditentukan
       }).save();
       return parseToView(user);
     } catch (error) {
