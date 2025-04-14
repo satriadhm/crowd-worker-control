@@ -39,6 +39,7 @@ const configService = new ConfigService(process.env).ensureValues([
   'MONGO_CONNECTION',
   'MONGO_DB_NAME',
   'SECRET_KEY',
+  'MX_THRESHOLD',
 ]);
 
 export { configService };
