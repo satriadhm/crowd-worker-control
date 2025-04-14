@@ -269,7 +269,7 @@ export class AccuracyCalculationServiceMX {
    * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    */
-  @Cron(CronExpression.EVERY_HOUR) // Change from EVERY_5_SECONDS to less frequent
+  @Cron(CronExpression.EVERY_5_MINUTES) // Change from EVERY_5_SECONDS to less frequent
   async calculateEligibility() {
     const tasks = await this.getTaskService.getValidatedTasks();
     if (!tasks) {

@@ -1,11 +1,530 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
-/******/ 	var __webpack_modules__ = ({
+/******/ 	var __webpack_modules__ = ([
+/* 0 */
+/***/ ((module, exports, __webpack_require__) => {
 
-/***/ "./libs/gqlerr/src/index.ts":
-/*!**********************************!*\
-  !*** ./libs/gqlerr/src/index.ts ***!
-  \**********************************/
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core_1 = __webpack_require__(1);
+const app_module_1 = __webpack_require__(2);
+const config_service_1 = __webpack_require__(8);
+const config_1 = __webpack_require__(7);
+const gqlerr_1 = __webpack_require__(15);
+const cookieParser = __webpack_require__(70);
+async function bootstrap() {
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
+        cors: { origin: '*', credentials: true },
+    });
+    const config = app.get(config_1.ConfigService);
+    app.use(cookieParser());
+    app.useGlobalFilters(new gqlerr_1.CustomGraphQLErrorFilter());
+    await app.listen(config.get('PORT') || config_service_1.configService.getPort());
+}
+if (process.env.VERCEL_ENV) {
+    module.exports = bootstrap();
+}
+else {
+    bootstrap();
+}
+
+
+/***/ }),
+/* 1 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/core");
+
+/***/ }),
+/* 2 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AppModule = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const graphql_1 = __webpack_require__(5);
+const apollo_1 = __webpack_require__(6);
+const config_1 = __webpack_require__(7);
+const config_service_1 = __webpack_require__(8);
+const tasks_module_1 = __webpack_require__(10);
+const auth_module_1 = __webpack_require__(60);
+const users_module_1 = __webpack_require__(31);
+const m1_module_1 = __webpack_require__(50);
+const throttler_1 = __webpack_require__(69);
+const gqlerr_1 = __webpack_require__(15);
+const schedule_1 = __webpack_require__(20);
+let AppModule = class AppModule {
+};
+exports.AppModule = AppModule;
+exports.AppModule = AppModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            config_1.ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
+            throttler_1.ThrottlerModule.forRoot({ throttlers: [{ ttl: 60, limit: 10 }] }),
+            schedule_1.ScheduleModule.forRoot(),
+            mongoose_1.MongooseModule.forRootAsync({
+                imports: [config_1.ConfigModule],
+                inject: [config_1.ConfigService],
+                useFactory: async (config) => ({
+                    uri: config.get('MONGO_CONNECTION') ||
+                        config_service_1.configService.getValue('MONGO_CONNECTION'),
+                    dbName: config_service_1.configService.getValue('MONGO_DB_NAME'),
+                    connectTimeoutMS: 10000,
+                }),
+            }),
+            graphql_1.GraphQLModule.forRoot({
+                driver: apollo_1.ApolloDriver,
+                path: '/graphql',
+                autoSchemaFile: true,
+                sortSchema: true,
+                introspection: true,
+                playground: true,
+                formatError: gqlerr_1.GQLErrFormatter,
+                context: ({ req, res }) => ({ req, res }),
+            }),
+            tasks_module_1.TasksModule,
+            auth_module_1.AuthModule,
+            users_module_1.UsersModule,
+            m1_module_1.M1Module,
+        ],
+    })
+], AppModule);
+
+
+/***/ }),
+/* 3 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/common");
+
+/***/ }),
+/* 4 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/mongoose");
+
+/***/ }),
+/* 5 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/graphql");
+
+/***/ }),
+/* 6 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/apollo");
+
+/***/ }),
+/* 7 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/config");
+
+/***/ }),
+/* 8 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.configService = void 0;
+(__webpack_require__(9).config)();
+class ConfigService {
+    constructor(env) {
+        this.env = env;
+    }
+    getValue(key, throwOnMissing = true) {
+        const value = this.env[key];
+        if (!value && throwOnMissing) {
+            throw new Error(`config error - missing env.${key}`);
+        }
+        return value;
+    }
+    ensureValues(keys) {
+        keys.forEach((k) => this.getValue(k, true));
+        return this;
+    }
+    getPort() {
+        return this.getValue('PORT', true);
+    }
+    isProduction() {
+        const mode = this.getValue('MODE', false);
+        return mode != 'DEV';
+    }
+    getEnvValue(key, throwOnMissing = true) {
+        return this.getValue(key, throwOnMissing);
+    }
+}
+const configService = new ConfigService(process.env).ensureValues([
+    'PORT',
+    'MONGO_CONNECTION',
+    'MONGO_DB_NAME',
+    'SECRET_KEY',
+    'MX_THRESHOLD',
+]);
+exports.configService = configService;
+
+
+/***/ }),
+/* 9 */
+/***/ ((module) => {
+
+module.exports = require("dotenv");
+
+/***/ }),
+/* 10 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TasksModule = void 0;
+const common_1 = __webpack_require__(3);
+const tasks_resolver_1 = __webpack_require__(11);
+const task_1 = __webpack_require__(14);
+const mongoose_1 = __webpack_require__(4);
+const create_task_service_1 = __webpack_require__(12);
+const get_task_service_1 = __webpack_require__(19);
+const update_task_service_1 = __webpack_require__(27);
+const delete_task_service_1 = __webpack_require__(23);
+const users_module_1 = __webpack_require__(31);
+const auth_module_1 = __webpack_require__(60);
+const m1_module_1 = __webpack_require__(50);
+let TasksModule = class TasksModule {
+};
+exports.TasksModule = TasksModule;
+exports.TasksModule = TasksModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            mongoose_1.MongooseModule.forFeature([{ name: task_1.Task.name, schema: task_1.TaskSchema }]),
+            (0, common_1.forwardRef)(() => m1_module_1.M1Module),
+            users_module_1.UsersModule,
+            auth_module_1.AuthModule,
+        ],
+        providers: [
+            tasks_resolver_1.TasksResolver,
+            create_task_service_1.CreateTaskService,
+            get_task_service_1.GetTaskService,
+            update_task_service_1.UpdateTaskService,
+            delete_task_service_1.DeleteTaskService,
+        ],
+        exports: [
+            create_task_service_1.CreateTaskService,
+            get_task_service_1.GetTaskService,
+            update_task_service_1.UpdateTaskService,
+            delete_task_service_1.DeleteTaskService,
+        ],
+    })
+], TasksModule);
+
+
+/***/ }),
+/* 11 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TasksResolver = void 0;
+const graphql_1 = __webpack_require__(5);
+const create_task_service_1 = __webpack_require__(12);
+const task_1 = __webpack_require__(14);
+const get_task_service_1 = __webpack_require__(19);
+const delete_task_service_1 = __webpack_require__(23);
+const task_view_input_1 = __webpack_require__(24);
+const create_task_input_1 = __webpack_require__(25);
+const get_task_args_1 = __webpack_require__(26);
+const update_task_service_1 = __webpack_require__(27);
+const update_task_input_1 = __webpack_require__(28);
+const role_decorator_1 = __webpack_require__(29);
+const user_enum_1 = __webpack_require__(30);
+let TasksResolver = class TasksResolver {
+    constructor(createTaskService, getTaskService, deleteTaskService, updateTaskService) {
+        this.createTaskService = createTaskService;
+        this.getTaskService = getTaskService;
+        this.deleteTaskService = deleteTaskService;
+        this.updateTaskService = updateTaskService;
+    }
+    async createTask(input) {
+        return this.createTaskService.createTask(input);
+    }
+    async updateTask(input) {
+        return this.updateTaskService.updateTask(input);
+    }
+    async getTaskById(id) {
+        return this.getTaskService.getTaskById(id);
+    }
+    async getTasks(args) {
+        return this.getTaskService.getTasks(args);
+    }
+    async deleteTask(id) {
+        return this.deleteTaskService.delete(id);
+    }
+    async getTotalTasks() {
+        return this.getTaskService.getTotalTasks();
+    }
+    async validateQuestionTask(id) {
+        return this.updateTaskService.validateQuestionTask(id);
+    }
+};
+exports.TasksResolver = TasksResolver;
+__decorate([
+    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_e = typeof create_task_input_1.CreateTaskInput !== "undefined" && create_task_input_1.CreateTaskInput) === "function" ? _e : Object]),
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
+], TasksResolver.prototype, "createTask", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_g = typeof update_task_input_1.UpdateTaskInput !== "undefined" && update_task_input_1.UpdateTaskInput) === "function" ? _g : Object]),
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], TasksResolver.prototype, "updateTask", null);
+__decorate([
+    (0, graphql_1.Query)(() => task_view_input_1.TaskView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR, user_enum_1.Role.WORKER),
+    __param(0, (0, graphql_1.Args)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
+], TasksResolver.prototype, "getTaskById", null);
+__decorate([
+    (0, graphql_1.Query)(() => [task_view_input_1.TaskView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR, user_enum_1.Role.WORKER),
+    __param(0, (0, graphql_1.Args)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_k = typeof get_task_args_1.GetTaskArgs !== "undefined" && get_task_args_1.GetTaskArgs) === "function" ? _k : Object]),
+    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
+], TasksResolver.prototype, "getTasks", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __param(0, (0, graphql_1.Args)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
+], TasksResolver.prototype, "deleteTask", null);
+__decorate([
+    (0, graphql_1.Query)(() => Number),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
+], TasksResolver.prototype, "getTotalTasks", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.QUESTION_VALIDATOR),
+    __param(0, (0, graphql_1.Args)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+], TasksResolver.prototype, "validateQuestionTask", null);
+exports.TasksResolver = TasksResolver = __decorate([
+    (0, graphql_1.Resolver)(() => task_1.Task),
+    __metadata("design:paramtypes", [typeof (_a = typeof create_task_service_1.CreateTaskService !== "undefined" && create_task_service_1.CreateTaskService) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof delete_task_service_1.DeleteTaskService !== "undefined" && delete_task_service_1.DeleteTaskService) === "function" ? _c : Object, typeof (_d = typeof update_task_service_1.UpdateTaskService !== "undefined" && update_task_service_1.UpdateTaskService) === "function" ? _d : Object])
+], TasksResolver);
+
+
+/***/ }),
+/* 12 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateTaskService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(13);
+const task_1 = __webpack_require__(14);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(17);
+const mongoose_2 = __webpack_require__(4);
+const bson_1 = __webpack_require__(18);
+let CreateTaskService = class CreateTaskService {
+    constructor(taskModel) {
+        this.taskModel = taskModel;
+    }
+    async createTask(input) {
+        try {
+            const parsedResult = (0, parser_1.parseRequest)(input);
+            const result = await this.taskModel.create({
+                _id: new bson_1.ObjectId(),
+                ...parsedResult,
+            });
+            return (0, parser_1.parseToView)(result);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.CreateTaskService = CreateTaskService;
+exports.CreateTaskService = CreateTaskService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
+], CreateTaskService);
+
+
+/***/ }),
+/* 13 */
+/***/ ((module) => {
+
+module.exports = require("mongoose");
+
+/***/ }),
+/* 14 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TaskSchema = exports.Task = exports.GherkinsQuestion = exports.Answer = void 0;
+const graphql_1 = __webpack_require__(5);
+const mongoose_1 = __webpack_require__(4);
+let Answer = class Answer {
+};
+exports.Answer = Answer;
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", Number)
+], Answer.prototype, "answerId", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], Answer.prototype, "answer", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", Number)
+], Answer.prototype, "stats", void 0);
+exports.Answer = Answer = __decorate([
+    (0, graphql_1.ObjectType)()
+], Answer);
+let GherkinsQuestion = class GherkinsQuestion {
+};
+exports.GherkinsQuestion = GherkinsQuestion;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "scenario", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "given", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "when", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], GherkinsQuestion.prototype, "then", void 0);
+exports.GherkinsQuestion = GherkinsQuestion = __decorate([
+    (0, graphql_1.ObjectType)()
+], GherkinsQuestion);
+let Task = class Task {
+};
+exports.Task = Task;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Task.prototype, "_id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Task.prototype, "title", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], Task.prototype, "description", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", GherkinsQuestion)
+], Task.prototype, "question", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Boolean)
+], Task.prototype, "isValidQuestion", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Task.prototype, "nAnswers", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [Answer]),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Array)
+], Task.prototype, "answers", void 0);
+exports.Task = Task = __decorate([
+    (0, mongoose_1.Schema)(),
+    (0, graphql_1.ObjectType)()
+], Task);
+exports.TaskSchema = mongoose_1.SchemaFactory.createForClass(Task);
+
+
+/***/ }),
+/* 15 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -33,9 +552,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CustomGraphQLErrorFilter = exports.ThrowGQL = void 0;
 exports.GQLErrFormatter = GQLErrFormatter;
 exports.Try = Try;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const type_1 = __webpack_require__(/*! ./type */ "./libs/gqlerr/src/type.ts");
-__exportStar(__webpack_require__(/*! ./type */ "./libs/gqlerr/src/type.ts"), exports);
+const common_1 = __webpack_require__(3);
+const type_1 = __webpack_require__(16);
+__exportStar(__webpack_require__(16), exports);
 function GQLErrFormatter(err, anyErr) {
     delete err.extensions['code'];
     delete err.extensions['originalError'];
@@ -99,11 +618,7 @@ function Try(fn) {
 
 
 /***/ }),
-
-/***/ "./libs/gqlerr/src/type.ts":
-/*!*********************************!*\
-  !*** ./libs/gqlerr/src/type.ts ***!
-  \*********************************/
+/* 16 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -137,11 +652,302 @@ exports.CThrowType = {
 
 
 /***/ }),
+/* 17 */
+/***/ ((__unused_webpack_module, exports) => {
 
-/***/ "./src/M1/dto/eligibility/views/eligibility.view.ts":
-/*!**********************************************************!*\
-  !*** ./src/M1/dto/eligibility/views/eligibility.view.ts ***!
-  \**********************************************************/
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRequest = exports.parseToView = void 0;
+const parseToView = (input) => {
+    const answers = Array.isArray(input.answers) ? input.answers : [];
+    return {
+        id: input._id?.toString() || '',
+        isValidQuestion: input.isValidQuestion,
+        title: input.title,
+        description: input.description,
+        question: {
+            scenario: input.question?.scenario || '',
+            given: input.question?.given || '',
+            when: input.question?.when || '',
+            then: input.question?.then || '',
+        },
+        nAnswers: answers.length,
+        answers,
+    };
+};
+exports.parseToView = parseToView;
+const parseRequest = (input) => {
+    const answers = Array.isArray(input.answers) ? input.answers : [];
+    return {
+        title: input.title,
+        description: input.description,
+        isValidQuestion: false,
+        question: {
+            scenario: input.question?.scenario || '',
+            given: input.question?.given || '',
+            when: input.question?.when || '',
+            then: input.question?.then || '',
+        },
+        answers,
+        nAnswers: answers.length,
+    };
+};
+exports.parseRequest = parseRequest;
+
+
+/***/ }),
+/* 18 */
+/***/ ((module) => {
+
+module.exports = require("bson");
+
+/***/ }),
+/* 19 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetTaskService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(13);
+const task_1 = __webpack_require__(14);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(17);
+const mongoose_2 = __webpack_require__(4);
+const schedule_1 = __webpack_require__(20);
+const get_recorded_service_1 = __webpack_require__(21);
+let GetTaskService = class GetTaskService {
+    constructor(taskModel, getRecordedAnswerService) {
+        this.taskModel = taskModel;
+        this.getRecordedAnswerService = getRecordedAnswerService;
+    }
+    async getTaskById(id) {
+        try {
+            const res = await this.taskModel.findById(id);
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getTasks(args) {
+        try {
+            let query = this.taskModel.find();
+            if (args?.skip != null) {
+                query = query.skip(args.skip);
+            }
+            if (args?.take != null) {
+                query = query.limit(args.take);
+            }
+            const res = await query;
+            return res.map((task) => (0, parser_1.parseToView)(task));
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getValidatedTasks() {
+        try {
+            const tasks = await this.taskModel.find({ isValidQuestion: true });
+            return tasks.map((task) => (0, parser_1.parseToView)(task));
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getTotalTasks() {
+        try {
+            return this.taskModel.countDocuments({ isValidQuestion: true });
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async countAnswerStat() {
+        const tasks = await this.taskModel.find();
+        if (!tasks.length)
+            throw new Error('No tasks found');
+        for (const task of tasks) {
+            const recordedAnswers = await this.getRecordedAnswerService.getRecordedAnswer(task._id);
+            const totalAnswers = recordedAnswers.length;
+            task.answers.forEach((answer) => {
+                const count = recordedAnswers.filter((recordedAnswer) => recordedAnswer.answer === answer.answer).length;
+                answer.stats = count / totalAnswers;
+            });
+            await task.save();
+        }
+    }
+};
+exports.GetTaskService = GetTaskService;
+__decorate([
+    (0, schedule_1.Cron)('*/10 * * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], GetTaskService.prototype, "countAnswerStat", null);
+exports.GetTaskService = GetTaskService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
+], GetTaskService);
+
+
+/***/ }),
+/* 20 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/schedule");
+
+/***/ }),
+/* 21 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetRecordedAnswerService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const recorded_1 = __webpack_require__(22);
+const mongoose_2 = __webpack_require__(13);
+let GetRecordedAnswerService = class GetRecordedAnswerService {
+    constructor(recordedAnswerModel) {
+        this.recordedAnswerModel = recordedAnswerModel;
+    }
+    async getRecordedAnswer(taskId) {
+        return this.recordedAnswerModel.find({ taskId });
+    }
+    async getRecordedAnswerByWorkerId(workerId) {
+        return this.recordedAnswerModel.find({ workerId });
+    }
+};
+exports.GetRecordedAnswerService = GetRecordedAnswerService;
+exports.GetRecordedAnswerService = GetRecordedAnswerService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], GetRecordedAnswerService);
+
+
+/***/ }),
+/* 22 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RecordedAnswerSchema = exports.RecordedAnswer = void 0;
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+let RecordedAnswer = class RecordedAnswer extends mongoose_2.Document {
+};
+exports.RecordedAnswer = RecordedAnswer;
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Task', required: true }),
+    __metadata("design:type", String)
+], RecordedAnswer.prototype, "taskId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Worker', required: true }),
+    __metadata("design:type", String)
+], RecordedAnswer.prototype, "workerId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], RecordedAnswer.prototype, "answerId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], RecordedAnswer.prototype, "answer", void 0);
+exports.RecordedAnswer = RecordedAnswer = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], RecordedAnswer);
+exports.RecordedAnswerSchema = mongoose_1.SchemaFactory.createForClass(RecordedAnswer);
+
+
+/***/ }),
+/* 23 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DeleteTaskService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(13);
+const task_1 = __webpack_require__(14);
+const gqlerr_1 = __webpack_require__(15);
+const mongoose_2 = __webpack_require__(4);
+let DeleteTaskService = class DeleteTaskService {
+    constructor(taskModel) {
+        this.taskModel = taskModel;
+    }
+    async delete(id) {
+        try {
+            return this.taskModel.findByIdAndDelete(id);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.DeleteTaskService = DeleteTaskService;
+exports.DeleteTaskService = DeleteTaskService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
+], DeleteTaskService);
+
+
+/***/ }),
+/* 24 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -156,46 +962,1438 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EligibilityView = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let EligibilityView = class EligibilityView {
+exports.TaskView = void 0;
+const graphql_1 = __webpack_require__(5);
+const task_1 = __webpack_require__(14);
+let TaskView = class TaskView {
 };
-exports.EligibilityView = EligibilityView;
+exports.TaskView = TaskView;
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", String)
-], EligibilityView.prototype, "id", void 0);
+], TaskView.prototype, "id", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", String)
-], EligibilityView.prototype, "taskId", void 0);
+], TaskView.prototype, "title", void 0);
 __decorate([
-    (0, graphql_1.Field)(),
+    (0, graphql_1.Field)({ nullable: true }),
     __metadata("design:type", String)
-], EligibilityView.prototype, "workerId", void 0);
+], TaskView.prototype, "description", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => task_1.GherkinsQuestion),
+    __metadata("design:type", typeof (_a = typeof task_1.GherkinsQuestion !== "undefined" && task_1.GherkinsQuestion) === "function" ? _a : Object)
+], TaskView.prototype, "question", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", Number)
-], EligibilityView.prototype, "accuracy", void 0);
+], TaskView.prototype, "nAnswers", void 0);
 __decorate([
     (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], EligibilityView.prototype, "feedback", void 0);
+    __metadata("design:type", Boolean)
+], TaskView.prototype, "isValidQuestion", void 0);
 __decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
-], EligibilityView.prototype, "Date", void 0);
-exports.EligibilityView = EligibilityView = __decorate([
+    (0, graphql_1.Field)(() => [task_1.Answer]),
+    __metadata("design:type", Array)
+], TaskView.prototype, "answers", void 0);
+exports.TaskView = TaskView = __decorate([
     (0, graphql_1.ObjectType)()
-], EligibilityView);
+], TaskView);
 
 
 /***/ }),
+/* 25 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
-/***/ "./src/M1/dto/recorded/create.recorded.input.ts":
-/*!******************************************************!*\
-  !*** ./src/M1/dto/recorded/create.recorded.input.ts ***!
-  \******************************************************/
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateTaskInput = exports.GherkinsQuestionInput = exports.AnswerInput = void 0;
+const graphql_1 = __webpack_require__(5);
+let AnswerInput = class AnswerInput {
+};
+exports.AnswerInput = AnswerInput;
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], AnswerInput.prototype, "answer", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], AnswerInput.prototype, "stats", void 0);
+exports.AnswerInput = AnswerInput = __decorate([
+    (0, graphql_1.InputType)()
+], AnswerInput);
+let GherkinsQuestionInput = class GherkinsQuestionInput {
+};
+exports.GherkinsQuestionInput = GherkinsQuestionInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "scenario", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "given", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "when", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], GherkinsQuestionInput.prototype, "then", void 0);
+exports.GherkinsQuestionInput = GherkinsQuestionInput = __decorate([
+    (0, graphql_1.InputType)()
+], GherkinsQuestionInput);
+let CreateTaskInput = class CreateTaskInput {
+};
+exports.CreateTaskInput = CreateTaskInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateTaskInput.prototype, "title", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], CreateTaskInput.prototype, "description", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => GherkinsQuestionInput),
+    __metadata("design:type", GherkinsQuestionInput)
+], CreateTaskInput.prototype, "question", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [AnswerInput]),
+    __metadata("design:type", Array)
+], CreateTaskInput.prototype, "answers", void 0);
+exports.CreateTaskInput = CreateTaskInput = __decorate([
+    (0, graphql_1.InputType)()
+], CreateTaskInput);
+
+
+/***/ }),
+/* 26 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetTaskArgs = void 0;
+const graphql_1 = __webpack_require__(5);
+let GetTaskArgs = class GetTaskArgs {
+};
+exports.GetTaskArgs = GetTaskArgs;
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], GetTaskArgs.prototype, "question", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], GetTaskArgs.prototype, "skip", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], GetTaskArgs.prototype, "take", void 0);
+exports.GetTaskArgs = GetTaskArgs = __decorate([
+    (0, graphql_1.ArgsType)()
+], GetTaskArgs);
+
+
+/***/ }),
+/* 27 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateTaskService = void 0;
+const common_1 = __webpack_require__(3);
+const gqlerr_1 = __webpack_require__(15);
+const task_1 = __webpack_require__(14);
+const mongoose_1 = __webpack_require__(13);
+const parser_1 = __webpack_require__(17);
+const mongoose_2 = __webpack_require__(4);
+let UpdateTaskService = class UpdateTaskService {
+    constructor(taskModel) {
+        this.taskModel = taskModel;
+    }
+    async updateTask(input) {
+        try {
+            const id = input.id;
+            delete input.id;
+            const res = await this.taskModel.findByIdAndUpdate(id, input, {
+                new: true,
+            });
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async validateQuestionTask(id) {
+        try {
+            const task = await this.taskModel.findById(id);
+            if (!task) {
+                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            task.isValidQuestion = true;
+            await task.save();
+            return (0, parser_1.parseToView)(task);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.UpdateTaskService = UpdateTaskService;
+exports.UpdateTaskService = UpdateTaskService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
+], UpdateTaskService);
+
+
+/***/ }),
+/* 28 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateTaskInput = void 0;
+const create_task_input_1 = __webpack_require__(25);
+const graphql_1 = __webpack_require__(5);
+let UpdateTaskInput = class UpdateTaskInput extends (0, graphql_1.PartialType)(create_task_input_1.CreateTaskInput) {
+};
+exports.UpdateTaskInput = UpdateTaskInput;
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    __metadata("design:type", String)
+], UpdateTaskInput.prototype, "id", void 0);
+exports.UpdateTaskInput = UpdateTaskInput = __decorate([
+    (0, graphql_1.InputType)()
+], UpdateTaskInput);
+
+
+/***/ }),
+/* 29 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Roles = void 0;
+const common_1 = __webpack_require__(3);
+const Roles = (...roles) => (0, common_1.SetMetadata)('roles', roles);
+exports.Roles = Roles;
+
+
+/***/ }),
+/* 30 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Role = exports.Gender = void 0;
+const graphql_1 = __webpack_require__(5);
+var Gender;
+(function (Gender) {
+    Gender["MEN"] = "pria";
+    Gender["WOMEN"] = "wanita";
+})(Gender || (exports.Gender = Gender = {}));
+var Role;
+(function (Role) {
+    Role["ADMIN"] = "admin";
+    Role["WORKER"] = "worker";
+    Role["COMPANY_REPRESENTATIVE"] = "company_representative";
+    Role["QUESTION_VALIDATOR"] = "question_validator";
+})(Role || (exports.Role = Role = {}));
+(0, graphql_1.registerEnumType)(Gender, {
+    name: 'GenderEnum',
+    description: 'The Gender of the user',
+});
+(0, graphql_1.registerEnumType)(Role, {
+    name: 'RoleEnum',
+    description: 'The Role of the user',
+});
+
+
+/***/ }),
+/* 31 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UsersModule = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const user_1 = __webpack_require__(32);
+const users_resolver_1 = __webpack_require__(33);
+const create_user_service_1 = __webpack_require__(36);
+const get_user_service_1 = __webpack_require__(45);
+const update_user_service_1 = __webpack_require__(37);
+const delete_user_service_1 = __webpack_require__(34);
+const m1_module_1 = __webpack_require__(50);
+let UsersModule = class UsersModule {
+};
+exports.UsersModule = UsersModule;
+exports.UsersModule = UsersModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            m1_module_1.M1Module,
+            mongoose_1.MongooseModule.forFeature([{ name: user_1.Users.name, schema: user_1.UsersSchema }]),
+        ],
+        providers: [
+            users_resolver_1.UsersResolver,
+            create_user_service_1.CreateUserService,
+            get_user_service_1.GetUserService,
+            update_user_service_1.UpdateUserService,
+            delete_user_service_1.DeleteUserService,
+        ],
+        exports: [
+            create_user_service_1.CreateUserService,
+            get_user_service_1.GetUserService,
+            update_user_service_1.UpdateUserService,
+            delete_user_service_1.DeleteUserService,
+        ],
+    })
+], UsersModule);
+
+
+/***/ }),
+/* 32 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UsersSchema = exports.Users = exports.TaskCompletion = void 0;
+const graphql_1 = __webpack_require__(5);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const user_enum_1 = __webpack_require__(30);
+let TaskCompletion = class TaskCompletion {
+};
+exports.TaskCompletion = TaskCompletion;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TaskCompletion.prototype, "taskId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TaskCompletion.prototype, "answer", void 0);
+exports.TaskCompletion = TaskCompletion = __decorate([
+    (0, graphql_1.ObjectType)()
+], TaskCompletion);
+let Users = class Users {
+};
+exports.Users = Users;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "_id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "firstName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "lastName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "userName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "email", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Users.prototype, "password", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", Number)
+], Users.prototype, "age", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], Users.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => user_enum_1.Gender),
+    (0, mongoose_1.Prop)({ type: String, required: false }),
+    __metadata("design:type", typeof (_a = typeof user_enum_1.Gender !== "undefined" && user_enum_1.Gender) === "function" ? _a : Object)
+], Users.prototype, "gender", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => user_enum_1.Role),
+    (0, mongoose_1.Prop)({ type: String, required: false }),
+    __metadata("design:type", typeof (_b = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _b : Object)
+], Users.prototype, "role", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], Users.prototype, "address1", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], Users.prototype, "address2", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
+        required: function () {
+            return this.role === 'worker';
+        },
+        default: false,
+    }),
+    __metadata("design:type", Boolean)
+], Users.prototype, "isEligible", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [TaskCompletion]),
+    (0, mongoose_1.Prop)({
+        type: [mongoose_2.Types.ObjectId],
+        ref: 'Tasks',
+        required: function () {
+            return this.role === 'worker';
+        },
+        default: [],
+    }),
+    __metadata("design:type", Array)
+], Users.prototype, "completedTasks", void 0);
+exports.Users = Users = __decorate([
+    (0, mongoose_1.Schema)(),
+    (0, graphql_1.ObjectType)()
+], Users);
+exports.UsersSchema = mongoose_1.SchemaFactory.createForClass(Users);
+
+
+/***/ }),
+/* 33 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UsersResolver = void 0;
+const graphql_1 = __webpack_require__(5);
+const user_1 = __webpack_require__(32);
+const delete_user_service_1 = __webpack_require__(34);
+const create_user_service_1 = __webpack_require__(36);
+const update_user_service_1 = __webpack_require__(37);
+const user_view_1 = __webpack_require__(41);
+const create_user_input_1 = __webpack_require__(42);
+const update_user_input_1 = __webpack_require__(43);
+const graphql_2 = __webpack_require__(5);
+const get_user_args_1 = __webpack_require__(44);
+const get_user_service_1 = __webpack_require__(45);
+const common_1 = __webpack_require__(3);
+const role_decorator_1 = __webpack_require__(29);
+const role_guard_1 = __webpack_require__(46);
+const jwt_guard_1 = __webpack_require__(48);
+const user_enum_1 = __webpack_require__(30);
+const create_recorded_input_1 = __webpack_require__(49);
+let UsersResolver = class UsersResolver {
+    constructor(createUserService, updateUserService, deleteUserService, getUserService) {
+        this.createUserService = createUserService;
+        this.updateUserService = updateUserService;
+        this.deleteUserService = deleteUserService;
+        this.getUserService = getUserService;
+    }
+    async createUser(input) {
+        return this.createUserService.create(input);
+    }
+    async updateUser(input) {
+        return this.updateUserService.updateUser(input);
+    }
+    async deleteUser(id) {
+        return this.deleteUserService.delete(id);
+    }
+    async userHasDoneTask(input, userId) {
+        return this.updateUserService.userHasDoneTask(input, userId);
+    }
+    async getAllUsers(args) {
+        return this.getUserService.getAllUsers(args);
+    }
+    async getUserByUsername(userName) {
+        return this.getUserService.getUserByUsername(userName);
+    }
+    async getUserByEmail(email) {
+        return this.getUserService.getUserByEmail(email);
+    }
+    async getUserById(id) {
+        return this.getUserService.getUserById(id);
+    }
+    async getTotalUsers() {
+        return this.getUserService.getTotalUsers();
+    }
+};
+exports.UsersResolver = UsersResolver;
+__decorate([
+    (0, graphql_1.Mutation)(() => user_view_1.UserView),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_e = typeof create_user_input_1.CreateUserInput !== "undefined" && create_user_input_1.CreateUserInput) === "function" ? _e : Object]),
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
+], UsersResolver.prototype, "createUser", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => user_view_1.UserView),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_g = typeof update_user_input_1.UpdateUserInput !== "undefined" && update_user_input_1.UpdateUserInput) === "function" ? _g : Object]),
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], UsersResolver.prototype, "updateUser", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
+], UsersResolver.prototype, "deleteUser", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
+    __param(0, (0, graphql_1.Args)('input')),
+    __param(1, (0, graphql_1.Args)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_k = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _k : Object, String]),
+    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
+], UsersResolver.prototype, "userHasDoneTask", null);
+__decorate([
+    (0, graphql_2.Query)(() => [user_view_1.UserView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_m = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _m : Object]),
+    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
+], UsersResolver.prototype, "getAllUsers", null);
+__decorate([
+    (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('username')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+], UsersResolver.prototype, "getUserByUsername", null);
+__decorate([
+    (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('email')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
+], UsersResolver.prototype, "getUserByEmail", null);
+__decorate([
+    (0, graphql_2.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
+], UsersResolver.prototype, "getUserById", null);
+__decorate([
+    (0, graphql_2.Query)(() => Number),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_s = typeof Promise !== "undefined" && Promise) === "function" ? _s : Object)
+], UsersResolver.prototype, "getTotalUsers", null);
+exports.UsersResolver = UsersResolver = __decorate([
+    (0, graphql_1.Resolver)(() => user_1.Users),
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),
+    __metadata("design:paramtypes", [typeof (_a = typeof create_user_service_1.CreateUserService !== "undefined" && create_user_service_1.CreateUserService) === "function" ? _a : Object, typeof (_b = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _b : Object, typeof (_c = typeof delete_user_service_1.DeleteUserService !== "undefined" && delete_user_service_1.DeleteUserService) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object])
+], UsersResolver);
+
+
+/***/ }),
+/* 34 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DeleteUserService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const user_1 = __webpack_require__(32);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(35);
+let DeleteUserService = class DeleteUserService {
+    constructor(userModel) {
+        this.userModel = userModel;
+    }
+    async delete(id) {
+        try {
+            const res = await this.userModel.findByIdAndDelete(id);
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async deleteAll() {
+        try {
+            return this.userModel.deleteMany({});
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.DeleteUserService = DeleteUserService;
+exports.DeleteUserService = DeleteUserService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], DeleteUserService);
+
+
+/***/ }),
+/* 35 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseToView = void 0;
+const parseToView = (input) => {
+    return {
+        id: input.id,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        userName: input.userName,
+        email: input.email,
+        completedTasks: input.completedTasks,
+        isEligible: input.isEligible,
+        age: input.age,
+        role: input.role,
+        phoneNumber: input.phoneNumber,
+        gender: input.gender,
+        address1: input.address1,
+        address2: input.address2,
+        password: input.password,
+    };
+};
+exports.parseToView = parseToView;
+
+
+/***/ }),
+/* 36 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateUserService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const user_1 = __webpack_require__(32);
+const bson_1 = __webpack_require__(18);
+const parser_1 = __webpack_require__(35);
+const gqlerr_1 = __webpack_require__(15);
+let CreateUserService = class CreateUserService {
+    constructor(userModel) {
+        this.userModel = userModel;
+    }
+    async create(createUserInput) {
+        try {
+            const user = await new this.userModel({
+                _id: new bson_1.ObjectId(),
+                ...createUserInput,
+            }).save();
+            return (0, parser_1.parseToView)(user);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.CreateUserService = CreateUserService;
+exports.CreateUserService = CreateUserService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], CreateUserService);
+
+
+/***/ }),
+/* 37 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateUserService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const user_1 = __webpack_require__(32);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(35);
+const schedule_1 = __webpack_require__(20);
+const get_eligibility_service_1 = __webpack_require__(38);
+const config_service_1 = __webpack_require__(8);
+let UpdateUserService = class UpdateUserService {
+    constructor(userModel, getEligibilityService) {
+        this.userModel = userModel;
+        this.getEligibilityService = getEligibilityService;
+    }
+    async updateUser(input) {
+        try {
+            const id = input.id;
+            delete input.id;
+            const user = await this.userModel.findByIdAndUpdate(id, { $set: input }, { new: true });
+            if (!user) {
+                throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToView)(user);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async userHasDoneTask(input, userId) {
+        try {
+            const { taskId, answer } = input;
+            const user = await this.userModel.findById(userId);
+            if (!user) {
+                throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            if (!user.completedTasks.some((t) => t.taskId === taskId)) {
+                user.completedTasks.push({ taskId, answer });
+                await user.save();
+            }
+            return (0, parser_1.parseToView)(user);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async qualifyUser() {
+        try {
+            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
+            const threshold = parseFloat(thresholdString);
+            const allUsers = await this.userModel.find({ role: 'worker' }).exec();
+            for (const user of allUsers) {
+                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(user._id.toString());
+                if (eligibilities.length === 0) {
+                    user.isEligible = false;
+                    await user.save();
+                    continue;
+                }
+                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
+                const averageAccuracy = totalAccuracy / eligibilities.length;
+                user.isEligible = averageAccuracy >= threshold;
+                await user.save();
+            }
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.UpdateUserService = UpdateUserService;
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_10_SECONDS),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], UpdateUserService.prototype, "qualifyUser", null);
+exports.UpdateUserService = UpdateUserService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _b : Object])
+], UpdateUserService);
+
+
+/***/ }),
+/* 38 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetEligibilityService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const eligibility_1 = __webpack_require__(39);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(40);
+let GetEligibilityService = class GetEligibilityService {
+    constructor(eligibilityModel) {
+        this.eligibilityModel = eligibilityModel;
+    }
+    async getEligibility() {
+        try {
+            const res = await this.eligibilityModel.find();
+            return res.map((result) => (0, parser_1.parseToViewEligibility)(result));
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+    }
+    async getEligibilityById(eligibilityId) {
+        try {
+            const res = await this.eligibilityModel.findById(eligibilityId);
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToViewEligibility)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+    }
+    async getEligibilityWorkerId(workerId) {
+        try {
+            const results = await this.eligibilityModel.find({ workerId });
+            return results.map((result) => (0, parser_1.parseToViewEligibility)(result));
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+    }
+    async getElibilityAndUpdate(eligibilityId, update) {
+        try {
+            const res = await this.eligibilityModel.findByIdAndUpdate(eligibilityId, update, { new: true });
+            if (!res) {
+                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+            }
+            return (0, parser_1.parseToViewEligibility)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(`Error ${error}`, gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+    }
+};
+exports.GetEligibilityService = GetEligibilityService;
+exports.GetEligibilityService = GetEligibilityService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], GetEligibilityService);
+
+
+/***/ }),
+/* 39 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EligibilitySchema = exports.Eligibility = void 0;
+const graphql_1 = __webpack_require__(5);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+let Eligibility = class Eligibility {
+};
+exports.Eligibility = Eligibility;
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Task', required: true }),
+    __metadata("design:type", String)
+], Eligibility.prototype, "taskId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'User', required: true }),
+    __metadata("design:type", String)
+], Eligibility.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, mongoose_1.Prop)({ default: null }),
+    __metadata("design:type", Number)
+], Eligibility.prototype, "accuracy", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], Eligibility.prototype, "createdAt", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date),
+    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+], Eligibility.prototype, "updatedAt", void 0);
+exports.Eligibility = Eligibility = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true }),
+    (0, graphql_1.ObjectType)()
+], Eligibility);
+exports.EligibilitySchema = mongoose_1.SchemaFactory.createForClass(Eligibility);
+
+
+/***/ }),
+/* 40 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseToViewEligibility = void 0;
+const parseToViewEligibility = (input) => {
+    return {
+        id: input._id,
+        workerId: input.workerId,
+        accuracy: input.accuracy,
+        feedback: input.feedback,
+        Date: input.Date,
+        taskId: input.taskId,
+    };
+};
+exports.parseToViewEligibility = parseToViewEligibility;
+
+
+/***/ }),
+/* 41 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UserView = void 0;
+const graphql_1 = __webpack_require__(5);
+const user_1 = __webpack_require__(32);
+let UserView = class UserView {
+};
+exports.UserView = UserView;
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "firstName", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "lastName", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "userName", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "email", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "password", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], UserView.prototype, "age", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "gender", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "role", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "address1", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], UserView.prototype, "address2", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Boolean)
+], UserView.prototype, "isEligible", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [user_1.TaskCompletion], { nullable: true }),
+    __metadata("design:type", Array)
+], UserView.prototype, "completedTasks", void 0);
+exports.UserView = UserView = __decorate([
+    (0, graphql_1.ObjectType)()
+], UserView);
+
+
+/***/ }),
+/* 42 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateUserInput = void 0;
+const graphql_1 = __webpack_require__(5);
+const user_enum_1 = __webpack_require__(30);
+let CreateUserInput = class CreateUserInput {
+};
+exports.CreateUserInput = CreateUserInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "email", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "firstName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "lastName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "userName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "password", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], CreateUserInput.prototype, "passwordConfirmation", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => user_enum_1.Role),
+    __metadata("design:type", typeof (_a = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _a : Object)
+], CreateUserInput.prototype, "role", void 0);
+exports.CreateUserInput = CreateUserInput = __decorate([
+    (0, graphql_1.InputType)()
+], CreateUserInput);
+
+
+/***/ }),
+/* 43 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateUserInput = void 0;
+const create_user_input_1 = __webpack_require__(42);
+const graphql_1 = __webpack_require__(5);
+let UpdateUserInput = class UpdateUserInput extends (0, graphql_1.PartialType)(create_user_input_1.CreateUserInput) {
+};
+exports.UpdateUserInput = UpdateUserInput;
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "address1", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], UpdateUserInput.prototype, "address2", void 0);
+exports.UpdateUserInput = UpdateUserInput = __decorate([
+    (0, graphql_1.InputType)()
+], UpdateUserInput);
+
+
+/***/ }),
+/* 44 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetUserArgs = void 0;
+const graphql_1 = __webpack_require__(5);
+let GetUserArgs = class GetUserArgs {
+};
+exports.GetUserArgs = GetUserArgs;
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], GetUserArgs.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], GetUserArgs.prototype, "skip", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Number)
+], GetUserArgs.prototype, "take", void 0);
+exports.GetUserArgs = GetUserArgs = __decorate([
+    (0, graphql_1.ArgsType)()
+], GetUserArgs);
+
+
+/***/ }),
+/* 45 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetUserService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const user_1 = __webpack_require__(32);
+const gqlerr_1 = __webpack_require__(15);
+const parser_1 = __webpack_require__(35);
+const user_enum_1 = __webpack_require__(30);
+let GetUserService = class GetUserService {
+    constructor(usersModel) {
+        this.usersModel = usersModel;
+    }
+    async getUserByUsername(userName) {
+        try {
+            const res = await this.usersModel.findOne({ userName });
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getUserByEmail(email) {
+        try {
+            const res = await this.usersModel.findOne({ email });
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getUserById(id) {
+        try {
+            const res = await this.usersModel.findById(id);
+            return (0, parser_1.parseToView)(res);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getAllUsers(args) {
+        try {
+            const res = await this.usersModel.find().limit(args.take).skip(args.skip);
+            return res.map(parser_1.parseToView);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+    async getTotalUsers() {
+        try {
+            return this.usersModel.countDocuments({ role: user_enum_1.Role.WORKER });
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
+};
+exports.GetUserService = GetUserService;
+exports.GetUserService = GetUserService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], GetUserService);
+
+
+/***/ }),
+/* 46 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RolesGuard = void 0;
+const common_1 = __webpack_require__(3);
+const core_1 = __webpack_require__(1);
+const graphql_1 = __webpack_require__(5);
+const jwt = __webpack_require__(47);
+let RolesGuard = class RolesGuard {
+    constructor(reflector) {
+        this.reflector = reflector;
+    }
+    canActivate(context) {
+        const requiredRoles = this.reflector.getAllAndOverride('roles', [
+            context.getHandler(),
+            context.getClass(),
+        ]);
+        const ctx = graphql_1.GqlExecutionContext.create(context).getContext();
+        const req = ctx.req;
+        const authHeader = req.headers?.authorization;
+        if (!authHeader) {
+            throw new common_1.UnauthorizedException('Missing authorization header');
+        }
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            throw new common_1.UnauthorizedException('Invalid authorization format');
+        }
+        try {
+            const decoded = jwt.verify(token, process.env.SECRET_KEY);
+            req.user = decoded;
+            if (!requiredRoles || requiredRoles.length === 0) {
+                return true;
+            }
+            if (!req.user || !req.user.role) {
+                throw new common_1.UnauthorizedException('User role not found');
+            }
+            if (!requiredRoles.includes(req.user.role)) {
+                throw new common_1.ForbiddenException('Insufficient permissions');
+            }
+            return true;
+        }
+        catch (error) {
+            console.error('JWT Verification Error:', error.message);
+            throw new common_1.UnauthorizedException('Invalid or expired token');
+        }
+    }
+};
+exports.RolesGuard = RolesGuard;
+exports.RolesGuard = RolesGuard = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof core_1.Reflector !== "undefined" && core_1.Reflector) === "function" ? _a : Object])
+], RolesGuard);
+
+
+/***/ }),
+/* 47 */
+/***/ ((module) => {
+
+module.exports = require("jsonwebtoken");
+
+/***/ }),
+/* 48 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.JwtAuthGuard = void 0;
+const dotenv = __webpack_require__(9);
+dotenv.config();
+const common_1 = __webpack_require__(3);
+const graphql_1 = __webpack_require__(5);
+const jwt = __webpack_require__(47);
+const gqlerr_1 = __webpack_require__(15);
+let JwtAuthGuard = class JwtAuthGuard {
+    canActivate(context) {
+        const ctx = graphql_1.GqlExecutionContext.create(context).getContext();
+        const req = ctx.req;
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return false;
+        }
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return false;
+        }
+        try {
+            const decoded = jwt.verify(token, process.env.SECRET_KEY);
+            req.user = decoded;
+            return true;
+        }
+        catch (err) {
+            throw new gqlerr_1.ThrowGQL(`${req.user} Unauthorized`, gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+        }
+    }
+};
+exports.JwtAuthGuard = JwtAuthGuard;
+exports.JwtAuthGuard = JwtAuthGuard = __decorate([
+    (0, common_1.Injectable)()
+], JwtAuthGuard);
+
+
+/***/ }),
+/* 49 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -210,7 +2408,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateRecordedAnswerInput = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+const graphql_1 = __webpack_require__(5);
 let CreateRecordedAnswerInput = class CreateRecordedAnswerInput {
 };
 exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput;
@@ -232,105 +2430,7 @@ exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput = __decorate([
 
 
 /***/ }),
-
-/***/ "./src/M1/dto/worker-analysis/woker-analysis.view.ts":
-/*!***********************************************************!*\
-  !*** ./src/M1/dto/worker-analysis/woker-analysis.view.ts ***!
-  \***********************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TestResultView = exports.TesterAnalysisView = exports.AlgorithmPerformanceData = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let AlgorithmPerformanceData = class AlgorithmPerformanceData {
-};
-exports.AlgorithmPerformanceData = AlgorithmPerformanceData;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], AlgorithmPerformanceData.prototype, "month", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], AlgorithmPerformanceData.prototype, "accuracyRate", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], AlgorithmPerformanceData.prototype, "responseTime", void 0);
-exports.AlgorithmPerformanceData = AlgorithmPerformanceData = __decorate([
-    (0, graphql_1.ObjectType)()
-], AlgorithmPerformanceData);
-let TesterAnalysisView = class TesterAnalysisView {
-};
-exports.TesterAnalysisView = TesterAnalysisView;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TesterAnalysisView.prototype, "workerId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TesterAnalysisView.prototype, "testerName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], TesterAnalysisView.prototype, "averageScore", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], TesterAnalysisView.prototype, "accuracy", void 0);
-exports.TesterAnalysisView = TesterAnalysisView = __decorate([
-    (0, graphql_1.ObjectType)()
-], TesterAnalysisView);
-let TestResultView = class TestResultView {
-};
-exports.TestResultView = TestResultView;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TestResultView.prototype, "id", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TestResultView.prototype, "workerId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TestResultView.prototype, "testId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], TestResultView.prototype, "score", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], TestResultView.prototype, "feedback", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
-], TestResultView.prototype, "createdAt", void 0);
-exports.TestResultView = TestResultView = __decorate([
-    (0, graphql_1.ObjectType)()
-], TestResultView);
-
-
-/***/ }),
-
-/***/ "./src/M1/m1.module.ts":
-/*!*****************************!*\
-  !*** ./src/M1/m1.module.ts ***!
-  \*****************************/
+/* 50 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -342,22 +2442,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Module = void 0;
-const tasks_module_1 = __webpack_require__(/*! ./../tasks/tasks.module */ "./src/tasks/tasks.module.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const m1_resolver_1 = __webpack_require__(/*! ./m1.resolver */ "./src/M1/m1.resolver.ts");
-const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
-const recorded_1 = __webpack_require__(/*! ./models/recorded */ "./src/M1/models/recorded.ts");
-const eligibility_1 = __webpack_require__(/*! ./models/eligibility */ "./src/M1/models/eligibility.ts");
-const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
-const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
-const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
-const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
-const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
-const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx/mx.calculation.service */ "./src/M1/services/mx/mx.calculation.service.ts");
-const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
+const tasks_module_1 = __webpack_require__(10);
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const m1_resolver_1 = __webpack_require__(51);
+const task_1 = __webpack_require__(14);
+const recorded_1 = __webpack_require__(22);
+const eligibility_1 = __webpack_require__(39);
+const get_recorded_service_1 = __webpack_require__(21);
+const create_eligibility_service_1 = __webpack_require__(56);
+const create_recorded_service_1 = __webpack_require__(52);
+const get_eligibility_service_1 = __webpack_require__(38);
+const update_eligibility_service_1 = __webpack_require__(57);
+const users_module_1 = __webpack_require__(31);
+const create_recorded_input_1 = __webpack_require__(49);
+const mx_calculation_service_1 = __webpack_require__(58);
+const worker_analysis_service_1 = __webpack_require__(55);
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -398,11 +2498,7 @@ exports.M1Module = M1Module = __decorate([
 
 
 /***/ }),
-
-/***/ "./src/M1/m1.resolver.ts":
-/*!*******************************!*\
-  !*** ./src/M1/m1.resolver.ts ***!
-  \*******************************/
+/* 51 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -421,19 +2517,19 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
-const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligibility.view */ "./src/M1/dto/eligibility/views/eligibility.view.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
-const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
-const update_user_service_1 = __webpack_require__(/*! ../users/services/update.user.service */ "./src/users/services/update.user.service.ts");
-const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
-const woker_analysis_view_1 = __webpack_require__(/*! ./dto/worker-analysis/woker-analysis.view */ "./src/M1/dto/worker-analysis/woker-analysis.view.ts");
-const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
+const graphql_1 = __webpack_require__(5);
+const role_decorator_1 = __webpack_require__(29);
+const user_enum_1 = __webpack_require__(30);
+const create_recorded_service_1 = __webpack_require__(52);
+const get_eligibility_service_1 = __webpack_require__(38);
+const eligibility_view_1 = __webpack_require__(53);
+const common_1 = __webpack_require__(3);
+const role_guard_1 = __webpack_require__(46);
+const jwt_guard_1 = __webpack_require__(48);
+const update_user_service_1 = __webpack_require__(37);
+const create_recorded_input_1 = __webpack_require__(49);
+const woker_analysis_view_1 = __webpack_require__(54);
+const worker_analysis_service_1 = __webpack_require__(55);
 let M1Resolver = class M1Resolver {
     constructor(getEligibilityService, createRecordedService, updateUserService, workerAnalysisService) {
         this.getEligibilityService = getEligibilityService;
@@ -507,548 +2603,7 @@ exports.M1Resolver = M1Resolver = __decorate([
 
 
 /***/ }),
-
-/***/ "./src/M1/models/eligibility.ts":
-/*!**************************************!*\
-  !*** ./src/M1/models/eligibility.ts ***!
-  \**************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a, _b;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EligibilitySchema = exports.Eligibility = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-let Eligibility = class Eligibility {
-};
-exports.Eligibility = Eligibility;
-__decorate([
-    (0, graphql_1.Field)(() => String),
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Task', required: true }),
-    __metadata("design:type", String)
-], Eligibility.prototype, "taskId", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => String),
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'User', required: true }),
-    __metadata("design:type", String)
-], Eligibility.prototype, "workerId", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    (0, mongoose_1.Prop)({ default: null }),
-    __metadata("design:type", Number)
-], Eligibility.prototype, "accuracy", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => Date),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
-], Eligibility.prototype, "createdAt", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => Date),
-    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
-], Eligibility.prototype, "updatedAt", void 0);
-exports.Eligibility = Eligibility = __decorate([
-    (0, mongoose_1.Schema)({ timestamps: true }),
-    (0, graphql_1.ObjectType)()
-], Eligibility);
-exports.EligibilitySchema = mongoose_1.SchemaFactory.createForClass(Eligibility);
-
-
-/***/ }),
-
-/***/ "./src/M1/models/parser.ts":
-/*!*********************************!*\
-  !*** ./src/M1/models/parser.ts ***!
-  \*********************************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseToViewEligibility = void 0;
-const parseToViewEligibility = (input) => {
-    return {
-        id: input._id,
-        workerId: input.workerId,
-        accuracy: input.accuracy,
-        feedback: input.feedback,
-        Date: input.Date,
-        taskId: input.taskId,
-    };
-};
-exports.parseToViewEligibility = parseToViewEligibility;
-
-
-/***/ }),
-
-/***/ "./src/M1/models/recorded.ts":
-/*!***********************************!*\
-  !*** ./src/M1/models/recorded.ts ***!
-  \***********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.RecordedAnswerSchema = exports.RecordedAnswer = void 0;
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-let RecordedAnswer = class RecordedAnswer extends mongoose_2.Document {
-};
-exports.RecordedAnswer = RecordedAnswer;
-__decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Task', required: true }),
-    __metadata("design:type", String)
-], RecordedAnswer.prototype, "taskId", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Worker', required: true }),
-    __metadata("design:type", String)
-], RecordedAnswer.prototype, "workerId", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", Number)
-], RecordedAnswer.prototype, "answerId", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], RecordedAnswer.prototype, "answer", void 0);
-exports.RecordedAnswer = RecordedAnswer = __decorate([
-    (0, mongoose_1.Schema)({ timestamps: true })
-], RecordedAnswer);
-exports.RecordedAnswerSchema = mongoose_1.SchemaFactory.createForClass(RecordedAnswer);
-
-
-/***/ }),
-
-/***/ "./src/M1/services/eligibility/create.eligibility.service.ts":
-/*!*******************************************************************!*\
-  !*** ./src/M1/services/eligibility/create.eligibility.service.ts ***!
-  \*******************************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateEligibilityService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/M1/models/parser.ts");
-let CreateEligibilityService = class CreateEligibilityService {
-    constructor(eligibilityModel) {
-        this.eligibilityModel = eligibilityModel;
-    }
-    async upSertEligibility(input) {
-        const { taskId, workerId, accuracy } = input;
-        const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy }, { upsert: true, new: true });
-        return eligibility;
-    }
-    async createEligibility(input) {
-        const { taskId, workerId, accuracy } = input;
-        const existingEligibility = await this.eligibilityModel.findOne({
-            taskId,
-            workerId,
-        });
-        if (existingEligibility) {
-            return existingEligibility;
-        }
-        const newEligibility = await this.eligibilityModel.create({
-            taskId,
-            workerId,
-            accuracy,
-        });
-        return newEligibility;
-    }
-    async getEligibilityByTaskId(taskId) {
-        try {
-            const eligibilityRecords = await this.eligibilityModel.find({ taskId });
-            return eligibilityRecords.map((record) => (0, parser_1.parseToViewEligibility)(record));
-        }
-        catch (error) {
-            console.error(`Error fetching eligibility records for task ${taskId}:`, error);
-            return [];
-        }
-    }
-};
-exports.CreateEligibilityService = CreateEligibilityService;
-exports.CreateEligibilityService = CreateEligibilityService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], CreateEligibilityService);
-
-
-/***/ }),
-
-/***/ "./src/M1/services/eligibility/get.eligibility.service.ts":
-/*!****************************************************************!*\
-  !*** ./src/M1/services/eligibility/get.eligibility.service.ts ***!
-  \****************************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetEligibilityService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! src/M1/models/parser */ "./src/M1/models/parser.ts");
-let GetEligibilityService = class GetEligibilityService {
-    constructor(eligibilityModel) {
-        this.eligibilityModel = eligibilityModel;
-    }
-    async getEligibility() {
-        try {
-            const res = await this.eligibilityModel.find();
-            return res.map((result) => (0, parser_1.parseToViewEligibility)(result));
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-    }
-    async getEligibilityById(eligibilityId) {
-        try {
-            const res = await this.eligibilityModel.findById(eligibilityId);
-            if (!res) {
-                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            return (0, parser_1.parseToViewEligibility)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-    }
-    async getEligibilityWorkerId(workerId) {
-        try {
-            const results = await this.eligibilityModel.find({ workerId });
-            return results.map((result) => (0, parser_1.parseToViewEligibility)(result));
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL('Error getting eligibility', gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-    }
-    async getElibilityAndUpdate(eligibilityId, update) {
-        try {
-            const res = await this.eligibilityModel.findByIdAndUpdate(eligibilityId, update, { new: true });
-            if (!res) {
-                throw new gqlerr_1.ThrowGQL('Eligibility not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            return (0, parser_1.parseToViewEligibility)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(`Error ${error}`, gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-    }
-};
-exports.GetEligibilityService = GetEligibilityService;
-exports.GetEligibilityService = GetEligibilityService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], GetEligibilityService);
-
-
-/***/ }),
-
-/***/ "./src/M1/services/eligibility/update.eligibility.service.ts":
-/*!*******************************************************************!*\
-  !*** ./src/M1/services/eligibility/update.eligibility.service.ts ***!
-  \*******************************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateEligibilityService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
-const get_recorded_service_1 = __webpack_require__(/*! ../recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
-let UpdateEligibilityService = class UpdateEligibilityService {
-    constructor(eligibilityModel, getRecordedAnswerService) {
-        this.eligibilityModel = eligibilityModel;
-        this.getRecordedAnswerService = getRecordedAnswerService;
-    }
-};
-exports.UpdateEligibilityService = UpdateEligibilityService;
-exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
-], UpdateEligibilityService);
-
-
-/***/ }),
-
-/***/ "./src/M1/services/mx/mx.calculation.service.ts":
-/*!******************************************************!*\
-  !*** ./src/M1/services/mx/mx.calculation.service.ts ***!
-  \******************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var AccuracyCalculationServiceMX_1;
-var _a, _b, _c;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AccuracyCalculationServiceMX = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const get_task_service_1 = __webpack_require__(/*! ../../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
-let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
-    constructor(recordedAnswerModel, createEligibilityService, getTaskService) {
-        this.recordedAnswerModel = recordedAnswerModel;
-        this.createEligibilityService = createEligibilityService;
-        this.getTaskService = getTaskService;
-        this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
-    }
-    async calculateAccuracyMX(taskId, workers) {
-        this.logger.log(`Memulai perhitungan akurasi M-X untuk taskId: ${taskId}`);
-        const task = await this.getTaskService.getTaskById(taskId);
-        if (!task) {
-            this.logger.error(`Task dengan ID ${taskId} tidak ditemukan`);
-            throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
-        }
-        const N = task.answers.length;
-        const M = task.nAnswers || 4;
-        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
-        const answers = await this.recordedAnswerModel.find({ taskId });
-        if (answers.length === 0) {
-            this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
-            return workers.reduce((acc, workerId) => {
-                acc[workerId] = 0.5;
-                return acc;
-            }, {});
-        }
-        const finalAccuracies = {};
-        workers.forEach((workerId) => {
-            finalAccuracies[workerId] = 1.0;
-        });
-        const workerAnswersMap = {};
-        for (const workerId of workers) {
-            const workerRecords = answers.filter((a) => a.workerId.toString() === workerId);
-            workerAnswersMap[workerId] = workerRecords.map((record) => ({
-                answerId: record.answerId,
-                answer: record.answer,
-            }));
-            this.logger.debug(`Worker ${workerId} answers: ${JSON.stringify(workerAnswersMap[workerId])}`);
-        }
-        const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
-        this.logger.debug(`Processing answer options: ${answerIds.join(', ')}`);
-        const optionsToProcess = answerIds.length > 0 ? answerIds : Array.from({ length: M }, (_, i) => i);
-        for (const answerId of optionsToProcess) {
-            this.logger.debug(`Processing answer option ID: ${answerId}`);
-            const binaryAnswersMap = {};
-            for (const workerId of workers) {
-                const workerAnswers = workerAnswersMap[workerId] || [];
-                binaryAnswersMap[workerId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
-                this.logger.debug(`Worker ${workerId} binary for answer ${answerId}: ${binaryAnswersMap[workerId].join(',')}`);
-            }
-            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap);
-            for (const workerId of workers) {
-                const optionAccuracy = Math.max(0.1, optionAccuracies[workerId]);
-                finalAccuracies[workerId] *= optionAccuracy;
-                this.logger.debug(`Worker ${workerId} option ${answerId} accuracy: ${optionAccuracies[workerId]}, cumulative: ${finalAccuracies[workerId]}`);
-            }
-        }
-        for (const workerId of workers) {
-            const normalizedAccuracy = Math.pow(finalAccuracies[workerId], 1 / optionsToProcess.length);
-            const scaledAccuracy = 0.4 + normalizedAccuracy * 0.6;
-            finalAccuracies[workerId] = parseFloat(scaledAccuracy.toFixed(2));
-        }
-        this.logger.log(`Perhitungan selesai. Akurasi M-X akhir: ${JSON.stringify(finalAccuracies)}`);
-        return finalAccuracies;
-    }
-    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap) {
-        let accuracies = {};
-        workers.forEach((workerId) => {
-            accuracies[workerId] = 0.5;
-        });
-        const maxIterations = 100;
-        const tolerance = 0.0001;
-        let iterations = 0;
-        let converged = false;
-        while (!converged && iterations < maxIterations) {
-            iterations++;
-            const newAccuracies = {};
-            for (const i of workers) {
-                const estimates = [];
-                for (const j of workers) {
-                    if (i === j)
-                        continue;
-                    let agreementCount = 0;
-                    for (let k = 0; k <
-                        Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length); k++) {
-                        if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
-                            agreementCount++;
-                        }
-                    }
-                    const effectiveN = Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length);
-                    const Qij = effectiveN > 0 ? agreementCount / effectiveN : 0.5;
-                    const Aj = accuracies[j];
-                    const numerator = 2 * Qij - 1 + (1 - Aj);
-                    const denominator = 2 * Aj - 1;
-                    if (Math.abs(denominator) > 0.01) {
-                        const estimate = numerator / denominator;
-                        if (estimate >= 0 && estimate <= 1) {
-                            estimates.push(estimate);
-                        }
-                    }
-                }
-                if (estimates.length > 0) {
-                    const avg = estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
-                    newAccuracies[i] = Math.max(0.1, Math.min(0.95, avg));
-                }
-                else {
-                    const randomAdjustment = Math.random() * 0.1 - 0.05;
-                    newAccuracies[i] = Math.max(0.1, Math.min(0.9, accuracies[i] + randomAdjustment));
-                }
-            }
-            converged = true;
-            for (const workerId of workers) {
-                if (Math.abs(newAccuracies[workerId] - accuracies[workerId]) > tolerance) {
-                    converged = false;
-                    break;
-                }
-            }
-            accuracies = { ...newAccuracies };
-        }
-        const result = {};
-        for (const workerId of workers) {
-            result[workerId] = parseFloat(accuracies[workerId].toFixed(2));
-        }
-        return result;
-    }
-    async calculateEligibility() {
-        const tasks = await this.getTaskService.getValidatedTasks();
-        if (!tasks) {
-            this.logger.warn('No validated tasks found');
-            return;
-        }
-        for (const task of tasks) {
-            const recordedAnswers = await this.recordedAnswerModel.find({
-                taskId: task.id,
-            });
-            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-            if (workerIds.length < 3) {
-                this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
-                continue;
-            }
-            const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
-            const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
-            const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
-            if (workersToCalculate.length === 0) {
-                this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
-                continue;
-            }
-            const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
-            for (const workerId of workersToCalculate) {
-                const accuracy = accuracies[workerId];
-                const eligibilityInput = {
-                    taskId: task.id,
-                    workerId: workerId,
-                    accuracy: accuracy,
-                };
-                await this.createEligibilityService.createEligibility(eligibilityInput);
-                this.logger.debug(`Created eligibility for worker ${workerId}: ${accuracy}`);
-            }
-        }
-    }
-};
-exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
-__decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_HOUR),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AccuracyCalculationServiceMX.prototype, "calculateEligibility", null);
-exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
-], AccuracyCalculationServiceMX);
-
-
-/***/ }),
-
-/***/ "./src/M1/services/recorded/create.recorded.service.ts":
-/*!*************************************************************!*\
-  !*** ./src/M1/services/recorded/create.recorded.service.ts ***!
-  \*************************************************************/
+/* 52 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1067,12 +2622,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateRecordedService = void 0;
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
-const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
+const gqlerr_1 = __webpack_require__(15);
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const recorded_1 = __webpack_require__(22);
+const get_task_service_1 = __webpack_require__(19);
 let CreateRecordedService = class CreateRecordedService {
     constructor(recordedAnswerModel, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
@@ -1108,11 +2663,7 @@ exports.CreateRecordedService = CreateRecordedService = __decorate([
 
 
 /***/ }),
-
-/***/ "./src/M1/services/recorded/get.recorded.service.ts":
-/*!**********************************************************!*\
-  !*** ./src/M1/services/recorded/get.recorded.service.ts ***!
-  \**********************************************************/
+/* 53 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1125,41 +2676,134 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetRecordedAnswerService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-let GetRecordedAnswerService = class GetRecordedAnswerService {
-    constructor(recordedAnswerModel) {
-        this.recordedAnswerModel = recordedAnswerModel;
-    }
-    async getRecordedAnswer(taskId) {
-        return this.recordedAnswerModel.find({ taskId });
-    }
-    async getRecordedAnswerByWorkerId(workerId) {
-        return this.recordedAnswerModel.find({ workerId });
-    }
+exports.EligibilityView = void 0;
+const graphql_1 = __webpack_require__(5);
+let EligibilityView = class EligibilityView {
 };
-exports.GetRecordedAnswerService = GetRecordedAnswerService;
-exports.GetRecordedAnswerService = GetRecordedAnswerService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], GetRecordedAnswerService);
+exports.EligibilityView = EligibilityView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "taskId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], EligibilityView.prototype, "accuracy", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], EligibilityView.prototype, "feedback", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], EligibilityView.prototype, "Date", void 0);
+exports.EligibilityView = EligibilityView = __decorate([
+    (0, graphql_1.ObjectType)()
+], EligibilityView);
 
 
 /***/ }),
+/* 54 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
-/***/ "./src/M1/services/worker-analysis/worker-analysis.service.ts":
-/*!********************************************************************!*\
-  !*** ./src/M1/services/worker-analysis/worker-analysis.service.ts ***!
-  \********************************************************************/
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestResultView = exports.TesterAnalysisView = exports.AlgorithmPerformanceData = void 0;
+const graphql_1 = __webpack_require__(5);
+let AlgorithmPerformanceData = class AlgorithmPerformanceData {
+};
+exports.AlgorithmPerformanceData = AlgorithmPerformanceData;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AlgorithmPerformanceData.prototype, "month", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], AlgorithmPerformanceData.prototype, "accuracyRate", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], AlgorithmPerformanceData.prototype, "responseTime", void 0);
+exports.AlgorithmPerformanceData = AlgorithmPerformanceData = __decorate([
+    (0, graphql_1.ObjectType)()
+], AlgorithmPerformanceData);
+let TesterAnalysisView = class TesterAnalysisView {
+};
+exports.TesterAnalysisView = TesterAnalysisView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TesterAnalysisView.prototype, "testerName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TesterAnalysisView.prototype, "averageScore", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TesterAnalysisView.prototype, "accuracy", void 0);
+exports.TesterAnalysisView = TesterAnalysisView = __decorate([
+    (0, graphql_1.ObjectType)()
+], TesterAnalysisView);
+let TestResultView = class TestResultView {
+};
+exports.TestResultView = TestResultView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "id", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "workerId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], TestResultView.prototype, "testId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", Number)
+], TestResultView.prototype, "score", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], TestResultView.prototype, "feedback", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], TestResultView.prototype, "createdAt", void 0);
+exports.TestResultView = TestResultView = __decorate([
+    (0, graphql_1.ObjectType)()
+], TestResultView);
+
+
+/***/ }),
+/* 55 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1179,14 +2823,14 @@ var WorkerAnalysisService_1;
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WorkerAnalysisService = void 0;
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
-const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
-const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
+const gqlerr_1 = __webpack_require__(15);
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const schedule_1 = __webpack_require__(20);
+const mongoose_2 = __webpack_require__(13);
+const eligibility_1 = __webpack_require__(39);
+const recorded_1 = __webpack_require__(22);
+const get_user_service_1 = __webpack_require__(45);
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
     constructor(eligibilityModel, recordedAnswerModel, getUserService) {
         this.eligibilityModel = eligibilityModel;
@@ -1356,116 +3000,7 @@ exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 
 
 
 /***/ }),
-
-/***/ "./src/app.module.ts":
-/*!***************************!*\
-  !*** ./src/app.module.ts ***!
-  \***************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AppModule = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const apollo_1 = __webpack_require__(/*! @nestjs/apollo */ "@nestjs/apollo");
-const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
-const config_service_1 = __webpack_require__(/*! ./config/config.service */ "./src/config/config.service.ts");
-const tasks_module_1 = __webpack_require__(/*! ./tasks/tasks.module */ "./src/tasks/tasks.module.ts");
-const auth_module_1 = __webpack_require__(/*! ./auth/auth.module */ "./src/auth/auth.module.ts");
-const users_module_1 = __webpack_require__(/*! ./users/users.module */ "./src/users/users.module.ts");
-const m1_module_1 = __webpack_require__(/*! ./M1/m1.module */ "./src/M1/m1.module.ts");
-const throttler_1 = __webpack_require__(/*! @nestjs/throttler */ "@nestjs/throttler");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-let AppModule = class AppModule {
-};
-exports.AppModule = AppModule;
-exports.AppModule = AppModule = __decorate([
-    (0, common_1.Module)({
-        imports: [
-            config_1.ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
-            throttler_1.ThrottlerModule.forRoot({ throttlers: [{ ttl: 60, limit: 10 }] }),
-            schedule_1.ScheduleModule.forRoot(),
-            mongoose_1.MongooseModule.forRootAsync({
-                imports: [config_1.ConfigModule],
-                inject: [config_1.ConfigService],
-                useFactory: async (config) => ({
-                    uri: config.get('MONGO_CONNECTION') ||
-                        config_service_1.configService.getValue('MONGO_CONNECTION'),
-                    dbName: config_service_1.configService.getValue('MONGO_DB_NAME'),
-                    connectTimeoutMS: 10000,
-                }),
-            }),
-            graphql_1.GraphQLModule.forRoot({
-                driver: apollo_1.ApolloDriver,
-                path: '/graphql',
-                autoSchemaFile: true,
-                sortSchema: true,
-                introspection: true,
-                playground: true,
-                formatError: gqlerr_1.GQLErrFormatter,
-                context: ({ req, res }) => ({ req, res }),
-            }),
-            tasks_module_1.TasksModule,
-            auth_module_1.AuthModule,
-            users_module_1.UsersModule,
-            m1_module_1.M1Module,
-        ],
-    })
-], AppModule);
-
-
-/***/ }),
-
-/***/ "./src/auth/auth.module.ts":
-/*!*********************************!*\
-  !*** ./src/auth/auth.module.ts ***!
-  \*********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AuthModule = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const auth_resolver_1 = __webpack_require__(/*! ./auth.resolver */ "./src/auth/auth.resolver.ts");
-const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
-const auth_service_1 = __webpack_require__(/*! ./services/auth.service */ "./src/auth/services/auth.service.ts");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const auth_1 = __webpack_require__(/*! ./models/auth */ "./src/auth/models/auth.ts");
-let AuthModule = class AuthModule {
-};
-exports.AuthModule = AuthModule;
-exports.AuthModule = AuthModule = __decorate([
-    (0, common_1.Module)({
-        imports: [
-            users_module_1.UsersModule,
-            mongoose_1.MongooseModule.forFeature([{ name: auth_1.Auth.name, schema: auth_1.AuthSchema }]),
-        ],
-        providers: [auth_resolver_1.AuthResolver, auth_service_1.AuthService],
-    })
-], AuthModule);
-
-
-/***/ }),
-
-/***/ "./src/auth/auth.resolver.ts":
-/*!***********************************!*\
-  !*** ./src/auth/auth.resolver.ts ***!
-  \***********************************/
+/* 56 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1481,434 +3016,60 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AuthResolver = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const auth_1 = __webpack_require__(/*! ./models/auth */ "./src/auth/models/auth.ts");
-const auth_service_1 = __webpack_require__(/*! ./services/auth.service */ "./src/auth/services/auth.service.ts");
-const auth_view_1 = __webpack_require__(/*! ./dto/views/auth.view */ "./src/auth/dto/views/auth.view.ts");
-const create_auth_input_1 = __webpack_require__(/*! ./dto/inputs/create.auth.input */ "./src/auth/dto/inputs/create.auth.input.ts");
-const user_view_1 = __webpack_require__(/*! src/users/dto/views/user.view */ "./src/users/dto/views/user.view.ts");
-const role_decorator_1 = __webpack_require__(/*! ./decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-let AuthResolver = class AuthResolver {
-    constructor(authService) {
-        this.authService = authService;
-    }
-    async login(input) {
-        const result = await this.authService.login(input);
-        return result;
-    }
-    async register(input) {
-        const result = await this.authService.register(input);
-        return result;
-    }
-    async me(token) {
-        return this.authService.getLoggedInUser(token);
-    }
-    async logout(context) {
-        const token = context.req.headers.authorization?.split(' ')[1];
-        if (!token)
-            throw new Error('No token provided');
-        await this.authService.logout(token);
-        return true;
-    }
-};
-exports.AuthResolver = AuthResolver;
-__decorate([
-    (0, graphql_1.Mutation)(() => auth_view_1.AuthView),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_b = typeof create_auth_input_1.LoginInput !== "undefined" && create_auth_input_1.LoginInput) === "function" ? _b : Object]),
-    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
-], AuthResolver.prototype, "login", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => auth_view_1.AuthView),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_d = typeof create_auth_input_1.RegisterInput !== "undefined" && create_auth_input_1.RegisterInput) === "function" ? _d : Object]),
-    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
-], AuthResolver.prototype, "register", null);
-__decorate([
-    (0, graphql_1.Query)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)('admin', 'worker'),
-    __param(0, (0, graphql_1.Args)('token')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
-], AuthResolver.prototype, "me", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => Boolean),
-    __param(0, (0, graphql_1.Context)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
-], AuthResolver.prototype, "logout", null);
-exports.AuthResolver = AuthResolver = __decorate([
-    (0, graphql_1.Resolver)(() => auth_1.Auth),
-    __metadata("design:paramtypes", [typeof (_a = typeof auth_service_1.AuthService !== "undefined" && auth_service_1.AuthService) === "function" ? _a : Object])
-], AuthResolver);
-
-
-/***/ }),
-
-/***/ "./src/auth/decorators/role.decorator.ts":
-/*!***********************************************!*\
-  !*** ./src/auth/decorators/role.decorator.ts ***!
-  \***********************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Roles = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const Roles = (...roles) => (0, common_1.SetMetadata)('roles', roles);
-exports.Roles = Roles;
-
-
-/***/ }),
-
-/***/ "./src/auth/dto/inputs/create.auth.input.ts":
-/*!**************************************************!*\
-  !*** ./src/auth/dto/inputs/create.auth.input.ts ***!
-  \**************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ForgotPasswordInput = exports.LoginInput = exports.RegisterInput = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const class_validator_1 = __webpack_require__(/*! class-validator */ "class-validator");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-let RegisterInput = class RegisterInput {
-};
-exports.RegisterInput = RegisterInput;
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "email", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "firstName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "lastName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "userName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.MinLength)(8),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "password", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.MinLength)(8),
-    __metadata("design:type", String)
-], RegisterInput.prototype, "passwordConfirmation", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => user_enum_1.Role),
-    __metadata("design:type", typeof (_a = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _a : Object)
-], RegisterInput.prototype, "role", void 0);
-exports.RegisterInput = RegisterInput = __decorate([
-    (0, graphql_1.InputType)()
-], RegisterInput);
-let LoginInput = class LoginInput {
-};
-exports.LoginInput = LoginInput;
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], LoginInput.prototype, "identifier", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.MinLength)(6),
-    __metadata("design:type", String)
-], LoginInput.prototype, "password", void 0);
-exports.LoginInput = LoginInput = __decorate([
-    (0, graphql_1.InputType)()
-], LoginInput);
-let ForgotPasswordInput = class ForgotPasswordInput {
-};
-exports.ForgotPasswordInput = ForgotPasswordInput;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], ForgotPasswordInput.prototype, "email", void 0);
-exports.ForgotPasswordInput = ForgotPasswordInput = __decorate([
-    (0, graphql_1.InputType)()
-], ForgotPasswordInput);
-
-
-/***/ }),
-
-/***/ "./src/auth/dto/views/auth.view.ts":
-/*!*****************************************!*\
-  !*** ./src/auth/dto/views/auth.view.ts ***!
-  \*****************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AuthView = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let AuthView = class AuthView {
-};
-exports.AuthView = AuthView;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], AuthView.prototype, "accessToken", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], AuthView.prototype, "refreshToken", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], AuthView.prototype, "userId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], AuthView.prototype, "role", void 0);
-exports.AuthView = AuthView = __decorate([
-    (0, graphql_1.ObjectType)()
-], AuthView);
-
-
-/***/ }),
-
-/***/ "./src/auth/guards/jwt.guard.ts":
-/*!**************************************!*\
-  !*** ./src/auth/guards/jwt.guard.ts ***!
-  \**************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.JwtAuthGuard = void 0;
-const dotenv = __webpack_require__(/*! dotenv */ "dotenv");
-dotenv.config();
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const jwt = __webpack_require__(/*! jsonwebtoken */ "jsonwebtoken");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-let JwtAuthGuard = class JwtAuthGuard {
-    canActivate(context) {
-        const ctx = graphql_1.GqlExecutionContext.create(context).getContext();
-        const req = ctx.req;
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            return false;
-        }
-        const token = authHeader.split(' ')[1];
-        if (!token) {
-            return false;
-        }
-        try {
-            const decoded = jwt.verify(token, process.env.SECRET_KEY);
-            req.user = decoded;
-            return true;
-        }
-        catch (err) {
-            throw new gqlerr_1.ThrowGQL(`${req.user} Unauthorized`, gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
-        }
+exports.CreateEligibilityService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const eligibility_1 = __webpack_require__(39);
+const mongoose_2 = __webpack_require__(13);
+const parser_1 = __webpack_require__(40);
+let CreateEligibilityService = class CreateEligibilityService {
+    constructor(eligibilityModel) {
+        this.eligibilityModel = eligibilityModel;
     }
-};
-exports.JwtAuthGuard = JwtAuthGuard;
-exports.JwtAuthGuard = JwtAuthGuard = __decorate([
-    (0, common_1.Injectable)()
-], JwtAuthGuard);
-
-
-/***/ }),
-
-/***/ "./src/auth/guards/role.guard.ts":
-/*!***************************************!*\
-  !*** ./src/auth/guards/role.guard.ts ***!
-  \***************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.RolesGuard = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const core_1 = __webpack_require__(/*! @nestjs/core */ "@nestjs/core");
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const jwt = __webpack_require__(/*! jsonwebtoken */ "jsonwebtoken");
-let RolesGuard = class RolesGuard {
-    constructor(reflector) {
-        this.reflector = reflector;
+    async upSertEligibility(input) {
+        const { taskId, workerId, accuracy } = input;
+        const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy }, { upsert: true, new: true });
+        return eligibility;
     }
-    canActivate(context) {
-        const requiredRoles = this.reflector.getAllAndOverride('roles', [
-            context.getHandler(),
-            context.getClass(),
-        ]);
-        const ctx = graphql_1.GqlExecutionContext.create(context).getContext();
-        const req = ctx.req;
-        const authHeader = req.headers?.authorization;
-        if (!authHeader) {
-            throw new common_1.UnauthorizedException('Missing authorization header');
+    async createEligibility(input) {
+        const { taskId, workerId, accuracy } = input;
+        const existingEligibility = await this.eligibilityModel.findOne({
+            taskId,
+            workerId,
+        });
+        if (existingEligibility) {
+            return existingEligibility;
         }
-        const token = authHeader.split(' ')[1];
-        if (!token) {
-            throw new common_1.UnauthorizedException('Invalid authorization format');
-        }
+        const newEligibility = await this.eligibilityModel.create({
+            taskId,
+            workerId,
+            accuracy,
+        });
+        return newEligibility;
+    }
+    async getEligibilityByTaskId(taskId) {
         try {
-            const decoded = jwt.verify(token, process.env.SECRET_KEY);
-            req.user = decoded;
-            if (!requiredRoles || requiredRoles.length === 0) {
-                return true;
-            }
-            if (!req.user || !req.user.role) {
-                throw new common_1.UnauthorizedException('User role not found');
-            }
-            if (!requiredRoles.includes(req.user.role)) {
-                throw new common_1.ForbiddenException('Insufficient permissions');
-            }
-            return true;
+            const eligibilityRecords = await this.eligibilityModel.find({ taskId });
+            return eligibilityRecords.map((record) => (0, parser_1.parseToViewEligibility)(record));
         }
         catch (error) {
-            console.error('JWT Verification Error:', error.message);
-            throw new common_1.UnauthorizedException('Invalid or expired token');
+            console.error(`Error fetching eligibility records for task ${taskId}:`, error);
+            return [];
         }
     }
 };
-exports.RolesGuard = RolesGuard;
-exports.RolesGuard = RolesGuard = __decorate([
+exports.CreateEligibilityService = CreateEligibilityService;
+exports.CreateEligibilityService = CreateEligibilityService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof core_1.Reflector !== "undefined" && core_1.Reflector) === "function" ? _a : Object])
-], RolesGuard);
+    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], CreateEligibilityService);
 
 
 /***/ }),
-
-/***/ "./src/auth/models/auth.ts":
-/*!*********************************!*\
-  !*** ./src/auth/models/auth.ts ***!
-  \*********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AuthSchema = exports.Auth = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let Auth = class Auth {
-};
-exports.Auth = Auth;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], Auth.prototype, "authId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], Auth.prototype, "accessToken", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], Auth.prototype, "refreshToken", void 0);
-exports.Auth = Auth = __decorate([
-    (0, mongoose_1.Schema)(),
-    (0, graphql_1.ObjectType)()
-], Auth);
-exports.AuthSchema = mongoose_1.SchemaFactory.createForClass(Auth);
-
-
-/***/ }),
-
-/***/ "./src/auth/models/parser.ts":
-/*!***********************************!*\
-  !*** ./src/auth/models/parser.ts ***!
-  \***********************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseRegisterInput = parseRegisterInput;
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const bcrypt = __webpack_require__(/*! bcrypt */ "bcrypt");
-async function parseRegisterInput(input) {
-    if (input.password !== input.passwordConfirmation) {
-        throw new gqlerr_1.ThrowGQL('Passwords do not match', gqlerr_1.GQLThrowType.NOT_FOUND);
-    }
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(input.password, saltRounds);
-    return {
-        email: input.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        userName: input.userName,
-        password: hashedPassword,
-        passwordConfirmation: hashedPassword,
-        role: input.role,
-    };
-}
-
-
-/***/ }),
-
-/***/ "./src/auth/services/auth.service.ts":
-/*!*******************************************!*\
-  !*** ./src/auth/services/auth.service.ts ***!
-  \*******************************************/
+/* 57 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1924,162 +3085,234 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateEligibilityService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const eligibility_1 = __webpack_require__(39);
+const get_recorded_service_1 = __webpack_require__(21);
+let UpdateEligibilityService = class UpdateEligibilityService {
+    constructor(eligibilityModel, getRecordedAnswerService) {
+        this.eligibilityModel = eligibilityModel;
+        this.getRecordedAnswerService = getRecordedAnswerService;
+    }
+};
+exports.UpdateEligibilityService = UpdateEligibilityService;
+exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
+], UpdateEligibilityService);
+
+
+/***/ }),
+/* 58 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var AccuracyCalculationServiceMX_1;
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AuthService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
-const create_user_service_1 = __webpack_require__(/*! src/users/services/create.user.service */ "./src/users/services/create.user.service.ts");
-const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
-const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
-const jwt = __webpack_require__(/*! jsonwebtoken */ "jsonwebtoken");
-const bcrypt = __webpack_require__(/*! bcrypt */ "bcrypt");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const auth_1 = __webpack_require__(/*! ../models/auth */ "./src/auth/models/auth.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/auth/models/parser.ts");
-const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const parser_2 = __webpack_require__(/*! src/users/models/parser */ "./src/users/models/parser.ts");
-let AuthService = class AuthService {
-    constructor(authModel, createUserService, getUserService) {
-        this.authModel = authModel;
-        this.createUserService = createUserService;
-        this.getUserService = getUserService;
+exports.AccuracyCalculationServiceMX = void 0;
+const common_1 = __webpack_require__(3);
+const get_task_service_1 = __webpack_require__(19);
+const mongoose_1 = __webpack_require__(4);
+const mongoose_2 = __webpack_require__(13);
+const recorded_1 = __webpack_require__(22);
+const gqlerr_1 = __webpack_require__(15);
+const schedule_1 = __webpack_require__(20);
+const cron_enum_1 = __webpack_require__(59);
+const create_eligibility_service_1 = __webpack_require__(56);
+let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
+    constructor(recordedAnswerModel, createEligibilityService, getTaskService) {
+        this.recordedAnswerModel = recordedAnswerModel;
+        this.createEligibilityService = createEligibilityService;
+        this.getTaskService = getTaskService;
+        this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
     }
-    async login(input) {
-        try {
-            let user;
-            const { identifier, password } = input;
-            if (identifier.includes('@')) {
-                user = await this.getUserService.getUserByEmail(identifier);
+    async calculateAccuracyMX(taskId, workers) {
+        this.logger.log(`Memulai perhitungan akurasi M-X untuk taskId: ${taskId}`);
+        const task = await this.getTaskService.getTaskById(taskId);
+        if (!task) {
+            this.logger.error(`Task dengan ID ${taskId} tidak ditemukan`);
+            throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+        const N = task.answers.length;
+        const M = task.nAnswers || 4;
+        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
+        const answers = await this.recordedAnswerModel.find({ taskId });
+        if (answers.length === 0) {
+            this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
+            return workers.reduce((acc, workerId) => {
+                acc[workerId] = 0.5;
+                return acc;
+            }, {});
+        }
+        const finalAccuracies = {};
+        workers.forEach((workerId) => {
+            finalAccuracies[workerId] = 1.0;
+        });
+        const workerAnswersMap = {};
+        for (const workerId of workers) {
+            const workerRecords = answers.filter((a) => a.workerId.toString() === workerId);
+            workerAnswersMap[workerId] = workerRecords.map((record) => ({
+                answerId: record.answerId,
+                answer: record.answer,
+            }));
+            this.logger.debug(`Worker ${workerId} answers: ${JSON.stringify(workerAnswersMap[workerId])}`);
+        }
+        const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
+        this.logger.debug(`Processing answer options: ${answerIds.join(', ')}`);
+        const optionsToProcess = answerIds.length > 0 ? answerIds : Array.from({ length: M }, (_, i) => i);
+        for (const answerId of optionsToProcess) {
+            this.logger.debug(`Processing answer option ID: ${answerId}`);
+            const binaryAnswersMap = {};
+            for (const workerId of workers) {
+                const workerAnswers = workerAnswersMap[workerId] || [];
+                binaryAnswersMap[workerId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
+                this.logger.debug(`Worker ${workerId} binary for answer ${answerId}: ${binaryAnswersMap[workerId].join(',')}`);
             }
-            else {
-                user = await this.getUserService.getUserByUsername(identifier);
+            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap);
+            for (const workerId of workers) {
+                const optionAccuracy = Math.max(0.1, optionAccuracies[workerId]);
+                finalAccuracies[workerId] *= optionAccuracy;
+                this.logger.debug(`Worker ${workerId} option ${answerId} accuracy: ${optionAccuracies[workerId]}, cumulative: ${finalAccuracies[workerId]}`);
             }
-            if (!user) {
-                throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+        }
+        for (const workerId of workers) {
+            const normalizedAccuracy = Math.pow(finalAccuracies[workerId], 1 / optionsToProcess.length);
+            const scaledAccuracy = 0.4 + normalizedAccuracy * 0.6;
+            finalAccuracies[workerId] = parseFloat(scaledAccuracy.toFixed(2));
+        }
+        this.logger.log(`Perhitungan selesai. Akurasi M-X akhir: ${JSON.stringify(finalAccuracies)}`);
+        return finalAccuracies;
+    }
+    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap) {
+        let accuracies = {};
+        workers.forEach((workerId) => {
+            accuracies[workerId] = 0.5;
+        });
+        const maxIterations = 100;
+        const tolerance = 0.0001;
+        let iterations = 0;
+        let converged = false;
+        while (!converged && iterations < maxIterations) {
+            iterations++;
+            const newAccuracies = {};
+            for (const i of workers) {
+                const estimates = [];
+                for (const j of workers) {
+                    if (i === j)
+                        continue;
+                    let agreementCount = 0;
+                    for (let k = 0; k <
+                        Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length); k++) {
+                        if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
+                            agreementCount++;
+                        }
+                    }
+                    const effectiveN = Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length);
+                    const Qij = effectiveN > 0 ? agreementCount / effectiveN : 0.5;
+                    const Aj = accuracies[j];
+                    const numerator = 2 * Qij - 1 + (1 - Aj);
+                    const denominator = 2 * Aj - 1;
+                    if (Math.abs(denominator) > 0.01) {
+                        const estimate = numerator / denominator;
+                        if (estimate >= 0 && estimate <= 1) {
+                            estimates.push(estimate);
+                        }
+                    }
+                }
+                if (estimates.length > 0) {
+                    const avg = estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
+                    newAccuracies[i] = Math.max(0.1, Math.min(0.95, avg));
+                }
+                else {
+                    const randomAdjustment = Math.random() * 0.1 - 0.05;
+                    newAccuracies[i] = Math.max(0.1, Math.min(0.9, accuracies[i] + randomAdjustment));
+                }
             }
-            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (!isPasswordValid) {
-                throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+            converged = true;
+            for (const workerId of workers) {
+                if (Math.abs(newAccuracies[workerId] - accuracies[workerId]) > tolerance) {
+                    converged = false;
+                    break;
+                }
             }
-            const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
-            const refreshToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '7d' });
-            await this.authModel.create({
-                userId: user.id,
-                accessToken: accessToken,
-                refreshToken: refreshToken,
+            accuracies = { ...newAccuracies };
+        }
+        const result = {};
+        for (const workerId of workers) {
+            result[workerId] = parseFloat(accuracies[workerId].toFixed(2));
+        }
+        return result;
+    }
+    async calculateEligibility() {
+        const tasks = await this.getTaskService.getValidatedTasks();
+        if (!tasks) {
+            this.logger.warn('No validated tasks found');
+            return;
+        }
+        for (const task of tasks) {
+            const recordedAnswers = await this.recordedAnswerModel.find({
+                taskId: task.id,
             });
-            return {
-                role: user.role,
-                accessToken: accessToken,
-                refreshToken: refreshToken,
-                userId: user.id,
-            };
+            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
+            if (workerIds.length < 3) {
+                this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
+                continue;
+            }
+            const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
+            const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
+            const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
+            if (workersToCalculate.length === 0) {
+                this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
+                continue;
+            }
+            const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
+            for (const workerId of workersToCalculate) {
+                const accuracy = accuracies[workerId];
+                const eligibilityInput = {
+                    taskId: task.id,
+                    workerId: workerId,
+                    accuracy: accuracy,
+                };
+                await this.createEligibilityService.createEligibility(eligibilityInput);
+                this.logger.debug(`Created eligibility for worker ${workerId}: ${accuracy}`);
+            }
         }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async register(input) {
-        try {
-            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
-            const parsedInput = (0, parser_1.parseRegisterInput)(input);
-            const user = await this.createUserService.create(await parsedInput);
-            const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
-            const refreshToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '7d' });
-            await this.authModel.create({
-                userId: user.id,
-                accessToken: accessToken,
-                refreshToken: refreshToken,
-            });
-            return {
-                role: user.role,
-                accessToken: accessToken,
-                refreshToken: refreshToken,
-                userId: user.id,
-            };
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getLoggedInUser(token) {
-        try {
-            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
-            const decoded = jwt.verify(token, secretKey);
-            const user = await this.getUserService.getUserById(decoded.id);
-            return (0, parser_2.parseToView)(user);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async logout(token) {
-        await this.authModel.deleteOne({ refreshToken: token });
     }
 };
-exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
+__decorate([
+    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_5_MINUTES),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AccuracyCalculationServiceMX.prototype, "calculateEligibility", null);
+exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_2.InjectModel)(auth_1.Auth.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object, typeof (_b = typeof create_user_service_1.CreateUserService !== "undefined" && create_user_service_1.CreateUserService) === "function" ? _b : Object, typeof (_c = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _c : Object])
-], AuthService);
+    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
+], AccuracyCalculationServiceMX);
 
 
 /***/ }),
-
-/***/ "./src/config/config.service.ts":
-/*!**************************************!*\
-  !*** ./src/config/config.service.ts ***!
-  \**************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.configService = void 0;
-(__webpack_require__(/*! dotenv */ "dotenv").config)();
-class ConfigService {
-    constructor(env) {
-        this.env = env;
-    }
-    getValue(key, throwOnMissing = true) {
-        const value = this.env[key];
-        if (!value && throwOnMissing) {
-            throw new Error(`config error - missing env.${key}`);
-        }
-        return value;
-    }
-    ensureValues(keys) {
-        keys.forEach((k) => this.getValue(k, true));
-        return this;
-    }
-    getPort() {
-        return this.getValue('PORT', true);
-    }
-    isProduction() {
-        const mode = this.getValue('MODE', false);
-        return mode != 'DEV';
-    }
-    getEnvValue(key, throwOnMissing = true) {
-        return this.getValue(key, throwOnMissing);
-    }
-}
-const configService = new ConfigService(process.env).ensureValues([
-    'PORT',
-    'MONGO_CONNECTION',
-    'MONGO_DB_NAME',
-    'SECRET_KEY',
-]);
-exports.configService = configService;
-
-
-/***/ }),
-
-/***/ "./src/lib/cron.enum.ts":
-/*!******************************!*\
-  !*** ./src/lib/cron.enum.ts ***!
-  \******************************/
+/* 59 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2174,78 +3407,126 @@ var CronExpression;
 
 
 /***/ }),
-
-/***/ "./src/lib/user.enum.ts":
-/*!******************************!*\
-  !*** ./src/lib/user.enum.ts ***!
-  \******************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/* 60 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Role = exports.Gender = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-var Gender;
-(function (Gender) {
-    Gender["MEN"] = "pria";
-    Gender["WOMEN"] = "wanita";
-})(Gender || (exports.Gender = Gender = {}));
-var Role;
-(function (Role) {
-    Role["ADMIN"] = "admin";
-    Role["WORKER"] = "worker";
-    Role["COMPANY_REPRESENTATIVE"] = "company_representative";
-    Role["QUESTION_VALIDATOR"] = "question_validator";
-})(Role || (exports.Role = Role = {}));
-(0, graphql_1.registerEnumType)(Gender, {
-    name: 'GenderEnum',
-    description: 'The Gender of the user',
-});
-(0, graphql_1.registerEnumType)(Role, {
-    name: 'RoleEnum',
-    description: 'The Role of the user',
-});
+exports.AuthModule = void 0;
+const common_1 = __webpack_require__(3);
+const auth_resolver_1 = __webpack_require__(61);
+const users_module_1 = __webpack_require__(31);
+const auth_service_1 = __webpack_require__(63);
+const mongoose_1 = __webpack_require__(4);
+const auth_1 = __webpack_require__(62);
+let AuthModule = class AuthModule {
+};
+exports.AuthModule = AuthModule;
+exports.AuthModule = AuthModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            users_module_1.UsersModule,
+            mongoose_1.MongooseModule.forFeature([{ name: auth_1.Auth.name, schema: auth_1.AuthSchema }]),
+        ],
+        providers: [auth_resolver_1.AuthResolver, auth_service_1.AuthService],
+    })
+], AuthModule);
 
 
 /***/ }),
-
-/***/ "./src/main.ts":
-/*!*********************!*\
-  !*** ./src/main.ts ***!
-  \*********************/
-/***/ ((module, exports, __webpack_require__) => {
+/* 61 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core_1 = __webpack_require__(/*! @nestjs/core */ "@nestjs/core");
-const app_module_1 = __webpack_require__(/*! ./app.module */ "./src/app.module.ts");
-const config_service_1 = __webpack_require__(/*! ./config/config.service */ "./src/config/config.service.ts");
-const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const cookieParser = __webpack_require__(/*! cookie-parser */ "cookie-parser");
-async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
-        cors: { origin: '*', credentials: true },
-    });
-    const config = app.get(config_1.ConfigService);
-    app.use(cookieParser());
-    app.useGlobalFilters(new gqlerr_1.CustomGraphQLErrorFilter());
-    await app.listen(config.get('PORT') || config_service_1.configService.getPort());
-}
-if (process.env.VERCEL_ENV) {
-    module.exports = bootstrap();
-}
-else {
-    bootstrap();
-}
+exports.AuthResolver = void 0;
+const graphql_1 = __webpack_require__(5);
+const auth_1 = __webpack_require__(62);
+const auth_service_1 = __webpack_require__(63);
+const auth_view_1 = __webpack_require__(66);
+const create_auth_input_1 = __webpack_require__(67);
+const user_view_1 = __webpack_require__(41);
+const role_decorator_1 = __webpack_require__(29);
+let AuthResolver = class AuthResolver {
+    constructor(authService) {
+        this.authService = authService;
+    }
+    async login(input) {
+        const result = await this.authService.login(input);
+        return result;
+    }
+    async register(input) {
+        const result = await this.authService.register(input);
+        return result;
+    }
+    async me(token) {
+        return this.authService.getLoggedInUser(token);
+    }
+    async logout(context) {
+        const token = context.req.headers.authorization?.split(' ')[1];
+        if (!token)
+            throw new Error('No token provided');
+        await this.authService.logout(token);
+        return true;
+    }
+};
+exports.AuthResolver = AuthResolver;
+__decorate([
+    (0, graphql_1.Mutation)(() => auth_view_1.AuthView),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_b = typeof create_auth_input_1.LoginInput !== "undefined" && create_auth_input_1.LoginInput) === "function" ? _b : Object]),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], AuthResolver.prototype, "login", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => auth_view_1.AuthView),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_d = typeof create_auth_input_1.RegisterInput !== "undefined" && create_auth_input_1.RegisterInput) === "function" ? _d : Object]),
+    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+], AuthResolver.prototype, "register", null);
+__decorate([
+    (0, graphql_1.Query)(() => user_view_1.UserView),
+    (0, role_decorator_1.Roles)('admin', 'worker'),
+    __param(0, (0, graphql_1.Args)('token')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
+], AuthResolver.prototype, "me", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => Boolean),
+    __param(0, (0, graphql_1.Context)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
+], AuthResolver.prototype, "logout", null);
+exports.AuthResolver = AuthResolver = __decorate([
+    (0, graphql_1.Resolver)(() => auth_1.Auth),
+    __metadata("design:paramtypes", [typeof (_a = typeof auth_service_1.AuthService !== "undefined" && auth_service_1.AuthService) === "function" ? _a : Object])
+], AuthResolver);
 
 
 /***/ }),
-
-/***/ "./src/tasks/dto/args/get.task.args.ts":
-/*!*********************************************!*\
-  !*** ./src/tasks/dto/args/get.task.args.ts ***!
-  \*********************************************/
+/* 62 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2259,477 +3540,33 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetTaskArgs = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let GetTaskArgs = class GetTaskArgs {
+exports.AuthSchema = exports.Auth = void 0;
+const graphql_1 = __webpack_require__(5);
+const mongoose_1 = __webpack_require__(4);
+let Auth = class Auth {
 };
-exports.GetTaskArgs = GetTaskArgs;
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], GetTaskArgs.prototype, "question", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], GetTaskArgs.prototype, "skip", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], GetTaskArgs.prototype, "take", void 0);
-exports.GetTaskArgs = GetTaskArgs = __decorate([
-    (0, graphql_1.ArgsType)()
-], GetTaskArgs);
-
-
-/***/ }),
-
-/***/ "./src/tasks/dto/inputs/create.task.input.ts":
-/*!***************************************************!*\
-  !*** ./src/tasks/dto/inputs/create.task.input.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateTaskInput = exports.GherkinsQuestionInput = exports.AnswerInput = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let AnswerInput = class AnswerInput {
-};
-exports.AnswerInput = AnswerInput;
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], AnswerInput.prototype, "answer", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], AnswerInput.prototype, "stats", void 0);
-exports.AnswerInput = AnswerInput = __decorate([
-    (0, graphql_1.InputType)()
-], AnswerInput);
-let GherkinsQuestionInput = class GherkinsQuestionInput {
-};
-exports.GherkinsQuestionInput = GherkinsQuestionInput;
+exports.Auth = Auth;
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", String)
-], GherkinsQuestionInput.prototype, "scenario", void 0);
+], Auth.prototype, "authId", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", String)
-], GherkinsQuestionInput.prototype, "given", void 0);
+], Auth.prototype, "accessToken", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", String)
-], GherkinsQuestionInput.prototype, "when", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], GherkinsQuestionInput.prototype, "then", void 0);
-exports.GherkinsQuestionInput = GherkinsQuestionInput = __decorate([
-    (0, graphql_1.InputType)()
-], GherkinsQuestionInput);
-let CreateTaskInput = class CreateTaskInput {
-};
-exports.CreateTaskInput = CreateTaskInput;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateTaskInput.prototype, "title", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], CreateTaskInput.prototype, "description", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => GherkinsQuestionInput),
-    __metadata("design:type", GherkinsQuestionInput)
-], CreateTaskInput.prototype, "question", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => [AnswerInput]),
-    __metadata("design:type", Array)
-], CreateTaskInput.prototype, "answers", void 0);
-exports.CreateTaskInput = CreateTaskInput = __decorate([
-    (0, graphql_1.InputType)()
-], CreateTaskInput);
-
-
-/***/ }),
-
-/***/ "./src/tasks/dto/inputs/update.task.input.ts":
-/*!***************************************************!*\
-  !*** ./src/tasks/dto/inputs/update.task.input.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateTaskInput = void 0;
-const create_task_input_1 = __webpack_require__(/*! ./create.task.input */ "./src/tasks/dto/inputs/create.task.input.ts");
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let UpdateTaskInput = class UpdateTaskInput extends (0, graphql_1.PartialType)(create_task_input_1.CreateTaskInput) {
-};
-exports.UpdateTaskInput = UpdateTaskInput;
-__decorate([
-    (0, graphql_1.Field)(() => String),
-    __metadata("design:type", String)
-], UpdateTaskInput.prototype, "id", void 0);
-exports.UpdateTaskInput = UpdateTaskInput = __decorate([
-    (0, graphql_1.InputType)()
-], UpdateTaskInput);
-
-
-/***/ }),
-
-/***/ "./src/tasks/dto/views/task.view.input.ts":
-/*!************************************************!*\
-  !*** ./src/tasks/dto/views/task.view.input.ts ***!
-  \************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TaskView = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
-let TaskView = class TaskView {
-};
-exports.TaskView = TaskView;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TaskView.prototype, "id", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TaskView.prototype, "title", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], TaskView.prototype, "description", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => task_1.GherkinsQuestion),
-    __metadata("design:type", typeof (_a = typeof task_1.GherkinsQuestion !== "undefined" && task_1.GherkinsQuestion) === "function" ? _a : Object)
-], TaskView.prototype, "question", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Number)
-], TaskView.prototype, "nAnswers", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", Boolean)
-], TaskView.prototype, "isValidQuestion", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => [task_1.Answer]),
-    __metadata("design:type", Array)
-], TaskView.prototype, "answers", void 0);
-exports.TaskView = TaskView = __decorate([
-    (0, graphql_1.ObjectType)()
-], TaskView);
-
-
-/***/ }),
-
-/***/ "./src/tasks/models/parser.ts":
-/*!************************************!*\
-  !*** ./src/tasks/models/parser.ts ***!
-  \************************************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseRequest = exports.parseToView = void 0;
-const parseToView = (input) => {
-    const answers = Array.isArray(input.answers) ? input.answers : [];
-    return {
-        id: input._id?.toString() || '',
-        isValidQuestion: input.isValidQuestion,
-        title: input.title,
-        description: input.description,
-        question: {
-            scenario: input.question?.scenario || '',
-            given: input.question?.given || '',
-            when: input.question?.when || '',
-            then: input.question?.then || '',
-        },
-        nAnswers: answers.length,
-        answers,
-    };
-};
-exports.parseToView = parseToView;
-const parseRequest = (input) => {
-    const answers = Array.isArray(input.answers) ? input.answers : [];
-    return {
-        title: input.title,
-        description: input.description,
-        isValidQuestion: false,
-        question: {
-            scenario: input.question?.scenario || '',
-            given: input.question?.given || '',
-            when: input.question?.when || '',
-            then: input.question?.then || '',
-        },
-        answers,
-        nAnswers: answers.length,
-    };
-};
-exports.parseRequest = parseRequest;
-
-
-/***/ }),
-
-/***/ "./src/tasks/models/task.ts":
-/*!**********************************!*\
-  !*** ./src/tasks/models/task.ts ***!
-  \**********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TaskSchema = exports.Task = exports.GherkinsQuestion = exports.Answer = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let Answer = class Answer {
-};
-exports.Answer = Answer;
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", Number)
-], Answer.prototype, "answerId", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], Answer.prototype, "answer", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", Number)
-], Answer.prototype, "stats", void 0);
-exports.Answer = Answer = __decorate([
-    (0, graphql_1.ObjectType)()
-], Answer);
-let GherkinsQuestion = class GherkinsQuestion {
-};
-exports.GherkinsQuestion = GherkinsQuestion;
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], GherkinsQuestion.prototype, "scenario", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], GherkinsQuestion.prototype, "given", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], GherkinsQuestion.prototype, "when", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], GherkinsQuestion.prototype, "then", void 0);
-exports.GherkinsQuestion = GherkinsQuestion = __decorate([
-    (0, graphql_1.ObjectType)()
-], GherkinsQuestion);
-let Task = class Task {
-};
-exports.Task = Task;
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Task.prototype, "_id", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Task.prototype, "title", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], Task.prototype, "description", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", GherkinsQuestion)
-], Task.prototype, "question", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", Boolean)
-], Task.prototype, "isValidQuestion", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", Number)
-], Task.prototype, "nAnswers", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => [Answer]),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", Array)
-], Task.prototype, "answers", void 0);
-exports.Task = Task = __decorate([
+], Auth.prototype, "refreshToken", void 0);
+exports.Auth = Auth = __decorate([
     (0, mongoose_1.Schema)(),
     (0, graphql_1.ObjectType)()
-], Task);
-exports.TaskSchema = mongoose_1.SchemaFactory.createForClass(Task);
+], Auth);
+exports.AuthSchema = mongoose_1.SchemaFactory.createForClass(Auth);
 
 
 /***/ }),
-
-/***/ "./src/tasks/services/create.task.service.ts":
-/*!***************************************************!*\
-  !*** ./src/tasks/services/create.task.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateTaskService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
-const task_1 = __webpack_require__(/*! ../models/task */ "./src/tasks/models/task.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/tasks/models/parser.ts");
-const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const bson_1 = __webpack_require__(/*! bson */ "bson");
-let CreateTaskService = class CreateTaskService {
-    constructor(taskModel) {
-        this.taskModel = taskModel;
-    }
-    async createTask(input) {
-        try {
-            const parsedResult = (0, parser_1.parseRequest)(input);
-            const result = await this.taskModel.create({
-                _id: new bson_1.ObjectId(),
-                ...parsedResult,
-            });
-            return (0, parser_1.parseToView)(result);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.CreateTaskService = CreateTaskService;
-exports.CreateTaskService = CreateTaskService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
-], CreateTaskService);
-
-
-/***/ }),
-
-/***/ "./src/tasks/services/delete.task.service.ts":
-/*!***************************************************!*\
-  !*** ./src/tasks/services/delete.task.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DeleteTaskService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
-const task_1 = __webpack_require__(/*! ../models/task */ "./src/tasks/models/task.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let DeleteTaskService = class DeleteTaskService {
-    constructor(taskModel) {
-        this.taskModel = taskModel;
-    }
-    async delete(id) {
-        try {
-            return this.taskModel.findByIdAndDelete(id);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.DeleteTaskService = DeleteTaskService;
-exports.DeleteTaskService = DeleteTaskService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
-], DeleteTaskService);
-
-
-/***/ }),
-
-/***/ "./src/tasks/services/get.task.service.ts":
-/*!************************************************!*\
-  !*** ./src/tasks/services/get.task.service.ts ***!
-  \************************************************/
+/* 63 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2747,1411 +3584,292 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetTaskService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
-const task_1 = __webpack_require__(/*! ../models/task */ "./src/tasks/models/task.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/tasks/models/parser.ts");
-const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const get_recorded_service_1 = __webpack_require__(/*! src/M1/services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
-let GetTaskService = class GetTaskService {
-    constructor(taskModel, getRecordedAnswerService) {
-        this.taskModel = taskModel;
-        this.getRecordedAnswerService = getRecordedAnswerService;
-    }
-    async getTaskById(id) {
-        try {
-            const res = await this.taskModel.findById(id);
-            if (!res) {
-                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getTasks(args) {
-        try {
-            let query = this.taskModel.find();
-            if (args?.skip != null) {
-                query = query.skip(args.skip);
-            }
-            if (args?.take != null) {
-                query = query.limit(args.take);
-            }
-            const res = await query;
-            return res.map((task) => (0, parser_1.parseToView)(task));
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getValidatedTasks() {
-        try {
-            const tasks = await this.taskModel.find({ isValidQuestion: true });
-            return tasks.map((task) => (0, parser_1.parseToView)(task));
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getTotalTasks() {
-        try {
-            return this.taskModel.countDocuments({ isValidQuestion: true });
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async countAnswerStat() {
-        const tasks = await this.taskModel.find();
-        if (!tasks.length)
-            throw new Error('No tasks found');
-        for (const task of tasks) {
-            const recordedAnswers = await this.getRecordedAnswerService.getRecordedAnswer(task._id);
-            const totalAnswers = recordedAnswers.length;
-            task.answers.forEach((answer) => {
-                const count = recordedAnswers.filter((recordedAnswer) => recordedAnswer.answer === answer.answer).length;
-                answer.stats = count / totalAnswers;
-            });
-            await task.save();
-        }
-    }
-};
-exports.GetTaskService = GetTaskService;
-__decorate([
-    (0, schedule_1.Cron)('*/10 * * * *'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
-], GetTaskService.prototype, "countAnswerStat", null);
-exports.GetTaskService = GetTaskService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
-], GetTaskService);
-
-
-/***/ }),
-
-/***/ "./src/tasks/services/update.task.service.ts":
-/*!***************************************************!*\
-  !*** ./src/tasks/services/update.task.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateTaskService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const task_1 = __webpack_require__(/*! ../models/task */ "./src/tasks/models/task.ts");
-const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/tasks/models/parser.ts");
-const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let UpdateTaskService = class UpdateTaskService {
-    constructor(taskModel) {
-        this.taskModel = taskModel;
-    }
-    async updateTask(input) {
-        try {
-            const id = input.id;
-            delete input.id;
-            const res = await this.taskModel.findByIdAndUpdate(id, input, {
-                new: true,
-            });
-            if (!res) {
-                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async validateQuestionTask(id) {
-        try {
-            const task = await this.taskModel.findById(id);
-            if (!task) {
-                throw new gqlerr_1.ThrowGQL('Task not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            task.isValidQuestion = true;
-            await task.save();
-            return (0, parser_1.parseToView)(task);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.UpdateTaskService = UpdateTaskService;
-exports.UpdateTaskService = UpdateTaskService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object])
-], UpdateTaskService);
-
-
-/***/ }),
-
-/***/ "./src/tasks/tasks.module.ts":
-/*!***********************************!*\
-  !*** ./src/tasks/tasks.module.ts ***!
-  \***********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TasksModule = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const tasks_resolver_1 = __webpack_require__(/*! ./tasks.resolver */ "./src/tasks/tasks.resolver.ts");
-const task_1 = __webpack_require__(/*! ./models/task */ "./src/tasks/models/task.ts");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const create_task_service_1 = __webpack_require__(/*! ./services/create.task.service */ "./src/tasks/services/create.task.service.ts");
-const get_task_service_1 = __webpack_require__(/*! ./services/get.task.service */ "./src/tasks/services/get.task.service.ts");
-const update_task_service_1 = __webpack_require__(/*! ./services/update.task.service */ "./src/tasks/services/update.task.service.ts");
-const delete_task_service_1 = __webpack_require__(/*! ./services/delete.task.service */ "./src/tasks/services/delete.task.service.ts");
-const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
-const auth_module_1 = __webpack_require__(/*! src/auth/auth.module */ "./src/auth/auth.module.ts");
-const m1_module_1 = __webpack_require__(/*! src/M1/m1.module */ "./src/M1/m1.module.ts");
-let TasksModule = class TasksModule {
-};
-exports.TasksModule = TasksModule;
-exports.TasksModule = TasksModule = __decorate([
-    (0, common_1.Module)({
-        imports: [
-            mongoose_1.MongooseModule.forFeature([{ name: task_1.Task.name, schema: task_1.TaskSchema }]),
-            (0, common_1.forwardRef)(() => m1_module_1.M1Module),
-            users_module_1.UsersModule,
-            auth_module_1.AuthModule,
-        ],
-        providers: [
-            tasks_resolver_1.TasksResolver,
-            create_task_service_1.CreateTaskService,
-            get_task_service_1.GetTaskService,
-            update_task_service_1.UpdateTaskService,
-            delete_task_service_1.DeleteTaskService,
-        ],
-        exports: [
-            create_task_service_1.CreateTaskService,
-            get_task_service_1.GetTaskService,
-            update_task_service_1.UpdateTaskService,
-            delete_task_service_1.DeleteTaskService,
-        ],
-    })
-], TasksModule);
-
-
-/***/ }),
-
-/***/ "./src/tasks/tasks.resolver.ts":
-/*!*************************************!*\
-  !*** ./src/tasks/tasks.resolver.ts ***!
-  \*************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TasksResolver = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const create_task_service_1 = __webpack_require__(/*! ./services/create.task.service */ "./src/tasks/services/create.task.service.ts");
-const task_1 = __webpack_require__(/*! ./models/task */ "./src/tasks/models/task.ts");
-const get_task_service_1 = __webpack_require__(/*! ./services/get.task.service */ "./src/tasks/services/get.task.service.ts");
-const delete_task_service_1 = __webpack_require__(/*! ./services/delete.task.service */ "./src/tasks/services/delete.task.service.ts");
-const task_view_input_1 = __webpack_require__(/*! ./dto/views/task.view.input */ "./src/tasks/dto/views/task.view.input.ts");
-const create_task_input_1 = __webpack_require__(/*! ./dto/inputs/create.task.input */ "./src/tasks/dto/inputs/create.task.input.ts");
-const get_task_args_1 = __webpack_require__(/*! ./dto/args/get.task.args */ "./src/tasks/dto/args/get.task.args.ts");
-const update_task_service_1 = __webpack_require__(/*! ./services/update.task.service */ "./src/tasks/services/update.task.service.ts");
-const update_task_input_1 = __webpack_require__(/*! ./dto/inputs/update.task.input */ "./src/tasks/dto/inputs/update.task.input.ts");
-const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-let TasksResolver = class TasksResolver {
-    constructor(createTaskService, getTaskService, deleteTaskService, updateTaskService) {
-        this.createTaskService = createTaskService;
-        this.getTaskService = getTaskService;
-        this.deleteTaskService = deleteTaskService;
-        this.updateTaskService = updateTaskService;
-    }
-    async createTask(input) {
-        return this.createTaskService.createTask(input);
-    }
-    async updateTask(input) {
-        return this.updateTaskService.updateTask(input);
-    }
-    async getTaskById(id) {
-        return this.getTaskService.getTaskById(id);
-    }
-    async getTasks(args) {
-        return this.getTaskService.getTasks(args);
-    }
-    async deleteTask(id) {
-        return this.deleteTaskService.delete(id);
-    }
-    async getTotalTasks() {
-        return this.getTaskService.getTotalTasks();
-    }
-    async validateQuestionTask(id) {
-        return this.updateTaskService.validateQuestionTask(id);
-    }
-};
-exports.TasksResolver = TasksResolver;
-__decorate([
-    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_e = typeof create_task_input_1.CreateTaskInput !== "undefined" && create_task_input_1.CreateTaskInput) === "function" ? _e : Object]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
-], TasksResolver.prototype, "createTask", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_g = typeof update_task_input_1.UpdateTaskInput !== "undefined" && update_task_input_1.UpdateTaskInput) === "function" ? _g : Object]),
-    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
-], TasksResolver.prototype, "updateTask", null);
-__decorate([
-    (0, graphql_1.Query)(() => task_view_input_1.TaskView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR, user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
-], TasksResolver.prototype, "getTaskById", null);
-__decorate([
-    (0, graphql_1.Query)(() => [task_view_input_1.TaskView]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR, user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_k = typeof get_task_args_1.GetTaskArgs !== "undefined" && get_task_args_1.GetTaskArgs) === "function" ? _k : Object]),
-    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
-], TasksResolver.prototype, "getTasks", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
-    __param(0, (0, graphql_1.Args)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
-], TasksResolver.prototype, "deleteTask", null);
-__decorate([
-    (0, graphql_1.Query)(() => Number),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
-], TasksResolver.prototype, "getTotalTasks", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => task_view_input_1.TaskView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.QUESTION_VALIDATOR),
-    __param(0, (0, graphql_1.Args)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
-], TasksResolver.prototype, "validateQuestionTask", null);
-exports.TasksResolver = TasksResolver = __decorate([
-    (0, graphql_1.Resolver)(() => task_1.Task),
-    __metadata("design:paramtypes", [typeof (_a = typeof create_task_service_1.CreateTaskService !== "undefined" && create_task_service_1.CreateTaskService) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof delete_task_service_1.DeleteTaskService !== "undefined" && delete_task_service_1.DeleteTaskService) === "function" ? _c : Object, typeof (_d = typeof update_task_service_1.UpdateTaskService !== "undefined" && update_task_service_1.UpdateTaskService) === "function" ? _d : Object])
-], TasksResolver);
-
-
-/***/ }),
-
-/***/ "./src/users/dto/args/get.user.args.ts":
-/*!*********************************************!*\
-  !*** ./src/users/dto/args/get.user.args.ts ***!
-  \*********************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetUserArgs = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let GetUserArgs = class GetUserArgs {
-};
-exports.GetUserArgs = GetUserArgs;
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], GetUserArgs.prototype, "id", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], GetUserArgs.prototype, "skip", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], GetUserArgs.prototype, "take", void 0);
-exports.GetUserArgs = GetUserArgs = __decorate([
-    (0, graphql_1.ArgsType)()
-], GetUserArgs);
-
-
-/***/ }),
-
-/***/ "./src/users/dto/inputs/create.user.input.ts":
-/*!***************************************************!*\
-  !*** ./src/users/dto/inputs/create.user.input.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateUserInput = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-let CreateUserInput = class CreateUserInput {
-};
-exports.CreateUserInput = CreateUserInput;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "email", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "firstName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "lastName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "userName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "password", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], CreateUserInput.prototype, "passwordConfirmation", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => user_enum_1.Role),
-    __metadata("design:type", typeof (_a = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _a : Object)
-], CreateUserInput.prototype, "role", void 0);
-exports.CreateUserInput = CreateUserInput = __decorate([
-    (0, graphql_1.InputType)()
-], CreateUserInput);
-
-
-/***/ }),
-
-/***/ "./src/users/dto/inputs/update.user.input.ts":
-/*!***************************************************!*\
-  !*** ./src/users/dto/inputs/update.user.input.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateUserInput = void 0;
-const create_user_input_1 = __webpack_require__(/*! ./create.user.input */ "./src/users/dto/inputs/create.user.input.ts");
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-let UpdateUserInput = class UpdateUserInput extends (0, graphql_1.PartialType)(create_user_input_1.CreateUserInput) {
-};
-exports.UpdateUserInput = UpdateUserInput;
-__decorate([
-    (0, graphql_1.Field)(() => String),
-    __metadata("design:type", String)
-], UpdateUserInput.prototype, "id", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], UpdateUserInput.prototype, "phoneNumber", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], UpdateUserInput.prototype, "address1", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], UpdateUserInput.prototype, "address2", void 0);
-exports.UpdateUserInput = UpdateUserInput = __decorate([
-    (0, graphql_1.InputType)()
-], UpdateUserInput);
-
-
-/***/ }),
-
-/***/ "./src/users/dto/views/user.view.ts":
-/*!******************************************!*\
-  !*** ./src/users/dto/views/user.view.ts ***!
-  \******************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UserView = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
-let UserView = class UserView {
-};
-exports.UserView = UserView;
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "id", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "firstName", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "lastName", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "userName", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "email", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "password", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Number)
-], UserView.prototype, "age", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "phoneNumber", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "gender", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "role", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "address1", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", String)
-], UserView.prototype, "address2", void 0);
-__decorate([
-    (0, graphql_1.Field)({ nullable: true }),
-    __metadata("design:type", Boolean)
-], UserView.prototype, "isEligible", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => [user_1.TaskCompletion], { nullable: true }),
-    __metadata("design:type", Array)
-], UserView.prototype, "completedTasks", void 0);
-exports.UserView = UserView = __decorate([
-    (0, graphql_1.ObjectType)()
-], UserView);
-
-
-/***/ }),
-
-/***/ "./src/users/models/parser.ts":
-/*!************************************!*\
-  !*** ./src/users/models/parser.ts ***!
-  \************************************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseToView = void 0;
-const parseToView = (input) => {
-    return {
-        id: input.id,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        userName: input.userName,
-        email: input.email,
-        completedTasks: input.completedTasks,
-        isEligible: input.isEligible,
-        age: input.age,
-        role: input.role,
-        phoneNumber: input.phoneNumber,
-        gender: input.gender,
-        address1: input.address1,
-        address2: input.address2,
-        password: input.password,
-    };
-};
-exports.parseToView = parseToView;
-
-
-/***/ }),
-
-/***/ "./src/users/models/user.ts":
-/*!**********************************!*\
-  !*** ./src/users/models/user.ts ***!
-  \**********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a, _b;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UsersSchema = exports.Users = exports.TaskCompletion = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-let TaskCompletion = class TaskCompletion {
-};
-exports.TaskCompletion = TaskCompletion;
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TaskCompletion.prototype, "taskId", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    __metadata("design:type", String)
-], TaskCompletion.prototype, "answer", void 0);
-exports.TaskCompletion = TaskCompletion = __decorate([
-    (0, graphql_1.ObjectType)()
-], TaskCompletion);
-let Users = class Users {
-};
-exports.Users = Users;
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "_id", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "firstName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "lastName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "userName", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "email", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], Users.prototype, "password", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", Number)
-], Users.prototype, "age", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], Users.prototype, "phoneNumber", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => user_enum_1.Gender),
-    (0, mongoose_1.Prop)({ type: String, required: false }),
-    __metadata("design:type", typeof (_a = typeof user_enum_1.Gender !== "undefined" && user_enum_1.Gender) === "function" ? _a : Object)
-], Users.prototype, "gender", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => user_enum_1.Role),
-    (0, mongoose_1.Prop)({ type: String, required: false }),
-    __metadata("design:type", typeof (_b = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _b : Object)
-], Users.prototype, "role", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], Users.prototype, "address1", void 0);
-__decorate([
-    (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], Users.prototype, "address2", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({
-        required: function () {
-            return this.role === 'worker';
-        },
-        default: false,
-    }),
-    __metadata("design:type", Boolean)
-], Users.prototype, "isEligible", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => [TaskCompletion]),
-    (0, mongoose_1.Prop)({
-        type: [mongoose_2.Types.ObjectId],
-        ref: 'Tasks',
-        required: function () {
-            return this.role === 'worker';
-        },
-        default: [],
-    }),
-    __metadata("design:type", Array)
-], Users.prototype, "completedTasks", void 0);
-exports.Users = Users = __decorate([
-    (0, mongoose_1.Schema)(),
-    (0, graphql_1.ObjectType)()
-], Users);
-exports.UsersSchema = mongoose_1.SchemaFactory.createForClass(Users);
-
-
-/***/ }),
-
-/***/ "./src/users/services/create.user.service.ts":
-/*!***************************************************!*\
-  !*** ./src/users/services/create.user.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateUserService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
-const bson_1 = __webpack_require__(/*! bson */ "bson");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-let CreateUserService = class CreateUserService {
-    constructor(userModel) {
-        this.userModel = userModel;
-    }
-    async create(createUserInput) {
-        try {
-            const user = await new this.userModel({
-                _id: new bson_1.ObjectId(),
-                ...createUserInput,
-            }).save();
-            return (0, parser_1.parseToView)(user);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.CreateUserService = CreateUserService;
-exports.CreateUserService = CreateUserService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], CreateUserService);
-
-
-/***/ }),
-
-/***/ "./src/users/services/delete.user.service.ts":
-/*!***************************************************!*\
-  !*** ./src/users/services/delete.user.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DeleteUserService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const user_1 = __webpack_require__(/*! ../models/user */ "./src/users/models/user.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
-let DeleteUserService = class DeleteUserService {
-    constructor(userModel) {
-        this.userModel = userModel;
-    }
-    async delete(id) {
-        try {
-            const res = await this.userModel.findByIdAndDelete(id);
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async deleteAll() {
-        try {
-            return this.userModel.deleteMany({});
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.DeleteUserService = DeleteUserService;
-exports.DeleteUserService = DeleteUserService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], DeleteUserService);
-
-
-/***/ }),
-
-/***/ "./src/users/services/get.user.service.ts":
-/*!************************************************!*\
-  !*** ./src/users/services/get.user.service.ts ***!
-  \************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetUserService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-let GetUserService = class GetUserService {
-    constructor(usersModel) {
-        this.usersModel = usersModel;
-    }
-    async getUserByUsername(userName) {
-        try {
-            const res = await this.usersModel.findOne({ userName });
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getUserByEmail(email) {
-        try {
-            const res = await this.usersModel.findOne({ email });
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getUserById(id) {
-        try {
-            const res = await this.usersModel.findById(id);
-            return (0, parser_1.parseToView)(res);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getAllUsers(args) {
-        try {
-            const res = await this.usersModel.find().limit(args.take).skip(args.skip);
-            return res.map(parser_1.parseToView);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async getTotalUsers() {
-        try {
-            return this.usersModel.countDocuments({ role: user_enum_1.Role.WORKER });
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.GetUserService = GetUserService;
-exports.GetUserService = GetUserService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
-], GetUserService);
-
-
-/***/ }),
-
-/***/ "./src/users/services/update.user.service.ts":
-/*!***************************************************!*\
-  !*** ./src/users/services/update.user.service.ts ***!
-  \***************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateUserService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const user_1 = __webpack_require__(/*! ../models/user */ "./src/users/models/user.ts");
-const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const get_eligibility_service_1 = __webpack_require__(/*! ../../M1/services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-let UpdateUserService = class UpdateUserService {
-    constructor(userModel, getEligibilityService) {
-        this.userModel = userModel;
-        this.getEligibilityService = getEligibilityService;
-    }
-    async updateUser(input) {
-        try {
-            const id = input.id;
-            delete input.id;
-            const user = await this.userModel.findByIdAndUpdate(id, { $set: input }, { new: true });
-            if (!user) {
-                throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            return (0, parser_1.parseToView)(user);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async userHasDoneTask(input, userId) {
-        try {
-            const { taskId, answer } = input;
-            const user = await this.userModel.findById(userId);
-            if (!user) {
-                throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
-            }
-            if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-                user.completedTasks.push({ taskId, answer });
-                await user.save();
-            }
-            return (0, parser_1.parseToView)(user);
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-    async qualifyUser() {
-        try {
-            const threshold = 0.7;
-            const allUsers = await this.userModel.find({ role: 'worker' }).exec();
-            for (const user of allUsers) {
-                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(user._id.toString());
-                if (eligibilities.length === 0) {
-                    user.isEligible = false;
-                    await user.save();
-                    continue;
-                }
-                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
-                const averageAccuracy = totalAccuracy / eligibilities.length;
-                user.isEligible = averageAccuracy >= threshold;
-                await user.save();
-            }
-        }
-        catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
-        }
-    }
-};
-exports.UpdateUserService = UpdateUserService;
-__decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_10_SECONDS),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "qualifyUser", null);
-exports.UpdateUserService = UpdateUserService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _b : Object])
-], UpdateUserService);
-
-
-/***/ }),
-
-/***/ "./src/users/users.module.ts":
-/*!***********************************!*\
-  !*** ./src/users/users.module.ts ***!
-  \***********************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UsersModule = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const user_1 = __webpack_require__(/*! ./models/user */ "./src/users/models/user.ts");
-const users_resolver_1 = __webpack_require__(/*! ./users.resolver */ "./src/users/users.resolver.ts");
-const create_user_service_1 = __webpack_require__(/*! ./services/create.user.service */ "./src/users/services/create.user.service.ts");
-const get_user_service_1 = __webpack_require__(/*! ./services/get.user.service */ "./src/users/services/get.user.service.ts");
-const update_user_service_1 = __webpack_require__(/*! ./services/update.user.service */ "./src/users/services/update.user.service.ts");
-const delete_user_service_1 = __webpack_require__(/*! ./services/delete.user.service */ "./src/users/services/delete.user.service.ts");
-const m1_module_1 = __webpack_require__(/*! ../M1/m1.module */ "./src/M1/m1.module.ts");
-let UsersModule = class UsersModule {
-};
-exports.UsersModule = UsersModule;
-exports.UsersModule = UsersModule = __decorate([
-    (0, common_1.Module)({
-        imports: [
-            m1_module_1.M1Module,
-            mongoose_1.MongooseModule.forFeature([{ name: user_1.Users.name, schema: user_1.UsersSchema }]),
-        ],
-        providers: [
-            users_resolver_1.UsersResolver,
-            create_user_service_1.CreateUserService,
-            get_user_service_1.GetUserService,
-            update_user_service_1.UpdateUserService,
-            delete_user_service_1.DeleteUserService,
-        ],
-        exports: [
-            create_user_service_1.CreateUserService,
-            get_user_service_1.GetUserService,
-            update_user_service_1.UpdateUserService,
-            delete_user_service_1.DeleteUserService,
-        ],
-    })
-], UsersModule);
-
-
-/***/ }),
-
-/***/ "./src/users/users.resolver.ts":
-/*!*************************************!*\
-  !*** ./src/users/users.resolver.ts ***!
-  \*************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UsersResolver = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const user_1 = __webpack_require__(/*! ./models/user */ "./src/users/models/user.ts");
-const delete_user_service_1 = __webpack_require__(/*! ./services/delete.user.service */ "./src/users/services/delete.user.service.ts");
-const create_user_service_1 = __webpack_require__(/*! ./services/create.user.service */ "./src/users/services/create.user.service.ts");
-const update_user_service_1 = __webpack_require__(/*! ./services/update.user.service */ "./src/users/services/update.user.service.ts");
-const user_view_1 = __webpack_require__(/*! ./dto/views/user.view */ "./src/users/dto/views/user.view.ts");
-const create_user_input_1 = __webpack_require__(/*! ./dto/inputs/create.user.input */ "./src/users/dto/inputs/create.user.input.ts");
-const update_user_input_1 = __webpack_require__(/*! ./dto/inputs/update.user.input */ "./src/users/dto/inputs/update.user.input.ts");
-const graphql_2 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const get_user_args_1 = __webpack_require__(/*! ./dto/args/get.user.args */ "./src/users/dto/args/get.user.args.ts");
-const get_user_service_1 = __webpack_require__(/*! ./services/get.user.service */ "./src/users/services/get.user.service.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
-const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-const create_recorded_input_1 = __webpack_require__(/*! src/M1/dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
-let UsersResolver = class UsersResolver {
-    constructor(createUserService, updateUserService, deleteUserService, getUserService) {
+exports.AuthService = void 0;
+const common_1 = __webpack_require__(3);
+const mongoose_1 = __webpack_require__(13);
+const create_user_service_1 = __webpack_require__(36);
+const get_user_service_1 = __webpack_require__(45);
+const config_service_1 = __webpack_require__(8);
+const jwt = __webpack_require__(47);
+const bcrypt = __webpack_require__(64);
+const gqlerr_1 = __webpack_require__(15);
+const auth_1 = __webpack_require__(62);
+const parser_1 = __webpack_require__(65);
+const mongoose_2 = __webpack_require__(4);
+const parser_2 = __webpack_require__(35);
+let AuthService = class AuthService {
+    constructor(authModel, createUserService, getUserService) {
+        this.authModel = authModel;
         this.createUserService = createUserService;
-        this.updateUserService = updateUserService;
-        this.deleteUserService = deleteUserService;
         this.getUserService = getUserService;
     }
-    async createUser(input) {
-        return this.createUserService.create(input);
+    async login(input) {
+        try {
+            let user;
+            const { identifier, password } = input;
+            if (identifier.includes('@')) {
+                user = await this.getUserService.getUserByEmail(identifier);
+            }
+            else {
+                user = await this.getUserService.getUserByUsername(identifier);
+            }
+            if (!user) {
+                throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+            }
+            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new gqlerr_1.ThrowGQL('Invalid credentials', gqlerr_1.GQLThrowType.NOT_AUTHORIZED);
+            }
+            const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
+            const refreshToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '7d' });
+            await this.authModel.create({
+                userId: user.id,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+            });
+            return {
+                role: user.role,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                userId: user.id,
+            };
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
     }
-    async updateUser(input) {
-        return this.updateUserService.updateUser(input);
+    async register(input) {
+        try {
+            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
+            const parsedInput = (0, parser_1.parseRegisterInput)(input);
+            const user = await this.createUserService.create(await parsedInput);
+            const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
+            const refreshToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '7d' });
+            await this.authModel.create({
+                userId: user.id,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+            });
+            return {
+                role: user.role,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                userId: user.id,
+            };
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
     }
-    async deleteUser(id) {
-        return this.deleteUserService.delete(id);
+    async getLoggedInUser(token) {
+        try {
+            const secretKey = config_service_1.configService.getEnvValue('SECRET_KEY');
+            const decoded = jwt.verify(token, secretKey);
+            const user = await this.getUserService.getUserById(decoded.id);
+            return (0, parser_2.parseToView)(user);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
     }
-    async userHasDoneTask(input, userId) {
-        return this.updateUserService.userHasDoneTask(input, userId);
-    }
-    async getAllUsers(args) {
-        return this.getUserService.getAllUsers(args);
-    }
-    async getUserByUsername(userName) {
-        return this.getUserService.getUserByUsername(userName);
-    }
-    async getUserByEmail(email) {
-        return this.getUserService.getUserByEmail(email);
-    }
-    async getUserById(id) {
-        return this.getUserService.getUserById(id);
-    }
-    async getTotalUsers() {
-        return this.getUserService.getTotalUsers();
+    async logout(token) {
+        await this.authModel.deleteOne({ refreshToken: token });
     }
 };
-exports.UsersResolver = UsersResolver;
-__decorate([
-    (0, graphql_1.Mutation)(() => user_view_1.UserView),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_e = typeof create_user_input_1.CreateUserInput !== "undefined" && create_user_input_1.CreateUserInput) === "function" ? _e : Object]),
-    __metadata("design:returntype", typeof (_f = typeof Promise !== "undefined" && Promise) === "function" ? _f : Object)
-], UsersResolver.prototype, "createUser", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => user_view_1.UserView),
-    __param(0, (0, graphql_1.Args)('input')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_g = typeof update_user_input_1.UpdateUserInput !== "undefined" && update_user_input_1.UpdateUserInput) === "function" ? _g : Object]),
-    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
-], UsersResolver.prototype, "updateUser", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
-], UsersResolver.prototype, "deleteUser", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)('input')),
-    __param(1, (0, graphql_1.Args)('userId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_k = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _k : Object, String]),
-    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
-], UsersResolver.prototype, "userHasDoneTask", null);
-__decorate([
-    (0, graphql_2.Query)(() => [user_view_1.UserView]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_m = typeof get_user_args_1.GetUserArgs !== "undefined" && get_user_args_1.GetUserArgs) === "function" ? _m : Object]),
-    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
-], UsersResolver.prototype, "getAllUsers", null);
-__decorate([
-    (0, graphql_2.Query)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('username')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
-], UsersResolver.prototype, "getUserByUsername", null);
-__decorate([
-    (0, graphql_2.Query)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('email')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_q = typeof Promise !== "undefined" && Promise) === "function" ? _q : Object)
-], UsersResolver.prototype, "getUserByEmail", null);
-__decorate([
-    (0, graphql_2.Query)(() => user_view_1.UserView),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
-], UsersResolver.prototype, "getUserById", null);
-__decorate([
-    (0, graphql_2.Query)(() => Number),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_s = typeof Promise !== "undefined" && Promise) === "function" ? _s : Object)
-], UsersResolver.prototype, "getTotalUsers", null);
-exports.UsersResolver = UsersResolver = __decorate([
-    (0, graphql_1.Resolver)(() => user_1.Users),
-    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard, role_guard_1.RolesGuard),
-    __metadata("design:paramtypes", [typeof (_a = typeof create_user_service_1.CreateUserService !== "undefined" && create_user_service_1.CreateUserService) === "function" ? _a : Object, typeof (_b = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _b : Object, typeof (_c = typeof delete_user_service_1.DeleteUserService !== "undefined" && delete_user_service_1.DeleteUserService) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object])
-], UsersResolver);
+exports.AuthService = AuthService;
+exports.AuthService = AuthService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_2.InjectModel)(auth_1.Auth.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object, typeof (_b = typeof create_user_service_1.CreateUserService !== "undefined" && create_user_service_1.CreateUserService) === "function" ? _b : Object, typeof (_c = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _c : Object])
+], AuthService);
 
 
 /***/ }),
-
-/***/ "@nestjs/apollo":
-/*!*********************************!*\
-  !*** external "@nestjs/apollo" ***!
-  \*********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/apollo");
-
-/***/ }),
-
-/***/ "@nestjs/common":
-/*!*********************************!*\
-  !*** external "@nestjs/common" ***!
-  \*********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/common");
-
-/***/ }),
-
-/***/ "@nestjs/config":
-/*!*********************************!*\
-  !*** external "@nestjs/config" ***!
-  \*********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/config");
-
-/***/ }),
-
-/***/ "@nestjs/core":
-/*!*******************************!*\
-  !*** external "@nestjs/core" ***!
-  \*******************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/core");
-
-/***/ }),
-
-/***/ "@nestjs/graphql":
-/*!**********************************!*\
-  !*** external "@nestjs/graphql" ***!
-  \**********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/graphql");
-
-/***/ }),
-
-/***/ "@nestjs/mongoose":
-/*!***********************************!*\
-  !*** external "@nestjs/mongoose" ***!
-  \***********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/mongoose");
-
-/***/ }),
-
-/***/ "@nestjs/schedule":
-/*!***********************************!*\
-  !*** external "@nestjs/schedule" ***!
-  \***********************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/schedule");
-
-/***/ }),
-
-/***/ "@nestjs/throttler":
-/*!************************************!*\
-  !*** external "@nestjs/throttler" ***!
-  \************************************/
-/***/ ((module) => {
-
-module.exports = require("@nestjs/throttler");
-
-/***/ }),
-
-/***/ "bcrypt":
-/*!*************************!*\
-  !*** external "bcrypt" ***!
-  \*************************/
+/* 64 */
 /***/ ((module) => {
 
 module.exports = require("bcrypt");
 
 /***/ }),
+/* 65 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-/***/ "bson":
-/*!***********************!*\
-  !*** external "bson" ***!
-  \***********************/
-/***/ ((module) => {
 
-module.exports = require("bson");
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRegisterInput = parseRegisterInput;
+const gqlerr_1 = __webpack_require__(15);
+const bcrypt = __webpack_require__(64);
+async function parseRegisterInput(input) {
+    if (input.password !== input.passwordConfirmation) {
+        throw new gqlerr_1.ThrowGQL('Passwords do not match', gqlerr_1.GQLThrowType.NOT_FOUND);
+    }
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(input.password, saltRounds);
+    return {
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        userName: input.userName,
+        password: hashedPassword,
+        passwordConfirmation: hashedPassword,
+        role: input.role,
+    };
+}
+
 
 /***/ }),
+/* 66 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
-/***/ "class-validator":
-/*!**********************************!*\
-  !*** external "class-validator" ***!
-  \**********************************/
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AuthView = void 0;
+const graphql_1 = __webpack_require__(5);
+let AuthView = class AuthView {
+};
+exports.AuthView = AuthView;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AuthView.prototype, "accessToken", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AuthView.prototype, "refreshToken", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AuthView.prototype, "userId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], AuthView.prototype, "role", void 0);
+exports.AuthView = AuthView = __decorate([
+    (0, graphql_1.ObjectType)()
+], AuthView);
+
+
+/***/ }),
+/* 67 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ForgotPasswordInput = exports.LoginInput = exports.RegisterInput = void 0;
+const graphql_1 = __webpack_require__(5);
+const class_validator_1 = __webpack_require__(68);
+const user_enum_1 = __webpack_require__(30);
+let RegisterInput = class RegisterInput {
+};
+exports.RegisterInput = RegisterInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsEmail)(),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "email", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "firstName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "lastName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "userName", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.MinLength)(8),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "password", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.MinLength)(7),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "passwordConfirmation", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => user_enum_1.Role),
+    __metadata("design:type", typeof (_a = typeof user_enum_1.Role !== "undefined" && user_enum_1.Role) === "function" ? _a : Object)
+], RegisterInput.prototype, "role", void 0);
+exports.RegisterInput = RegisterInput = __decorate([
+    (0, graphql_1.InputType)()
+], RegisterInput);
+let LoginInput = class LoginInput {
+};
+exports.LoginInput = LoginInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], LoginInput.prototype, "identifier", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MinLength)(6),
+    __metadata("design:type", String)
+], LoginInput.prototype, "password", void 0);
+exports.LoginInput = LoginInput = __decorate([
+    (0, graphql_1.InputType)()
+], LoginInput);
+let ForgotPasswordInput = class ForgotPasswordInput {
+};
+exports.ForgotPasswordInput = ForgotPasswordInput;
+__decorate([
+    (0, graphql_1.Field)(),
+    __metadata("design:type", String)
+], ForgotPasswordInput.prototype, "email", void 0);
+exports.ForgotPasswordInput = ForgotPasswordInput = __decorate([
+    (0, graphql_1.InputType)()
+], ForgotPasswordInput);
+
+
+/***/ }),
+/* 68 */
 /***/ ((module) => {
 
 module.exports = require("class-validator");
 
 /***/ }),
+/* 69 */
+/***/ ((module) => {
 
-/***/ "cookie-parser":
-/*!********************************!*\
-  !*** external "cookie-parser" ***!
-  \********************************/
+module.exports = require("@nestjs/throttler");
+
+/***/ }),
+/* 70 */
 /***/ ((module) => {
 
 module.exports = require("cookie-parser");
 
-/***/ }),
-
-/***/ "dotenv":
-/*!*************************!*\
-  !*** external "dotenv" ***!
-  \*************************/
-/***/ ((module) => {
-
-module.exports = require("dotenv");
-
-/***/ }),
-
-/***/ "jsonwebtoken":
-/*!*******************************!*\
-  !*** external "jsonwebtoken" ***!
-  \*******************************/
-/***/ ((module) => {
-
-module.exports = require("jsonwebtoken");
-
-/***/ }),
-
-/***/ "mongoose":
-/*!***************************!*\
-  !*** external "mongoose" ***!
-  \***************************/
-/***/ ((module) => {
-
-module.exports = require("mongoose");
-
 /***/ })
-
-/******/ 	});
+/******/ 	]);
 /************************************************************************/
 /******/ 	// The module cache
 /******/ 	var __webpack_module_cache__ = {};
@@ -4182,7 +3900,7 @@ module.exports = require("mongoose");
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __webpack_require__("./src/main.ts");
+/******/ 	var __webpack_exports__ = __webpack_require__(0);
 /******/ 	
 /******/ })()
 ;
