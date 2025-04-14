@@ -9,6 +9,7 @@ import { parseToView } from '../models/parser';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
 import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
+import { configService } from 'src/config/config.service';
 
 @Injectable()
 export class UpdateUserService {
@@ -59,7 +60,8 @@ export class UpdateUserService {
   @Cron(CronExpression.EVERY_10_SECONDS)
   async qualifyUser() {
     try {
-      const threshold = 0.7;
+      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
+      const threshold = parseFloat(thresholdString);
       const allUsers = await this.userModel.find({ role: 'worker' }).exec();
 
       for (const user of allUsers) {
