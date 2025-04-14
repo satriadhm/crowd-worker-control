@@ -57,7 +57,7 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_MINUTE)
   async qualifyUser() {
     try {
       const thresholdString = configService.getEnvValue('MX_THRESHOLD');
