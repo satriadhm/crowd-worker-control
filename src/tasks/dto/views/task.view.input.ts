@@ -17,7 +17,7 @@ export class TaskView {
 
   @Field()
   nAnswers: number;
-
+  //check
   @Field()
   isValidQuestion: boolean;
 
