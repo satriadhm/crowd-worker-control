@@ -774,6 +774,7 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
+const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let DashboardService = DashboardService_1 = class DashboardService {
     constructor(taskModel, userModel, eligibilityModel) {
         this.taskModel = taskModel;
@@ -802,50 +803,53 @@ let DashboardService = DashboardService_1 = class DashboardService {
         }
     }
     async getIterationMetrics() {
-        const allWorkers = await this.userModel
-            .find({ role: 'worker' })
-            .sort({ createdAt: 1 })
-            .exec();
-        const totalWorkers = allWorkers.length;
-        this.logger.debug(`Total workers found: ${totalWorkers}`);
+        const iterations = [];
         const totalTasks = await this.taskModel.countDocuments();
         const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
-        const iterations = [];
+        const workers = await this.userModel
+            .find({ role: user_enum_1.Role.WORKER })
+            .sort({ createdAt: 1 })
+            .exec();
+        const totalWorkers = workers.length;
+        this.logger.log(`Total workers found: ${totalWorkers}`);
+        let remainingWorkers = totalWorkers;
+        let startIndex = 0;
         for (let i = 0; i < this.maxIterations; i++) {
-            const targetWorkerCount = this.workersPerIteration[i];
-            const actualWorkerCount = Math.min(targetWorkerCount, totalWorkers);
+            const maxWorkersForIteration = this.workersPerIteration[i];
+            const previousIterationMax = i > 0 ? this.workersPerIteration[i - 1] : 0;
+            const iterationCapacity = i === 0
+                ? maxWorkersForIteration
+                : maxWorkersForIteration - previousIterationMax;
+            const workersInThisIteration = Math.min(remainingWorkers, iterationCapacity);
+            this.logger.log(`Iteration ${i + 1}: Capacity=${iterationCapacity}, Assigned=${workersInThisIteration}, Range=${startIndex}-${startIndex + workersInThisIteration - 1}`);
             iterations.push({
                 iteration: `Iteration ${i + 1}`,
-                workers: actualWorkerCount,
+                workers: workersInThisIteration,
                 tasks: tasksPerIteration,
             });
-        }
-        if (iterations.length === 0 ||
-            (iterations.length > 0 && iterations[0].workers === 0)) {
-            return [
-                { iteration: 'Iteration 1', workers: 0, tasks: tasksPerIteration },
-                { iteration: 'Iteration 2', workers: 0, tasks: tasksPerIteration },
-                { iteration: 'Iteration 3', workers: 0, tasks: tasksPerIteration },
-                { iteration: 'Iteration 4', workers: 0, tasks: tasksPerIteration },
-                { iteration: 'Iteration 5', workers: 0, tasks: tasksPerIteration },
-            ];
+            remainingWorkers -= workersInThisIteration;
+            startIndex += workersInThisIteration;
         }
         return iterations;
     }
     async getWorkerEligibilityDistribution() {
         const eligibleCount = await this.userModel.countDocuments({
-            role: 'worker',
+            role: user_enum_1.Role.WORKER,
             isEligible: true,
         });
         const nonEligibleCount = await this.userModel.countDocuments({
-            role: 'worker',
+            role: user_enum_1.Role.WORKER,
             isEligible: false,
         });
-        const adjustedEligibleCount = eligibleCount > 0 ? eligibleCount : 1;
-        const adjustedNonEligibleCount = nonEligibleCount > 0 ? nonEligibleCount : 1;
+        const pendingCount = await this.userModel.countDocuments({
+            role: user_enum_1.Role.WORKER,
+            isEligible: null,
+        });
+        this.logger.log(`Worker eligibility stats: Eligible=${eligibleCount}, Non-Eligible=${nonEligibleCount}, Pending=${pendingCount}`);
         return [
-            { name: 'Eligible', value: adjustedEligibleCount },
-            { name: 'Not Eligible', value: adjustedNonEligibleCount },
+            { name: 'Eligible', value: eligibleCount },
+            { name: 'Not Eligible', value: nonEligibleCount },
+            { name: 'Pending', value: pendingCount },
         ];
     }
     async getTaskValidationDistribution() {
@@ -855,11 +859,8 @@ let DashboardService = DashboardService_1 = class DashboardService {
         const totalTasks = await this.taskModel.countDocuments();
         const nonValidatedCount = totalTasks - validatedCount;
         return [
-            { name: 'Validated', value: validatedCount > 0 ? validatedCount : 1 },
-            {
-                name: 'Not Validated',
-                value: nonValidatedCount > 0 ? nonValidatedCount : 1,
-            },
+            { name: 'Validated', value: validatedCount },
+            { name: 'Not Validated', value: nonValidatedCount },
         ];
     }
     async getAccuracyDistribution() {
@@ -885,15 +886,9 @@ let DashboardService = DashboardService_1 = class DashboardService {
                 accuracyBrackets['Below 70%']++;
             }
         }
-        if (eligibilityRecords.length === 0) {
-            accuracyBrackets['90-100%'] = 1;
-            accuracyBrackets['80-89%'] = 1;
-            accuracyBrackets['70-79%'] = 1;
-            accuracyBrackets['Below 70%'] = 1;
-        }
         return Object.entries(accuracyBrackets).map(([name, value]) => ({
             name,
-            value,
+            value: value || 0,
         }));
     }
 };

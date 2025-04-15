@@ -1,3 +1,4 @@
+// src/M1/services/dashboard/dashboard.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -10,6 +11,7 @@ import {
   StatusDistribution,
   AccuracyDistribution,
 } from '../../dto/dashboard/dashboard.view';
+import { Role } from 'src/lib/user.enum';
 
 @Injectable()
 export class DashboardService {
@@ -53,52 +55,61 @@ export class DashboardService {
   }
 
   /**
-   * Get metrics for each iteration with accurate worker counts
-   * Fixed: Shows the actual number of workers based on worker database count
+   * Get metrics for each iteration
+   * Shows the actual number of workers and tasks for each iteration
    */
   private async getIterationMetrics(): Promise<IterationMetric[]> {
-    // Get all workers and count them accurately
-    const allWorkers = await this.userModel
-      .find({ role: 'worker' })
-      .sort({ createdAt: 1 })
-      .exec();
+    const iterations: IterationMetric[] = [];
 
-    const totalWorkers = allWorkers.length;
-    this.logger.debug(`Total workers found: ${totalWorkers}`);
-
-    // Get all tasks and distribute them evenly across 5 iterations
+    // Get all tasks and distribute them evenly across iterations
     const totalTasks = await this.taskModel.countDocuments();
     const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
 
-    const iterations: IterationMetric[] = [];
+    // Get all workers with role = 'worker', sorted by creation date (oldest first)
+    const workers = await this.userModel
+      .find({ role: Role.WORKER })
+      .sort({ createdAt: 1 })
+      .exec();
 
-    // Create data for each iteration based on actual worker count
+    const totalWorkers = workers.length;
+    this.logger.log(`Total workers found: ${totalWorkers}`);
+
+    // Calculate how many workers should be in each iteration based on actual data
+    let remainingWorkers = totalWorkers;
+    let startIndex = 0;
+
     for (let i = 0; i < this.maxIterations; i++) {
-      // Get the target worker count for this iteration
-      const targetWorkerCount = this.workersPerIteration[i];
+      const maxWorkersForIteration = this.workersPerIteration[i];
+      const previousIterationMax = i > 0 ? this.workersPerIteration[i - 1] : 0;
 
-      // Calculate actual number of workers (limited by available workers)
-      const actualWorkerCount = Math.min(targetWorkerCount, totalWorkers);
+      // Calculate how many workers can be assigned to this iteration
+      // This takes the difference between current iteration's max and previous iteration's max
+      const iterationCapacity =
+        i === 0
+          ? maxWorkersForIteration
+          : maxWorkersForIteration - previousIterationMax;
+
+      // Calculate how many workers are actually in this iteration
+      const workersInThisIteration = Math.min(
+        remainingWorkers,
+        iterationCapacity,
+      );
+
+      // Get the slice of workers assigned to this iteration
+
+      this.logger.log(
+        `Iteration ${i + 1}: Capacity=${iterationCapacity}, Assigned=${workersInThisIteration}, Range=${startIndex}-${startIndex + workersInThisIteration - 1}`,
+      );
 
       iterations.push({
         iteration: `Iteration ${i + 1}`,
-        workers: actualWorkerCount,
+        workers: workersInThisIteration,
         tasks: tasksPerIteration,
       });
-    }
 
-    // If there are no workers yet, provide fallback data
-    if (
-      iterations.length === 0 ||
-      (iterations.length > 0 && iterations[0].workers === 0)
-    ) {
-      return [
-        { iteration: 'Iteration 1', workers: 0, tasks: tasksPerIteration },
-        { iteration: 'Iteration 2', workers: 0, tasks: tasksPerIteration },
-        { iteration: 'Iteration 3', workers: 0, tasks: tasksPerIteration },
-        { iteration: 'Iteration 4', workers: 0, tasks: tasksPerIteration },
-        { iteration: 'Iteration 5', workers: 0, tasks: tasksPerIteration },
-      ];
+      // Update for next iteration
+      remainingWorkers -= workersInThisIteration;
+      startIndex += workersInThisIteration;
     }
 
     return iterations;
@@ -107,26 +118,30 @@ export class DashboardService {
   private async getWorkerEligibilityDistribution(): Promise<
     StatusDistribution[]
   > {
-    // Count eligible and non-eligible workers
+    // Count workers by eligibility status
     const eligibleCount = await this.userModel.countDocuments({
-      role: 'worker',
+      role: Role.WORKER,
       isEligible: true,
     });
 
-    // Count workers with defined eligibility status
     const nonEligibleCount = await this.userModel.countDocuments({
-      role: 'worker',
+      role: Role.WORKER,
       isEligible: false,
     });
 
-    // Ensure we have at least 1 in each category for visualization
-    const adjustedEligibleCount = eligibleCount > 0 ? eligibleCount : 1;
-    const adjustedNonEligibleCount =
-      nonEligibleCount > 0 ? nonEligibleCount : 1;
+    const pendingCount = await this.userModel.countDocuments({
+      role: Role.WORKER,
+      isEligible: null,
+    });
+
+    this.logger.log(
+      `Worker eligibility stats: Eligible=${eligibleCount}, Non-Eligible=${nonEligibleCount}, Pending=${pendingCount}`,
+    );
 
     return [
-      { name: 'Eligible', value: adjustedEligibleCount },
-      { name: 'Not Eligible', value: adjustedNonEligibleCount },
+      { name: 'Eligible', value: eligibleCount },
+      { name: 'Not Eligible', value: nonEligibleCount },
+      { name: 'Pending', value: pendingCount },
     ];
   }
 
@@ -138,21 +153,17 @@ export class DashboardService {
     const totalTasks = await this.taskModel.countDocuments();
     const nonValidatedCount = totalTasks - validatedCount;
 
-    // Ensure we have at least 1 in each category for visualization
     return [
-      { name: 'Validated', value: validatedCount > 0 ? validatedCount : 1 },
-      {
-        name: 'Not Validated',
-        value: nonValidatedCount > 0 ? nonValidatedCount : 1,
-      },
+      { name: 'Validated', value: validatedCount },
+      { name: 'Not Validated', value: nonValidatedCount },
     ];
   }
 
   private async getAccuracyDistribution(): Promise<AccuracyDistribution[]> {
-    // Group workers by accuracy ranges
+    // Get all workers with eligibility records
     const eligibilityRecords = await this.eligibilityModel.find().exec();
 
-    // Count workers in each accuracy bracket
+    // Group workers by their accuracy ranges
     const accuracyBrackets = {
       '90-100%': 0,
       '80-89%': 0,
@@ -175,18 +186,10 @@ export class DashboardService {
       }
     }
 
-    // If no records exist yet, add some default values
-    if (eligibilityRecords.length === 0) {
-      accuracyBrackets['90-100%'] = 1;
-      accuracyBrackets['80-89%'] = 1;
-      accuracyBrackets['70-79%'] = 1;
-      accuracyBrackets['Below 70%'] = 1;
-    }
-
     // Convert to array format
     return Object.entries(accuracyBrackets).map(([name, value]) => ({
       name,
-      value,
+      value: value || 0, // Ensure no null values
     }));
   }
 }
