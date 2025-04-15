@@ -10,6 +10,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
 import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
 import { configService } from 'src/config/config.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class UpdateUserService {
@@ -17,6 +18,7 @@ export class UpdateUserService {
   private currentIteration = 1;
   private readonly maxIterations = 5;
   private readonly workersPerIteration = [3, 6, 9, 12, 15]; // Target worker counts per iteration
+  private readonly logger = new Logger(UpdateUserService.name);
 
   constructor(
     @InjectModel(Users.name)
@@ -107,7 +109,7 @@ export class UpdateUserService {
     );
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_SECONDS) // Run more frequently to ensure eligibility gets updated
   async qualifyUser() {
     try {
       // Check if we should advance to the next iteration
@@ -117,7 +119,7 @@ export class UpdateUserService {
           this.currentIteration + 1,
           this.maxIterations,
         );
-        console.log(`Advanced to iteration ${this.currentIteration}`);
+        this.logger.log(`Advanced to iteration ${this.currentIteration}`);
       }
 
       const thresholdString = configService.getEnvValue('MX_THRESHOLD');
@@ -134,7 +136,7 @@ export class UpdateUserService {
         this.workersPerIteration[this.currentIteration - 1];
       const workersForIteration = allWorkers.slice(0, iterationLimit);
 
-      console.log(
+      this.logger.log(
         `Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`,
       );
 
@@ -152,12 +154,20 @@ export class UpdateUserService {
             user._id.toString(),
           );
 
-        // If no eligibility records and isEligible is null, set to false
+        // Check if worker has completed any tasks yet
+        const hasCompletedTasks =
+          user.completedTasks && user.completedTasks.length > 0;
+
+        // If no eligibility records but has completed tasks, set default false
+        // This ensures workers who have attempted tasks but don't yet have
+        // enough data for accurate evaluation aren't left with null status
         if (eligibilities.length === 0) {
-          // Only update if isEligible is currently null
-          if (user.isEligible === null) {
-            user.isEligible = false;
+          if (user.isEligible === null && hasCompletedTasks) {
+            user.isEligible = false; // Default to not eligible until properly evaluated
             await user.save();
+            this.logger.log(
+              `User ${user._id} set to default non-eligible state (pending evaluation)`,
+            );
           }
           continue;
         }
@@ -172,16 +182,20 @@ export class UpdateUserService {
         // Update eligibility status based on threshold
         const newEligibilityStatus = averageAccuracy >= threshold;
 
-        // Only update if changed to avoid unnecessary DB writes
-        if (user.isEligible !== newEligibilityStatus) {
+        // Only update if changed or null to avoid unnecessary DB writes
+        if (
+          user.isEligible !== newEligibilityStatus ||
+          user.isEligible === null
+        ) {
           user.isEligible = newEligibilityStatus;
           await user.save();
-          console.log(
-            `Updated eligibility for worker ${user._id}: ${newEligibilityStatus}`,
+          this.logger.log(
+            `Updated eligibility for worker ${user._id}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
           );
         }
       }
     } catch (error) {
+      this.logger.error(`Error in qualifyUser: ${error.message}`);
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }

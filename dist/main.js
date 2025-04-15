@@ -1319,23 +1319,16 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
                     continue;
                 }
-                const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
-                const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
-                const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
-                if (workersToCalculate.length === 0) {
-                    this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
-                    continue;
-                }
-                const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
-                for (const workerId of workersToCalculate) {
+                const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
+                for (const workerId of workerIds) {
                     const accuracy = accuracies[workerId];
                     const eligibilityInput = {
                         taskId: task.id,
                         workerId: workerId,
                         accuracy: accuracy,
                     };
-                    await this.createEligibilityService.createEligibility(eligibilityInput);
-                    this.logger.debug(`Created eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`);
+                    await this.createEligibilityService.upSertEligibility(eligibilityInput);
+                    this.logger.debug(`Created/updated eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`);
                 }
             }
         }
@@ -4035,6 +4028,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var UpdateUserService_1;
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserService = void 0;
@@ -4047,13 +4041,15 @@ const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const get_eligibility_service_1 = __webpack_require__(/*! ../../M1/services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
 const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
-let UpdateUserService = class UpdateUserService {
+const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     constructor(userModel, getEligibilityService) {
         this.userModel = userModel;
         this.getEligibilityService = getEligibilityService;
         this.currentIteration = 1;
         this.maxIterations = 5;
         this.workersPerIteration = [3, 6, 9, 12, 15];
+        this.logger = new common_2.Logger(UpdateUserService_1.name);
     }
     async updateUser(input) {
         try {
@@ -4116,7 +4112,7 @@ let UpdateUserService = class UpdateUserService {
             const shouldAdvance = await this.shouldAdvanceIteration();
             if (shouldAdvance) {
                 this.currentIteration = Math.min(this.currentIteration + 1, this.maxIterations);
-                console.log(`Advanced to iteration ${this.currentIteration}`);
+                this.logger.log(`Advanced to iteration ${this.currentIteration}`);
             }
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
@@ -4126,43 +4122,47 @@ let UpdateUserService = class UpdateUserService {
                 .exec();
             const iterationLimit = this.workersPerIteration[this.currentIteration - 1];
             const workersForIteration = allWorkers.slice(0, iterationLimit);
-            console.log(`Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`);
+            this.logger.log(`Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`);
             for (const user of workersForIteration) {
                 const shouldEvaluate = await this.isWorkerInCurrentIteration(user._id.toString());
                 if (!shouldEvaluate) {
                     continue;
                 }
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(user._id.toString());
+                const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
                 if (eligibilities.length === 0) {
-                    if (user.isEligible === null) {
+                    if (user.isEligible === null && hasCompletedTasks) {
                         user.isEligible = false;
                         await user.save();
+                        this.logger.log(`User ${user._id} set to default non-eligible state (pending evaluation)`);
                     }
                     continue;
                 }
                 const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
                 const averageAccuracy = totalAccuracy / eligibilities.length;
                 const newEligibilityStatus = averageAccuracy >= threshold;
-                if (user.isEligible !== newEligibilityStatus) {
+                if (user.isEligible !== newEligibilityStatus ||
+                    user.isEligible === null) {
                     user.isEligible = newEligibilityStatus;
                     await user.save();
-                    console.log(`Updated eligibility for worker ${user._id}: ${newEligibilityStatus}`);
+                    this.logger.log(`Updated eligibility for worker ${user._id}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
                 }
             }
         }
         catch (error) {
+            this.logger.error(`Error in qualifyUser: ${error.message}`);
             throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UpdateUserService.prototype, "qualifyUser", null);
-exports.UpdateUserService = UpdateUserService = __decorate([
+exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _b : Object])

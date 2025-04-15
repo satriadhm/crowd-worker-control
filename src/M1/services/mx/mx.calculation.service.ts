@@ -312,6 +312,7 @@ export class AccuracyCalculationServiceMX {
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    * Updated to work with iterations
    */
+  // Update in calculateEligibility function
   @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
   async calculateEligibility() {
     try {
@@ -363,44 +364,24 @@ export class AccuracyCalculationServiceMX {
           continue;
         }
 
-        // Only calculate for workers who don't already have eligibility
-        const eligibilityRecords =
-          await this.createEligibilityService.getEligibilityByTaskId(task.id);
-        const workersWithEligibility = eligibilityRecords.map((e) =>
-          e.workerId.toString(),
-        );
+        // Calculate accuracies for all workers who have answered this task
+        const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
 
-        // Filter out workers who already have eligibility calculated
-        const workersToCalculate = workerIds.filter(
-          (id) => !workersWithEligibility.includes(id),
-        );
-
-        if (workersToCalculate.length === 0) {
-          this.logger.debug(
-            `All workers for task ${task.id} already have eligibility calculated`,
-          );
-          continue;
-        }
-
-        // Calculate only for workers who don't have eligibility yet
-        const accuracies = await this.calculateAccuracyMX(
-          task.id,
-          workersToCalculate,
-        );
-
-        // Update eligibility only for workers who don't have it yet
-        for (const workerId of workersToCalculate) {
+        // Create eligibility records for all workers in this batch
+        for (const workerId of workerIds) {
           const accuracy = accuracies[workerId];
           const eligibilityInput: CreateEligibilityInput = {
             taskId: task.id,
             workerId: workerId,
             accuracy: accuracy,
           };
-          await this.createEligibilityService.createEligibility(
+
+          // Create new eligibility record or update existing one
+          await this.createEligibilityService.upSertEligibility(
             eligibilityInput,
           );
           this.logger.debug(
-            `Created eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`,
+            `Created/updated eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`,
           );
         }
       }
