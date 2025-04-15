@@ -53,25 +53,26 @@ export class DashboardService {
   }
 
   /**
-   * Get metrics for each iteration
-   * Shows the number of workers and tasks for each iteration
+   * Get metrics for each iteration with accurate worker counts
+   * Fixed: Shows the actual number of workers based on worker database count
    */
   private async getIterationMetrics(): Promise<IterationMetric[]> {
-    const iterations: IterationMetric[] = [];
+    // Get all workers and count them accurately
+    const allWorkers = await this.userModel
+      .find({ role: 'worker' })
+      .sort({ createdAt: 1 })
+      .exec();
+
+    const totalWorkers = allWorkers.length;
+    this.logger.debug(`Total workers found: ${totalWorkers}`);
 
     // Get all tasks and distribute them evenly across 5 iterations
     const totalTasks = await this.taskModel.countDocuments();
     const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
 
-    // Get workers sorted by creation date to represent joining order
-    const workers = await this.userModel
-      .find({ role: 'worker' })
-      .sort({ createdAt: 1 })
-      .exec();
+    const iterations: IterationMetric[] = [];
 
-    const totalWorkers = workers.length;
-
-    // Create data for each iteration based on the predefined worker counts
+    // Create data for each iteration based on actual worker count
     for (let i = 0; i < this.maxIterations; i++) {
       // Get the target worker count for this iteration
       const targetWorkerCount = this.workersPerIteration[i];
@@ -92,11 +93,11 @@ export class DashboardService {
       (iterations.length > 0 && iterations[0].workers === 0)
     ) {
       return [
-        { iteration: 'Iteration 1', workers: 3, tasks: tasksPerIteration },
-        { iteration: 'Iteration 2', workers: 6, tasks: tasksPerIteration },
-        { iteration: 'Iteration 3', workers: 9, tasks: tasksPerIteration },
-        { iteration: 'Iteration 4', workers: 12, tasks: tasksPerIteration },
-        { iteration: 'Iteration 5', workers: 15, tasks: tasksPerIteration },
+        { iteration: 'Iteration 1', workers: 0, tasks: tasksPerIteration },
+        { iteration: 'Iteration 2', workers: 0, tasks: tasksPerIteration },
+        { iteration: 'Iteration 3', workers: 0, tasks: tasksPerIteration },
+        { iteration: 'Iteration 4', workers: 0, tasks: tasksPerIteration },
+        { iteration: 'Iteration 5', workers: 0, tasks: tasksPerIteration },
       ];
     }
 
@@ -112,17 +113,20 @@ export class DashboardService {
       isEligible: true,
     });
 
-    const totalWorkers = await this.userModel.countDocuments({
+    // Count workers with defined eligibility status
+    const nonEligibleCount = await this.userModel.countDocuments({
       role: 'worker',
+      isEligible: false,
     });
-    const nonEligibleCount = totalWorkers - eligibleCount;
+
+    // Ensure we have at least 1 in each category for visualization
+    const adjustedEligibleCount = eligibleCount > 0 ? eligibleCount : 1;
+    const adjustedNonEligibleCount =
+      nonEligibleCount > 0 ? nonEligibleCount : 1;
 
     return [
-      { name: 'Eligible', value: eligibleCount },
-      {
-        name: 'Not Eligible',
-        value: nonEligibleCount > 0 ? nonEligibleCount : 1,
-      }, // Ensure at least 1 for visualization
+      { name: 'Eligible', value: adjustedEligibleCount },
+      { name: 'Not Eligible', value: adjustedNonEligibleCount },
     ];
   }
 
@@ -134,12 +138,13 @@ export class DashboardService {
     const totalTasks = await this.taskModel.countDocuments();
     const nonValidatedCount = totalTasks - validatedCount;
 
+    // Ensure we have at least 1 in each category for visualization
     return [
-      { name: 'Validated', value: validatedCount },
+      { name: 'Validated', value: validatedCount > 0 ? validatedCount : 1 },
       {
         name: 'Not Validated',
         value: nonValidatedCount > 0 ? nonValidatedCount : 1,
-      }, // Ensure at least 1 for visualization
+      },
     ];
   }
 

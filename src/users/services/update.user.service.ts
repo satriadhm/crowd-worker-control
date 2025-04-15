@@ -54,10 +54,18 @@ export class UpdateUserService {
       if (!user) {
         throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
       }
+
+      // Check if the task is already in completedTasks
       if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-        user.completedTasks.push({ taskId, answer });
-        await user.save();
+        // Use findByIdAndUpdate with $push to add to completedTasks array
+        const updatedUser = await this.userModel.findByIdAndUpdate(
+          userId,
+          { $push: { completedTasks: { taskId, answer } } },
+          { new: true },
+        );
+        return parseToView(updatedUser);
       }
+
       return parseToView(user);
     } catch (error) {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
@@ -65,51 +73,64 @@ export class UpdateUserService {
   }
 
   /**
-   * Check if a worker should be evaluated in the current iteration
-   * This is determined by their position in the creation order
-   */
-  private async isWorkerInCurrentIteration(workerId: string): Promise<boolean> {
-    if (this.currentIteration >= this.maxIterations) {
-      return true; // In the final iteration, all workers are included
-    }
-
-    // Get worker's position in the creation order
-    const allWorkers = await this.userModel
-      .find({ role: 'worker' })
-      .sort({ createdAt: 1 })
-      .exec();
-
-    const workerIds = allWorkers.map((worker) => worker._id.toString());
-    const workerIndex = workerIds.indexOf(workerId);
-
-    if (workerIndex === -1) {
-      return false; // Worker not found
-    }
-
-    // Check if worker's index is within the current iteration limit
-    return workerIndex < this.workersPerIteration[this.currentIteration - 1];
-  }
-
-  /**
-   * Check if we should move to the next iteration based on the number of evaluated workers
+   * Check if we should move to the next iteration based on the number of worker users
+   * Fixed: Only advance when we have enough workers for the next iteration target
    */
   private async shouldAdvanceIteration(): Promise<boolean> {
     if (this.currentIteration >= this.maxIterations) {
       return false; // Already at the maximum iteration
     }
 
-    const evaluatedWorkers = await this.userModel.countDocuments({
+    // Get total worker count
+    const totalWorkers = await this.userModel.countDocuments({
       role: 'worker',
-      isEligible: { $ne: null }, // Count workers who have been evaluated
     });
 
-    // Check if we've reached or exceeded the worker target for current iteration
-    return (
-      evaluatedWorkers >= this.workersPerIteration[this.currentIteration - 1]
+    // Only advance when we have enough workers for the *next* iteration
+    const nextIterationIndex = Math.min(
+      this.currentIteration,
+      this.maxIterations - 1,
     );
+    const nextIterationTarget = this.workersPerIteration[nextIterationIndex];
+
+    this.logger.debug(
+      `Total workers: ${totalWorkers}, Next iteration target: ${nextIterationTarget}`,
+    );
+
+    return totalWorkers >= nextIterationTarget;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // Run more frequently to ensure eligibility gets updated
+  /**
+   * Get the workers who should be evaluated in the current iteration
+   * This returns workers in the current iteration batch (between the previous and current target)
+   */
+  private async getWorkersForCurrentIteration(): Promise<Users[]> {
+    // Get current iteration target
+    const currentTarget = this.workersPerIteration[this.currentIteration - 1];
+
+    // Get previous iteration target (0 for the first iteration)
+    const prevTarget =
+      this.currentIteration > 1
+        ? this.workersPerIteration[this.currentIteration - 2]
+        : 0;
+
+    // Get workers sorted by creation date (oldest first)
+    const allWorkers = await this.userModel
+      .find({ role: 'worker' })
+      .sort({ createdAt: 1 })
+      .exec();
+
+    // Only get workers that belong to the current iteration range
+    const workersForIteration = allWorkers.slice(prevTarget, currentTarget);
+
+    this.logger.debug(
+      `Workers for iteration ${this.currentIteration}: ${workersForIteration.length} workers (${prevTarget + 1}-${currentTarget})`,
+    );
+
+    return workersForIteration;
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently enough to ensure eligibility gets updated
   async qualifyUser() {
     try {
       // Check if we should advance to the next iteration
@@ -122,37 +143,22 @@ export class UpdateUserService {
         this.logger.log(`Advanced to iteration ${this.currentIteration}`);
       }
 
+      // Get the threshold for eligibility
       const thresholdString = configService.getEnvValue('MX_THRESHOLD');
       const threshold = parseFloat(thresholdString);
 
-      // Get workers sorted by creation date (oldest first)
-      const allWorkers = await this.userModel
-        .find({ role: 'worker' })
-        .sort({ createdAt: 1 })
-        .exec();
-
-      // Limit workers based on the current iteration
-      const iterationLimit =
-        this.workersPerIteration[this.currentIteration - 1];
-      const workersForIteration = allWorkers.slice(0, iterationLimit);
+      // Get workers for this iteration
+      const workersForIteration = await this.getWorkersForCurrentIteration();
 
       this.logger.log(
         `Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`,
       );
 
+      // Only evaluate workers that belong to the current iteration
       for (const user of workersForIteration) {
-        // Check if this worker should be evaluated in the current iteration
-        const shouldEvaluate = await this.isWorkerInCurrentIteration(
-          user._id.toString(),
-        );
-        if (!shouldEvaluate) {
-          continue; // Skip workers not in this iteration
-        }
-
+        const userIdStr = user._id.toString();
         const eligibilities =
-          await this.getEligibilityService.getEligibilityWorkerId(
-            user._id.toString(),
-          );
+          await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
 
         // Check if worker has completed any tasks yet
         const hasCompletedTasks =
@@ -163,10 +169,12 @@ export class UpdateUserService {
         // enough data for accurate evaluation aren't left with null status
         if (eligibilities.length === 0) {
           if (user.isEligible === null && hasCompletedTasks) {
-            user.isEligible = false; // Default to not eligible until properly evaluated
-            await user.save();
+            // Use findByIdAndUpdate instead of save()
+            await this.userModel.findByIdAndUpdate(userIdStr, {
+              isEligible: false,
+            });
             this.logger.log(
-              `User ${user._id} set to default non-eligible state (pending evaluation)`,
+              `User ${userIdStr} set to default non-eligible state (pending evaluation)`,
             );
           }
           continue;
@@ -187,10 +195,12 @@ export class UpdateUserService {
           user.isEligible !== newEligibilityStatus ||
           user.isEligible === null
         ) {
-          user.isEligible = newEligibilityStatus;
-          await user.save();
+          // Use findByIdAndUpdate instead of save()
+          await this.userModel.findByIdAndUpdate(userIdStr, {
+            isEligible: newEligibilityStatus,
+          });
           this.logger.log(
-            `Updated eligibility for worker ${user._id}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
+            `Updated eligibility for worker ${userIdStr}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
           );
         }
       }

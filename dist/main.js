@@ -802,14 +802,15 @@ let DashboardService = DashboardService_1 = class DashboardService {
         }
     }
     async getIterationMetrics() {
-        const iterations = [];
-        const totalTasks = await this.taskModel.countDocuments();
-        const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
-        const workers = await this.userModel
+        const allWorkers = await this.userModel
             .find({ role: 'worker' })
             .sort({ createdAt: 1 })
             .exec();
-        const totalWorkers = workers.length;
+        const totalWorkers = allWorkers.length;
+        this.logger.debug(`Total workers found: ${totalWorkers}`);
+        const totalTasks = await this.taskModel.countDocuments();
+        const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
+        const iterations = [];
         for (let i = 0; i < this.maxIterations; i++) {
             const targetWorkerCount = this.workersPerIteration[i];
             const actualWorkerCount = Math.min(targetWorkerCount, totalWorkers);
@@ -822,11 +823,11 @@ let DashboardService = DashboardService_1 = class DashboardService {
         if (iterations.length === 0 ||
             (iterations.length > 0 && iterations[0].workers === 0)) {
             return [
-                { iteration: 'Iteration 1', workers: 3, tasks: tasksPerIteration },
-                { iteration: 'Iteration 2', workers: 6, tasks: tasksPerIteration },
-                { iteration: 'Iteration 3', workers: 9, tasks: tasksPerIteration },
-                { iteration: 'Iteration 4', workers: 12, tasks: tasksPerIteration },
-                { iteration: 'Iteration 5', workers: 15, tasks: tasksPerIteration },
+                { iteration: 'Iteration 1', workers: 0, tasks: tasksPerIteration },
+                { iteration: 'Iteration 2', workers: 0, tasks: tasksPerIteration },
+                { iteration: 'Iteration 3', workers: 0, tasks: tasksPerIteration },
+                { iteration: 'Iteration 4', workers: 0, tasks: tasksPerIteration },
+                { iteration: 'Iteration 5', workers: 0, tasks: tasksPerIteration },
             ];
         }
         return iterations;
@@ -836,16 +837,15 @@ let DashboardService = DashboardService_1 = class DashboardService {
             role: 'worker',
             isEligible: true,
         });
-        const totalWorkers = await this.userModel.countDocuments({
+        const nonEligibleCount = await this.userModel.countDocuments({
             role: 'worker',
+            isEligible: false,
         });
-        const nonEligibleCount = totalWorkers - eligibleCount;
+        const adjustedEligibleCount = eligibleCount > 0 ? eligibleCount : 1;
+        const adjustedNonEligibleCount = nonEligibleCount > 0 ? nonEligibleCount : 1;
         return [
-            { name: 'Eligible', value: eligibleCount },
-            {
-                name: 'Not Eligible',
-                value: nonEligibleCount > 0 ? nonEligibleCount : 1,
-            },
+            { name: 'Eligible', value: adjustedEligibleCount },
+            { name: 'Not Eligible', value: adjustedNonEligibleCount },
         ];
     }
     async getTaskValidationDistribution() {
@@ -855,7 +855,7 @@ let DashboardService = DashboardService_1 = class DashboardService {
         const totalTasks = await this.taskModel.countDocuments();
         const nonValidatedCount = totalTasks - validatedCount;
         return [
-            { name: 'Validated', value: validatedCount },
+            { name: 'Validated', value: validatedCount > 0 ? validatedCount : 1 },
             {
                 name: 'Not Validated',
                 value: nonValidatedCount > 0 ? nonValidatedCount : 1,
@@ -4073,8 +4073,8 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
             }
             if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-                user.completedTasks.push({ taskId, answer });
-                await user.save();
+                const updatedUser = await this.userModel.findByIdAndUpdate(userId, { $push: { completedTasks: { taskId, answer } } }, { new: true });
+                return (0, parser_1.parseToView)(updatedUser);
             }
             return (0, parser_1.parseToView)(user);
         }
@@ -4082,30 +4082,30 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
-    async isWorkerInCurrentIteration(workerId) {
-        if (this.currentIteration >= this.maxIterations) {
-            return true;
-        }
-        const allWorkers = await this.userModel
-            .find({ role: 'worker' })
-            .sort({ createdAt: 1 })
-            .exec();
-        const workerIds = allWorkers.map((worker) => worker._id.toString());
-        const workerIndex = workerIds.indexOf(workerId);
-        if (workerIndex === -1) {
-            return false;
-        }
-        return workerIndex < this.workersPerIteration[this.currentIteration - 1];
-    }
     async shouldAdvanceIteration() {
         if (this.currentIteration >= this.maxIterations) {
             return false;
         }
-        const evaluatedWorkers = await this.userModel.countDocuments({
+        const totalWorkers = await this.userModel.countDocuments({
             role: 'worker',
-            isEligible: { $ne: null },
         });
-        return (evaluatedWorkers >= this.workersPerIteration[this.currentIteration - 1]);
+        const nextIterationIndex = Math.min(this.currentIteration, this.maxIterations - 1);
+        const nextIterationTarget = this.workersPerIteration[nextIterationIndex];
+        this.logger.debug(`Total workers: ${totalWorkers}, Next iteration target: ${nextIterationTarget}`);
+        return totalWorkers >= nextIterationTarget;
+    }
+    async getWorkersForCurrentIteration() {
+        const currentTarget = this.workersPerIteration[this.currentIteration - 1];
+        const prevTarget = this.currentIteration > 1
+            ? this.workersPerIteration[this.currentIteration - 2]
+            : 0;
+        const allWorkers = await this.userModel
+            .find({ role: 'worker' })
+            .sort({ createdAt: 1 })
+            .exec();
+        const workersForIteration = allWorkers.slice(prevTarget, currentTarget);
+        this.logger.debug(`Workers for iteration ${this.currentIteration}: ${workersForIteration.length} workers (${prevTarget + 1}-${currentTarget})`);
+        return workersForIteration;
     }
     async qualifyUser() {
         try {
@@ -4116,25 +4116,18 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             }
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
-            const allWorkers = await this.userModel
-                .find({ role: 'worker' })
-                .sort({ createdAt: 1 })
-                .exec();
-            const iterationLimit = this.workersPerIteration[this.currentIteration - 1];
-            const workersForIteration = allWorkers.slice(0, iterationLimit);
+            const workersForIteration = await this.getWorkersForCurrentIteration();
             this.logger.log(`Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`);
             for (const user of workersForIteration) {
-                const shouldEvaluate = await this.isWorkerInCurrentIteration(user._id.toString());
-                if (!shouldEvaluate) {
-                    continue;
-                }
-                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(user._id.toString());
+                const userIdStr = user._id.toString();
+                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
                 const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
                 if (eligibilities.length === 0) {
                     if (user.isEligible === null && hasCompletedTasks) {
-                        user.isEligible = false;
-                        await user.save();
-                        this.logger.log(`User ${user._id} set to default non-eligible state (pending evaluation)`);
+                        await this.userModel.findByIdAndUpdate(userIdStr, {
+                            isEligible: false,
+                        });
+                        this.logger.log(`User ${userIdStr} set to default non-eligible state (pending evaluation)`);
                     }
                     continue;
                 }
@@ -4143,9 +4136,10 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 const newEligibilityStatus = averageAccuracy >= threshold;
                 if (user.isEligible !== newEligibilityStatus ||
                     user.isEligible === null) {
-                    user.isEligible = newEligibilityStatus;
-                    await user.save();
-                    this.logger.log(`Updated eligibility for worker ${user._id}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
+                    await this.userModel.findByIdAndUpdate(userIdStr, {
+                        isEligible: newEligibilityStatus,
+                    });
+                    this.logger.log(`Updated eligibility for worker ${userIdStr}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
                 }
             }
         }
