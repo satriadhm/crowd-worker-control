@@ -1,6 +1,6 @@
 import { ObjectType, Field } from '@nestjs/graphql';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { Gender, Role } from 'src/lib/user.enum';
 
 @ObjectType()
@@ -12,7 +12,8 @@ export class TaskCompletion {
   answer: string;
 }
 
-@Schema()
+// Use timestamps to track user creation order for iterations
+@Schema({ timestamps: true })
 @ObjectType()
 export class Users {
   @Field()
@@ -63,16 +64,19 @@ export class Users {
   @Prop({ required: false })
   address2: string;
 
+  // isEligible is now undefined by default and not required initially
+  // It will be set based on the iteration-based evaluation
+  @Field(() => Boolean, { nullable: true })
   @Prop({
-    default: undefined,
+    type: Boolean,
     required: false,
+    default: undefined,
   })
-  isEligible: boolean;
+  isEligible?: boolean;
 
   @Field(() => [TaskCompletion])
   @Prop({
-    type: [Types.ObjectId],
-    ref: 'Tasks',
+    type: [{ taskId: String, answer: String }],
     required: function () {
       return this.role === 'worker';
     },
@@ -80,11 +84,12 @@ export class Users {
   })
   completedTasks: { taskId: string; answer: string }[];
 
-  @Field(() => Date, { nullable: true })
-  createdAt?: Date;
+  // Add created/updated timestamps for tracking iteration eligibility
+  @Field(() => Date)
+  createdAt: Date;
 
-  @Field(() => Date, { nullable: true })
-  updatedAt?: Date;
+  @Field(() => Date)
+  updatedAt: Date;
 }
 
 export type UserDocument = HydratedDocument<Users>;

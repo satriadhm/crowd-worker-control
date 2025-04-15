@@ -8,19 +8,29 @@ import { Cron } from '@nestjs/schedule';
 import { CronExpression } from 'src/lib/cron.enum';
 import { CreateEligibilityService } from '../eligibility/create.eligibility.service';
 import { CreateEligibilityInput } from '../../dto/eligibility/inputs/create.eligibility.input';
+import { Users } from 'src/users/models/user';
 
 interface WorkerAnswer {
   answerId: number;
   answer: string;
 }
 
+/**
+ * Service for calculating worker accuracy using the M-X algorithm
+ * Updated to support iterative calculation based on 5 iterations with predefined user numbers
+ */
 @Injectable()
 export class AccuracyCalculationServiceMX {
   private readonly logger = new Logger(AccuracyCalculationServiceMX.name);
+  private currentIteration = 1; // Start from iteration 1
+  private readonly maxIterations = 5; // Total 5 iterations
+  private readonly workersPerIteration = [3, 6, 9, 12, 15]; // Target number of workers per iteration
 
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    @InjectModel(Users.name)
+    private readonly userModel: Model<Users>,
     private readonly createEligibilityService: CreateEligibilityService,
     private readonly getTaskService: GetTaskService,
   ) {}
@@ -266,71 +276,136 @@ export class AccuracyCalculationServiceMX {
   }
 
   /**
-   * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
-   * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
+   * Check if we should move to the next iteration based on the number of worker users
    */
-  @Cron(CronExpression.EVERY_MINUTE) // Change from EVERY_5_SECONDS to less frequent
-  async calculateEligibility() {
-    const tasks = await this.getTaskService.getValidatedTasks();
-    if (!tasks) {
-      this.logger.warn('No validated tasks found');
-      return;
+  private async shouldMoveToNextIteration(): Promise<boolean> {
+    if (this.currentIteration >= this.maxIterations) {
+      return false; // Already at the maximum iteration
     }
 
-    for (const task of tasks) {
-      const recordedAnswers = await this.recordedAnswerModel.find({
-        taskId: task.id,
-      });
+    const totalWorkers = await this.userModel.countDocuments({
+      role: 'worker',
+      isEligible: { $ne: null }, // Count workers who have been evaluated
+    });
 
-      const workerIds = Array.from(
-        new Set(recordedAnswers.map((answer) => answer.workerId.toString())),
-      );
+    // Check if we've reached or exceeded the worker target for current iteration
+    return totalWorkers >= this.workersPerIteration[this.currentIteration - 1];
+  }
 
-      if (workerIds.length < 3) {
-        this.logger.debug(
-          `Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`,
-        );
-        continue;
+  /**
+   * Get the workers eligible for evaluation in the current iteration
+   */
+  private async getWorkersForCurrentIteration(): Promise<string[]> {
+    // Get all workers with role = worker, sorted by creation date (oldest first)
+    const workerLimit = this.workersPerIteration[this.currentIteration - 1];
+    const workers = await this.userModel
+      .find({ role: 'worker' })
+      .sort({ createdAt: 1 })
+      .limit(workerLimit)
+      .exec();
+
+    return workers.map((worker) => worker._id.toString());
+  }
+
+  /**
+   * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
+   * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
+   * Updated to work with iterations
+   */
+  @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
+  async calculateEligibility() {
+    try {
+      // Check if we should move to next iteration based on number of workers
+      const shouldAdvance = await this.shouldMoveToNextIteration();
+      if (shouldAdvance && this.currentIteration < this.maxIterations) {
+        this.currentIteration++;
+        this.logger.log(`Advancing to iteration ${this.currentIteration}`);
       }
 
-      // Only calculate for workers who don't already have eligibility
-      const eligibilityRecords =
-        await this.createEligibilityService.getEligibilityByTaskId(task.id);
-      const workersWithEligibility = eligibilityRecords.map((e) =>
-        e.workerId.toString(),
+      this.logger.log(
+        `Running eligibility calculation for iteration ${this.currentIteration}`,
       );
 
-      // Filter out workers who already have eligibility calculated
-      const workersToCalculate = workerIds.filter(
-        (id) => !workersWithEligibility.includes(id),
-      );
-
-      if (workersToCalculate.length === 0) {
-        this.logger.debug(
-          `All workers for task ${task.id} already have eligibility calculated`,
-        );
-        continue;
+      // Get workers for current iteration
+      const iterationWorkers = await this.getWorkersForCurrentIteration();
+      if (iterationWorkers.length === 0) {
+        this.logger.warn('No workers available for this iteration');
+        return;
       }
 
-      // Calculate only for workers who don't have eligibility yet
-      const accuracies = await this.calculateAccuracyMX(
-        task.id,
-        workersToCalculate,
+      this.logger.log(
+        `Processing ${iterationWorkers.length} workers in iteration ${this.currentIteration}`,
       );
 
-      // Update eligibility only for workers who don't have it yet
-      for (const workerId of workersToCalculate) {
-        const accuracy = accuracies[workerId];
-        const eligibilityInput: CreateEligibilityInput = {
+      // Get validated tasks
+      const tasks = await this.getTaskService.getValidatedTasks();
+      if (!tasks || tasks.length === 0) {
+        this.logger.warn('No validated tasks found');
+        return;
+      }
+
+      for (const task of tasks) {
+        // Get recorded answers for this task
+        const recordedAnswers = await this.recordedAnswerModel.find({
           taskId: task.id,
-          workerId: workerId,
-          accuracy: accuracy,
-        };
-        await this.createEligibilityService.createEligibility(eligibilityInput);
-        this.logger.debug(
-          `Created eligibility for worker ${workerId}: ${accuracy}`,
+          workerId: { $in: iterationWorkers }, // Only consider answers from workers in this iteration
+        });
+
+        // Get unique worker IDs who have answered this task
+        const workerIds = Array.from(
+          new Set(recordedAnswers.map((answer) => answer.workerId.toString())),
         );
+
+        if (workerIds.length < 3) {
+          this.logger.debug(
+            `Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`,
+          );
+          continue;
+        }
+
+        // Only calculate for workers who don't already have eligibility
+        const eligibilityRecords =
+          await this.createEligibilityService.getEligibilityByTaskId(task.id);
+        const workersWithEligibility = eligibilityRecords.map((e) =>
+          e.workerId.toString(),
+        );
+
+        // Filter out workers who already have eligibility calculated
+        const workersToCalculate = workerIds.filter(
+          (id) => !workersWithEligibility.includes(id),
+        );
+
+        if (workersToCalculate.length === 0) {
+          this.logger.debug(
+            `All workers for task ${task.id} already have eligibility calculated`,
+          );
+          continue;
+        }
+
+        // Calculate only for workers who don't have eligibility yet
+        const accuracies = await this.calculateAccuracyMX(
+          task.id,
+          workersToCalculate,
+        );
+
+        // Update eligibility only for workers who don't have it yet
+        for (const workerId of workersToCalculate) {
+          const accuracy = accuracies[workerId];
+          const eligibilityInput: CreateEligibilityInput = {
+            taskId: task.id,
+            workerId: workerId,
+            accuracy: accuracy,
+          };
+          await this.createEligibilityService.createEligibility(
+            eligibilityInput,
+          );
+          this.logger.debug(
+            `Created eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`,
+          );
+        }
       }
+    } catch (error) {
+      this.logger.error(`Error in calculateEligibility: ${error.message}`);
     }
   }
 }

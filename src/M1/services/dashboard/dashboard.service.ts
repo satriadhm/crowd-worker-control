@@ -14,6 +14,8 @@ import {
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
+  private readonly maxIterations = 5;
+  private readonly workersPerIteration = [3, 6, 9, 12, 15]; // Target worker counts per iteration
 
   constructor(
     @InjectModel(Task.name)
@@ -50,45 +52,52 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Get metrics for each iteration
+   * Shows the number of workers and tasks for each iteration
+   */
   private async getIterationMetrics(): Promise<IterationMetric[]> {
-    const iterations = [];
+    const iterations: IterationMetric[] = [];
 
-    // Get all tasks and divide them evenly across 5 iterations
+    // Get all tasks and distribute them evenly across 5 iterations
     const totalTasks = await this.taskModel.countDocuments();
-    const tasksPerIteration = Math.ceil(totalTasks / 5);
+    const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
 
-    // Get all workers with the role 'worker'
+    // Get workers sorted by creation date to represent joining order
     const workers = await this.userModel
       .find({ role: 'worker' })
-      .sort({ createdAt: 1 }) // Sort by creation date (oldest first)
+      .sort({ createdAt: 1 })
       .exec();
 
     const totalWorkers = workers.length;
 
-    // If we have no workers, provide fallback data
-    if (totalWorkers === 0) {
-      for (let i = 1; i <= 5; i++) {
-        iterations.push({
-          iteration: `Iteration ${i}`,
-          workers: 5 * i, // Simulated growth
-          tasks: tasksPerIteration,
-        });
-      }
-      return iterations;
-    }
+    // Create data for each iteration based on the predefined worker counts
+    for (let i = 0; i < this.maxIterations; i++) {
+      // Get the target worker count for this iteration
+      const targetWorkerCount = this.workersPerIteration[i];
 
-    // Calculate how many workers to include in each iteration
-    const workersPerBatch = Math.ceil(totalWorkers / 5);
-
-    // For each iteration, include workers who joined up to that point
-    for (let i = 1; i <= 5; i++) {
-      const currentWorkerCount = Math.min(workersPerBatch * i, totalWorkers);
+      // Calculate actual number of workers (limited by available workers)
+      const actualWorkerCount = Math.min(targetWorkerCount, totalWorkers);
 
       iterations.push({
-        iteration: `Iteration ${i}`,
-        workers: currentWorkerCount,
+        iteration: `Iteration ${i + 1}`,
+        workers: actualWorkerCount,
         tasks: tasksPerIteration,
       });
+    }
+
+    // If there are no workers yet, provide fallback data
+    if (
+      iterations.length === 0 ||
+      (iterations.length > 0 && iterations[0].workers === 0)
+    ) {
+      return [
+        { iteration: 'Iteration 1', workers: 3, tasks: tasksPerIteration },
+        { iteration: 'Iteration 2', workers: 6, tasks: tasksPerIteration },
+        { iteration: 'Iteration 3', workers: 9, tasks: tasksPerIteration },
+        { iteration: 'Iteration 4', workers: 12, tasks: tasksPerIteration },
+        { iteration: 'Iteration 5', workers: 15, tasks: tasksPerIteration },
+      ];
     }
 
     return iterations;
@@ -110,7 +119,10 @@ export class DashboardService {
 
     return [
       { name: 'Eligible', value: eligibleCount },
-      { name: 'Not Eligible', value: nonEligibleCount },
+      {
+        name: 'Not Eligible',
+        value: nonEligibleCount > 0 ? nonEligibleCount : 1,
+      }, // Ensure at least 1 for visualization
     ];
   }
 
@@ -124,7 +136,10 @@ export class DashboardService {
 
     return [
       { name: 'Validated', value: validatedCount },
-      { name: 'Not Validated', value: nonValidatedCount },
+      {
+        name: 'Not Validated',
+        value: nonValidatedCount > 0 ? nonValidatedCount : 1,
+      }, // Ensure at least 1 for visualization
     ];
   }
 
@@ -153,6 +168,14 @@ export class DashboardService {
       } else {
         accuracyBrackets['Below 70%']++;
       }
+    }
+
+    // If no records exist yet, add some default values
+    if (eligibilityRecords.length === 0) {
+      accuracyBrackets['90-100%'] = 1;
+      accuracyBrackets['80-89%'] = 1;
+      accuracyBrackets['70-79%'] = 1;
+      accuracyBrackets['Below 70%'] = 1;
     }
 
     // Convert to array format

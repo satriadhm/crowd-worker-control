@@ -780,6 +780,8 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.logger = new common_1.Logger(DashboardService_1.name);
+        this.maxIterations = 5;
+        this.workersPerIteration = [3, 6, 9, 12, 15];
     }
     async getDashboardSummary() {
         try {
@@ -802,30 +804,30 @@ let DashboardService = DashboardService_1 = class DashboardService {
     async getIterationMetrics() {
         const iterations = [];
         const totalTasks = await this.taskModel.countDocuments();
-        const tasksPerIteration = Math.ceil(totalTasks / 5);
+        const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
         const workers = await this.userModel
             .find({ role: 'worker' })
             .sort({ createdAt: 1 })
             .exec();
         const totalWorkers = workers.length;
-        if (totalWorkers === 0) {
-            for (let i = 1; i <= 5; i++) {
-                iterations.push({
-                    iteration: `Iteration ${i}`,
-                    workers: 5 * i,
-                    tasks: tasksPerIteration,
-                });
-            }
-            return iterations;
-        }
-        const workersPerBatch = Math.ceil(totalWorkers / 5);
-        for (let i = 1; i <= 5; i++) {
-            const currentWorkerCount = Math.min(workersPerBatch * i, totalWorkers);
+        for (let i = 0; i < this.maxIterations; i++) {
+            const targetWorkerCount = this.workersPerIteration[i];
+            const actualWorkerCount = Math.min(targetWorkerCount, totalWorkers);
             iterations.push({
-                iteration: `Iteration ${i}`,
-                workers: currentWorkerCount,
+                iteration: `Iteration ${i + 1}`,
+                workers: actualWorkerCount,
                 tasks: tasksPerIteration,
             });
+        }
+        if (iterations.length === 0 ||
+            (iterations.length > 0 && iterations[0].workers === 0)) {
+            return [
+                { iteration: 'Iteration 1', workers: 3, tasks: tasksPerIteration },
+                { iteration: 'Iteration 2', workers: 6, tasks: tasksPerIteration },
+                { iteration: 'Iteration 3', workers: 9, tasks: tasksPerIteration },
+                { iteration: 'Iteration 4', workers: 12, tasks: tasksPerIteration },
+                { iteration: 'Iteration 5', workers: 15, tasks: tasksPerIteration },
+            ];
         }
         return iterations;
     }
@@ -840,7 +842,10 @@ let DashboardService = DashboardService_1 = class DashboardService {
         const nonEligibleCount = totalWorkers - eligibleCount;
         return [
             { name: 'Eligible', value: eligibleCount },
-            { name: 'Not Eligible', value: nonEligibleCount },
+            {
+                name: 'Not Eligible',
+                value: nonEligibleCount > 0 ? nonEligibleCount : 1,
+            },
         ];
     }
     async getTaskValidationDistribution() {
@@ -851,7 +856,10 @@ let DashboardService = DashboardService_1 = class DashboardService {
         const nonValidatedCount = totalTasks - validatedCount;
         return [
             { name: 'Validated', value: validatedCount },
-            { name: 'Not Validated', value: nonValidatedCount },
+            {
+                name: 'Not Validated',
+                value: nonValidatedCount > 0 ? nonValidatedCount : 1,
+            },
         ];
     }
     async getAccuracyDistribution() {
@@ -876,6 +884,12 @@ let DashboardService = DashboardService_1 = class DashboardService {
             else {
                 accuracyBrackets['Below 70%']++;
             }
+        }
+        if (eligibilityRecords.length === 0) {
+            accuracyBrackets['90-100%'] = 1;
+            accuracyBrackets['80-89%'] = 1;
+            accuracyBrackets['70-79%'] = 1;
+            accuracyBrackets['Below 70%'] = 1;
         }
         return Object.entries(accuracyBrackets).map(([name, value]) => ({
             name,
@@ -1116,7 +1130,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var AccuracyCalculationServiceMX_1;
-var _a, _b, _c;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AccuracyCalculationServiceMX = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -1128,12 +1142,17 @@ const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
+const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
-    constructor(recordedAnswerModel, createEligibilityService, getTaskService) {
+    constructor(recordedAnswerModel, userModel, createEligibilityService, getTaskService) {
         this.recordedAnswerModel = recordedAnswerModel;
+        this.userModel = userModel;
         this.createEligibilityService = createEligibilityService;
         this.getTaskService = getTaskService;
         this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
+        this.currentIteration = 1;
+        this.maxIterations = 5;
+        this.workersPerIteration = [3, 6, 9, 12, 15];
     }
     async calculateAccuracyMX(taskId, workers) {
         this.logger.log(`Memulai perhitungan akurasi M-X untuk taskId: ${taskId}`);
@@ -1252,39 +1271,76 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         }
         return result;
     }
-    async calculateEligibility() {
-        const tasks = await this.getTaskService.getValidatedTasks();
-        if (!tasks) {
-            this.logger.warn('No validated tasks found');
-            return;
+    async shouldMoveToNextIteration() {
+        if (this.currentIteration >= this.maxIterations) {
+            return false;
         }
-        for (const task of tasks) {
-            const recordedAnswers = await this.recordedAnswerModel.find({
-                taskId: task.id,
-            });
-            const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-            if (workerIds.length < 3) {
-                this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
-                continue;
+        const totalWorkers = await this.userModel.countDocuments({
+            role: 'worker',
+            isEligible: { $ne: null },
+        });
+        return totalWorkers >= this.workersPerIteration[this.currentIteration - 1];
+    }
+    async getWorkersForCurrentIteration() {
+        const workerLimit = this.workersPerIteration[this.currentIteration - 1];
+        const workers = await this.userModel
+            .find({ role: 'worker' })
+            .sort({ createdAt: 1 })
+            .limit(workerLimit)
+            .exec();
+        return workers.map((worker) => worker._id.toString());
+    }
+    async calculateEligibility() {
+        try {
+            const shouldAdvance = await this.shouldMoveToNextIteration();
+            if (shouldAdvance && this.currentIteration < this.maxIterations) {
+                this.currentIteration++;
+                this.logger.log(`Advancing to iteration ${this.currentIteration}`);
             }
-            const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
-            const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
-            const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
-            if (workersToCalculate.length === 0) {
-                this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
-                continue;
+            this.logger.log(`Running eligibility calculation for iteration ${this.currentIteration}`);
+            const iterationWorkers = await this.getWorkersForCurrentIteration();
+            if (iterationWorkers.length === 0) {
+                this.logger.warn('No workers available for this iteration');
+                return;
             }
-            const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
-            for (const workerId of workersToCalculate) {
-                const accuracy = accuracies[workerId];
-                const eligibilityInput = {
+            this.logger.log(`Processing ${iterationWorkers.length} workers in iteration ${this.currentIteration}`);
+            const tasks = await this.getTaskService.getValidatedTasks();
+            if (!tasks || tasks.length === 0) {
+                this.logger.warn('No validated tasks found');
+                return;
+            }
+            for (const task of tasks) {
+                const recordedAnswers = await this.recordedAnswerModel.find({
                     taskId: task.id,
-                    workerId: workerId,
-                    accuracy: accuracy,
-                };
-                await this.createEligibilityService.createEligibility(eligibilityInput);
-                this.logger.debug(`Created eligibility for worker ${workerId}: ${accuracy}`);
+                    workerId: { $in: iterationWorkers },
+                });
+                const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
+                if (workerIds.length < 3) {
+                    this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
+                    continue;
+                }
+                const eligibilityRecords = await this.createEligibilityService.getEligibilityByTaskId(task.id);
+                const workersWithEligibility = eligibilityRecords.map((e) => e.workerId.toString());
+                const workersToCalculate = workerIds.filter((id) => !workersWithEligibility.includes(id));
+                if (workersToCalculate.length === 0) {
+                    this.logger.debug(`All workers for task ${task.id} already have eligibility calculated`);
+                    continue;
+                }
+                const accuracies = await this.calculateAccuracyMX(task.id, workersToCalculate);
+                for (const workerId of workersToCalculate) {
+                    const accuracy = accuracies[workerId];
+                    const eligibilityInput = {
+                        taskId: task.id,
+                        workerId: workerId,
+                        accuracy: accuracy,
+                    };
+                    await this.createEligibilityService.createEligibility(eligibilityInput);
+                    this.logger.debug(`Created eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`);
+                }
             }
+        }
+        catch (error) {
+            this.logger.error(`Error in calculateEligibility: ${error.message}`);
         }
     }
 };
@@ -1298,7 +1354,8 @@ __decorate([
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object])
+    __param(1, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object])
 ], AccuracyCalculationServiceMX);
 
 
@@ -3638,7 +3695,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UsersSchema = exports.Users = exports.TaskCompletion = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let TaskCompletion = class TaskCompletion {
 };
@@ -3718,17 +3774,18 @@ __decorate([
     __metadata("design:type", String)
 ], Users.prototype, "address2", void 0);
 __decorate([
+    (0, graphql_1.Field)(() => Boolean, { nullable: true }),
     (0, mongoose_1.Prop)({
-        default: undefined,
+        type: Boolean,
         required: false,
+        default: undefined,
     }),
     __metadata("design:type", Boolean)
 ], Users.prototype, "isEligible", void 0);
 __decorate([
     (0, graphql_1.Field)(() => [TaskCompletion]),
     (0, mongoose_1.Prop)({
-        type: [mongoose_2.Types.ObjectId],
-        ref: 'Tasks',
+        type: [{ taskId: String, answer: String }],
         required: function () {
             return this.role === 'worker';
         },
@@ -3737,15 +3794,15 @@ __decorate([
     __metadata("design:type", Array)
 ], Users.prototype, "completedTasks", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { nullable: true }),
+    (0, graphql_1.Field)(() => Date),
     __metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
 ], Users.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { nullable: true }),
+    (0, graphql_1.Field)(() => Date),
     __metadata("design:type", typeof (_d = typeof Date !== "undefined" && Date) === "function" ? _d : Object)
 ], Users.prototype, "updatedAt", void 0);
 exports.Users = Users = __decorate([
-    (0, mongoose_1.Schema)(),
+    (0, mongoose_1.Schema)({ timestamps: true }),
     (0, graphql_1.ObjectType)()
 ], Users);
 exports.UsersSchema = mongoose_1.SchemaFactory.createForClass(Users);
@@ -3994,6 +4051,9 @@ let UpdateUserService = class UpdateUserService {
     constructor(userModel, getEligibilityService) {
         this.userModel = userModel;
         this.getEligibilityService = getEligibilityService;
+        this.currentIteration = 1;
+        this.maxIterations = 5;
+        this.workersPerIteration = [3, 6, 9, 12, 15];
     }
     async updateUser(input) {
         try {
@@ -4026,12 +4086,52 @@ let UpdateUserService = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async isWorkerInCurrentIteration(workerId) {
+        if (this.currentIteration >= this.maxIterations) {
+            return true;
+        }
+        const allWorkers = await this.userModel
+            .find({ role: 'worker' })
+            .sort({ createdAt: 1 })
+            .exec();
+        const workerIds = allWorkers.map((worker) => worker._id.toString());
+        const workerIndex = workerIds.indexOf(workerId);
+        if (workerIndex === -1) {
+            return false;
+        }
+        return workerIndex < this.workersPerIteration[this.currentIteration - 1];
+    }
+    async shouldAdvanceIteration() {
+        if (this.currentIteration >= this.maxIterations) {
+            return false;
+        }
+        const evaluatedWorkers = await this.userModel.countDocuments({
+            role: 'worker',
+            isEligible: { $ne: null },
+        });
+        return (evaluatedWorkers >= this.workersPerIteration[this.currentIteration - 1]);
+    }
     async qualifyUser() {
         try {
+            const shouldAdvance = await this.shouldAdvanceIteration();
+            if (shouldAdvance) {
+                this.currentIteration = Math.min(this.currentIteration + 1, this.maxIterations);
+                console.log(`Advanced to iteration ${this.currentIteration}`);
+            }
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
-            const allUsers = await this.userModel.find({ role: 'worker' }).exec();
-            for (const user of allUsers) {
+            const allWorkers = await this.userModel
+                .find({ role: 'worker' })
+                .sort({ createdAt: 1 })
+                .exec();
+            const iterationLimit = this.workersPerIteration[this.currentIteration - 1];
+            const workersForIteration = allWorkers.slice(0, iterationLimit);
+            console.log(`Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`);
+            for (const user of workersForIteration) {
+                const shouldEvaluate = await this.isWorkerInCurrentIteration(user._id.toString());
+                if (!shouldEvaluate) {
+                    continue;
+                }
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(user._id.toString());
                 if (eligibilities.length === 0) {
                     if (user.isEligible === null) {
@@ -4042,12 +4142,16 @@ let UpdateUserService = class UpdateUserService {
                 }
                 const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
                 const averageAccuracy = totalAccuracy / eligibilities.length;
-                user.isEligible = averageAccuracy >= threshold;
-                await user.save();
+                const newEligibilityStatus = averageAccuracy >= threshold;
+                if (user.isEligible !== newEligibilityStatus) {
+                    user.isEligible = newEligibilityStatus;
+                    await user.save();
+                    console.log(`Updated eligibility for worker ${user._id}: ${newEligibilityStatus}`);
+                }
             }
         }
         catch (error) {
-            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
 };
