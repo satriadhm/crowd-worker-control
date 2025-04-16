@@ -113,7 +113,9 @@ export class WorkerAnalysisService {
         // Normalize accuracy to match what's shown in the dashboard
         // This ensures consistency in how accuracy is displayed
         const accuracy = parseFloat(averageScore.toFixed(2));
-
+        console.log(
+          `Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`,
+        );
         result.push({
           workerId,
           testerName: name,

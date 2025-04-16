@@ -16,6 +16,7 @@ import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input'
 import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
 import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
 import { DashboardService } from './services/dashboard/dashboard.service';
+import { MissingWorkerIdCronService } from './services/worker-analysis/data-analysis.service';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DashboardService } from './services/dashboard/dashboard.service';
   ],
   providers: [
     CreateRecordedAnswerInput,
+    MissingWorkerIdCronService,
     CreateRecordedService,
     CreateEligibilityService,
     GetEligibilityService,

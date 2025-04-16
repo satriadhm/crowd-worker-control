@@ -463,6 +463,7 @@ const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.re
 const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx/mx.calculation.service */ "./src/M1/services/mx/mx.calculation.service.ts");
 const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
 const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/M1/services/dashboard/dashboard.service.ts");
+const data_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/data-analysis.service */ "./src/M1/services/worker-analysis/data-analysis.service.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -480,6 +481,7 @@ exports.M1Module = M1Module = __decorate([
         ],
         providers: [
             create_recorded_input_1.CreateRecordedAnswerInput,
+            data_analysis_service_1.MissingWorkerIdCronService,
             create_recorded_service_1.CreateRecordedService,
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetEligibilityService,
@@ -1458,6 +1460,74 @@ exports.GetRecordedAnswerService = GetRecordedAnswerService = __decorate([
 
 /***/ }),
 
+/***/ "./src/M1/services/worker-analysis/data-analysis.service.ts":
+/*!******************************************************************!*\
+  !*** ./src/M1/services/worker-analysis/data-analysis.service.ts ***!
+  \******************************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var MissingWorkerIdCronService_1;
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MissingWorkerIdCronService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
+let MissingWorkerIdCronService = MissingWorkerIdCronService_1 = class MissingWorkerIdCronService {
+    constructor(recordedAnswerModel, usersModel) {
+        this.recordedAnswerModel = recordedAnswerModel;
+        this.usersModel = usersModel;
+        this.logger = new common_1.Logger(MissingWorkerIdCronService_1.name);
+    }
+    async handleCron() {
+        try {
+            const recordedWorkerIds = await this.recordedAnswerModel.distinct('workerId');
+            const userIds = await this.usersModel.distinct('_id');
+            const missingWorkerIds = recordedWorkerIds.filter((recordedId) => {
+                return !userIds.some((userId) => userId.toString() === recordedId.toString());
+            });
+            this.logger.log(`Missing worker IDs: ${missingWorkerIds}`);
+            if (missingWorkerIds.length > 0) {
+                const result = await this.recordedAnswerModel.deleteMany({
+                    workerId: { $in: missingWorkerIds },
+                });
+                this.logger.log(`Deleted ${result.deletedCount} recordedAnswer documents with missing worker IDs.`);
+            }
+            else {
+                this.logger.log('No missing worker IDs found, no documents deleted.');
+            }
+        }
+        catch (error) {
+            this.logger.error('Error saat menghapus recordedAnswer dengan missing worker IDs:', error);
+        }
+    }
+};
+exports.MissingWorkerIdCronService = MissingWorkerIdCronService;
+exports.MissingWorkerIdCronService = MissingWorkerIdCronService = MissingWorkerIdCronService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __param(1, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
+], MissingWorkerIdCronService);
+
+
+/***/ }),
+
 /***/ "./src/M1/services/worker-analysis/worker-analysis.service.ts":
 /*!********************************************************************!*\
   !*** ./src/M1/services/worker-analysis/worker-analysis.service.ts ***!
@@ -1545,6 +1615,7 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
                 const isEligible = averageScore >= threshold;
                 const accuracy = parseFloat(averageScore.toFixed(2));
+                console.log(`Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`);
                 result.push({
                     workerId,
                     testerName: name,
@@ -3967,7 +4038,6 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_1 = __webpack_require__(/*! ../models/user */ "./src/users/models/user.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const get_eligibility_service_1 = __webpack_require__(/*! ../../M1/services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
 const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
 const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -4158,18 +4228,6 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     }
 };
 exports.UpdateUserService = UpdateUserService;
-__decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "qualifyUser", null);
-__decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "calculateWorkerEligibility", null);
 exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),

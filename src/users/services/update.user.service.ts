@@ -153,7 +153,7 @@ export class UpdateUserService {
     return workersForIteration;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
+  //@Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
   async qualifyUser() {
     try {
       // Manually set the current iteration to 3 to process all workers
@@ -258,7 +258,7 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+ // @Cron(CronExpression.EVERY_MINUTE)
   async calculateWorkerEligibility() {
     try {
       // Get threshold from config service
