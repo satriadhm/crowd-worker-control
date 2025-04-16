@@ -313,7 +313,7 @@ export class AccuracyCalculationServiceMX {
    * Updated to work with iterations
    */
   // Update in calculateEligibility function
- // @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
+  // @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
   async calculateEligibility() {
     try {
       // Check if we should move to next iteration based on number of workers

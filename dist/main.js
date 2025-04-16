@@ -4016,23 +4016,22 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     }
     getCurrentIteration() {
         const now = new Date();
-        if (now >= this.iterationTimes[2]) {
-            return 3;
-        }
-        else if (now >= this.iterationTimes[1]) {
-            return 2;
-        }
-        else if (now >= this.iterationTimes[0]) {
-            return 1;
-        }
-        else {
-            return 0;
-        }
+        return 3;
     }
     async getWorkersForCurrentIteration() {
         const currentIteration = this.getCurrentIteration();
         if (currentIteration === 0) {
             return [];
+        }
+        if (currentIteration === 3) {
+            const totalMaxWorkers = this.workersPerIteration[currentIteration - 1];
+            const allWorkers = await this.userModel
+                .find({ role: 'worker' })
+                .sort({ createdAt: 1 })
+                .limit(totalMaxWorkers)
+                .exec();
+            this.logger.debug(`Workers for iteration ${currentIteration}: Found ${allWorkers.length} workers to evaluate`);
+            return allWorkers;
         }
         const startTime = this.iterationTimes[currentIteration - 1];
         const endTime = currentIteration < 3
@@ -4053,23 +4052,38 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     }
     async qualifyUser() {
         try {
-            const currentIteration = this.getCurrentIteration();
-            if (currentIteration === 0) {
-                this.logger.log('No iterations have started yet');
-                return;
-            }
+            const currentIteration = 3;
+            this.logger.log(`Forcing iteration evaluation to iteration ${currentIteration}`);
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
-            const workersForIteration = await this.getWorkersForCurrentIteration();
-            this.logger.log(`Processing ${workersForIteration.length} workers in iteration ${currentIteration}`);
-            for (const user of workersForIteration) {
+            const workersToEvaluate = await this.userModel
+                .find({ role: 'worker' })
+                .limit(this.workersPerIteration[2])
+                .exec();
+            this.logger.log(`Processing ${workersToEvaluate.length} workers (forced evaluation for all)`);
+            const pendingWorkers = workersToEvaluate.filter((w) => w.isEligible === null);
+            this.logger.log(`Found ${pendingWorkers.length} workers with null eligibility status`);
+            const allWorkers = [
+                ...pendingWorkers,
+                ...workersToEvaluate.filter((w) => w.isEligible !== null),
+            ];
+            const uniqueWorkerIds = new Set();
+            const uniqueWorkers = allWorkers.filter((worker) => {
+                const workerId = worker._id.toString();
+                if (uniqueWorkerIds.has(workerId)) {
+                    return false;
+                }
+                uniqueWorkerIds.add(workerId);
+                return true;
+            });
+            for (const user of uniqueWorkers) {
                 const userIdStr = user._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
                 const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
                 if (eligibilities.length === 0) {
                     if (user.isEligible === null && hasCompletedTasks) {
                         await this.userModel.findByIdAndUpdate(userIdStr, {
-                            isEligible: false,
+                            $set: { isEligible: false },
                         });
                         this.logger.log(`User ${userIdStr} set to default non-eligible state (pending evaluation)`);
                     }
@@ -4081,9 +4095,9 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 if (user.isEligible !== newEligibilityStatus ||
                     user.isEligible === null) {
                     await this.userModel.findByIdAndUpdate(userIdStr, {
-                        isEligible: newEligibilityStatus,
+                        $set: { isEligible: newEligibilityStatus },
                     });
-                    this.logger.log(`Updated eligibility for worker ${userIdStr} (Iteration ${currentIteration}): ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
+                    this.logger.log(`Updated eligibility for worker ${userIdStr}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
                 }
             }
         }
@@ -4096,35 +4110,46 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         try {
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
-            const workers = await this.userModel.find({ role: 'worker' });
-            this.logger.log(`Processing eligibility for ${workers.length} workers (threshold: ${threshold})`);
-            for (const worker of workers) {
+            const pendingWorkers = await this.userModel.find({
+                role: 'worker',
+                isEligible: null,
+            });
+            this.logger.log(`Processing eligibility for ${pendingWorkers.length} workers with null status (threshold: ${threshold})`);
+            for (const worker of pendingWorkers) {
                 const workerId = worker._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(workerId);
                 if (eligibilities.length === 0) {
-                    this.logger.log(`Worker ${worker.firstName} ${worker.lastName} (${workerId}) has no eligibility records yet`);
+                    if (worker.completedTasks && worker.completedTasks.length > 0) {
+                        await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible: false } }, { new: true });
+                        this.logger.log(`Worker ${worker.firstName} ${worker.lastName} (${workerId}) has completed tasks but no evaluations - setting default to Not Eligible`);
+                    }
                     continue;
                 }
                 const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
                 const averageAccuracy = totalAccuracy / eligibilities.length;
                 const isEligible = averageAccuracy >= threshold;
-                const currentStatus = worker.isEligible === null
-                    ? 'undefined'
-                    : worker.isEligible
-                        ? 'eligible'
-                        : 'not eligible';
-                const newStatus = isEligible ? 'eligible' : 'not eligible';
-                this.logger.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId})`);
-                this.logger.log(`  Average Accuracy: ${averageAccuracy.toFixed(2)} | Threshold: ${threshold}`);
-                this.logger.log(`  Current Status: ${currentStatus} | New Status: ${newStatus}`);
-                this.logger.log(`  Records analyzed: ${eligibilities.length}`);
-                if (worker.isEligible !== isEligible || worker.isEligible === null) {
-                    await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible: Boolean(isEligible) } }, { new: true });
-                    this.logger.log(`  ✅ Database updated: ${currentStatus} → ${newStatus} (Value type: ${typeof Boolean(isEligible)})`);
-                }
-                this.logger.log('-----------------------------------');
+                await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible: Boolean(isEligible) } }, { new: true });
+                this.logger.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId}) - Updated status: ${isEligible ? 'Eligible' : 'Not Eligible'} (${(averageAccuracy * 100).toFixed(1)}%)`);
             }
-            this.logger.log('Eligibility calculation completed - changes saved to database');
+            const allOtherWorkers = await this.userModel.find({
+                role: 'worker',
+                isEligible: { $ne: null },
+            });
+            this.logger.log(`Checking ${allOtherWorkers.length} workers with existing eligibility status`);
+            for (const worker of allOtherWorkers) {
+                const workerId = worker._id.toString();
+                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(workerId);
+                if (eligibilities.length === 0)
+                    continue;
+                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
+                const averageAccuracy = totalAccuracy / eligibilities.length;
+                const isEligible = averageAccuracy >= threshold;
+                if (worker.isEligible !== isEligible) {
+                    await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible: Boolean(isEligible) } }, { new: true });
+                    this.logger.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId}) - Status changed from ${worker.isEligible ? 'Eligible' : 'Not Eligible'} to ${isEligible ? 'Eligible' : 'Not Eligible'} (${(averageAccuracy * 100).toFixed(1)}%)`);
+                }
+            }
+            this.logger.log('Eligibility calculation completed - all workers processed');
         }
         catch (error) {
             this.logger.error(`Error calculating worker eligibility: ${error.message}`);
@@ -4134,8 +4159,13 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], UpdateUserService.prototype, "qualifyUser", null);
+__decorate([
     (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_SECOND),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
