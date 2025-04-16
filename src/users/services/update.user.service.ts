@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users } from '../models/user';
@@ -10,15 +10,21 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
 import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
 import { configService } from 'src/config/config.service';
-import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class UpdateUserService {
-  // Define specific timestamps for the three iterations
+  // Define specific timestamps for the three iterations based on the updated requirements
   private readonly iterationTimes = [
-    new Date('2025-04-15T11:00:00'), // Iteration 1 - 11:00
-    new Date('2025-04-15T12:30:00'), // Iteration 2 - 12:30
-    new Date('2025-04-15T14:00:00'), // Iteration 3 - 14:00
+    new Date('2025-04-15T04:00:00'), // Iteration 1 starts at 4:00
+    new Date('2025-04-15T05:30:00'), // Iteration 2 starts at 5:30
+    new Date('2025-04-15T07:00:00'), // Iteration 3 starts at 7:00
+  ];
+
+  // Define end times for each iteration
+  private readonly iterationEndTimes = [
+    new Date('2025-04-15T05:29:59'), // Iteration 1 ends at 5:29:59
+    new Date('2025-04-15T06:59:59'), // Iteration 2 ends at 6:59:59
+    new Date('2025-04-15T23:59:59'), // Iteration 3 ends at end of day
   ];
 
   // Worker counts for each iteration
@@ -78,30 +84,29 @@ export class UpdateUserService {
   }
 
   /**
-   * Get the current iteration based on the current time
+   * Determine which iteration we are currently in based on the current time
    */
   private getCurrentIteration(): number {
     const now = new Date();
 
-    // Force the current iteration to be 3 for testing purposes
-    // This ensures all workers in iteration 3 will be evaluated
-    return 3;
+    // For testing purposes, we can force the current time
+    // const now = new Date('2025-04-15T07:30:00'); // Uncomment for testing specific times
 
-    // Regular logic (commented out for now)
-    // if (now >= this.iterationTimes[2]) {
-    //   return 3; // After 14:00, we're in the third iteration
-    // } else if (now >= this.iterationTimes[1]) {
-    //   return 2; // After 12:30, we're in the second iteration
-    // } else if (now >= this.iterationTimes[0]) {
-    //   return 1; // After 11:00, we're in the first iteration
-    // } else {
-    //   return 0; // Before any iterations have started
-    // }
+    // Check which iteration we're in
+    if (now >= this.iterationTimes[2]) {
+      return 3; // We're in iteration 3 (starting from 7:00)
+    } else if (now >= this.iterationTimes[1]) {
+      return 2; // We're in iteration 2 (5:30 - 6:59)
+    } else if (now >= this.iterationTimes[0]) {
+      return 1; // We're in iteration 1 (4:00 - 5:29)
+    } else {
+      return 0; // We haven't started any iterations yet
+    }
   }
 
   /**
-   * Get the workers who should be evaluated in the current iteration
-   * based on their creation timestamps
+   * Get workers who should be evaluated in the current iteration
+   * based on creation time within iteration bounds
    */
   private async getWorkersForCurrentIteration(): Promise<Users[]> {
     const currentIteration = this.getCurrentIteration();
@@ -109,120 +114,138 @@ export class UpdateUserService {
       return []; // No iterations have started yet
     }
 
-    // When in iteration 3, get all workers up to the maximum count
-    // This ensures we evaluate all workers including those missed
-    if (currentIteration === 3) {
-      const totalMaxWorkers = this.workersPerIteration[currentIteration - 1];
-      const allWorkers = await this.userModel
-        .find({ role: 'worker' })
-        .sort({ createdAt: 1 })
-        .limit(totalMaxWorkers)
-        .exec();
-
-      this.logger.debug(
-        `Workers for iteration ${currentIteration}: Found ${allWorkers.length} workers to evaluate`,
-      );
-
-      return allWorkers;
-    }
-
-    // Standard implementation for iterations 1 and 2
-    // Get iteration time boundaries
+    // Get start and end time for current iteration
     const startTime = this.iterationTimes[currentIteration - 1];
-    const endTime =
-      currentIteration < 3
-        ? this.iterationTimes[currentIteration]
-        : new Date('2025-04-15T23:59:59'); // End of day for iteration 3
+    const endTime = this.iterationEndTimes[currentIteration - 1];
 
-    // Get workers created within this time range
+    this.logger.log(
+      `Getting workers for iteration ${currentIteration} (${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`,
+    );
+
+    // Get workers created within this iteration timeframe
     const workersForIteration = await this.userModel
       .find({
         role: 'worker',
         createdAt: {
           $gte: startTime,
-          $lt: endTime,
+          $lte: endTime,
         },
       })
       .limit(this.workersPerIteration[currentIteration - 1])
       .exec();
 
-    this.logger.debug(
-      `Workers for iteration ${currentIteration}: ${workersForIteration.length} workers created between ${startTime.toLocaleTimeString()} and ${endTime.toLocaleTimeString()}`,
+    this.logger.log(
+      `Found ${workersForIteration.length} workers for iteration ${currentIteration}`,
     );
 
     return workersForIteration;
   }
 
-  //@Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
+  /**
+   * Get workers from all previous iterations up to current
+   */
+  private async getWorkersForAllCompletedIterations(): Promise<Users[]> {
+    const currentIteration = this.getCurrentIteration();
+    if (currentIteration === 0) {
+      return []; // No iterations have started yet
+    }
+
+    // Get the earliest start time for iteration 1
+    const earliestStartTime = this.iterationTimes[0];
+
+    // Get the end time for the current iteration
+    const endTime = this.iterationEndTimes[currentIteration - 1];
+
+    this.logger.log(
+      `Getting all workers from iteration 1 through ${currentIteration} (${earliestStartTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`,
+    );
+
+    // Calculate total worker count for all iterations up to current
+    let totalWorkerCount = 0;
+    for (let i = 0; i < currentIteration; i++) {
+      totalWorkerCount += this.workersPerIteration[i];
+    }
+
+    // Get all workers created from iteration 1 start until current iteration end
+    const allWorkers = await this.userModel
+      .find({
+        role: 'worker',
+        createdAt: {
+          $gte: earliestStartTime,
+          $lte: endTime,
+        },
+      })
+      .limit(totalWorkerCount)
+      .sort({ createdAt: 1 })
+      .exec();
+
+    this.logger.log(
+      `Found ${allWorkers.length} total workers for all iterations up to ${currentIteration}`,
+    );
+
+    return allWorkers;
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
   async qualifyUser() {
     try {
-      // Manually set the current iteration to 3 to process all workers
-      const currentIteration = 3;
+      const currentIteration = this.getCurrentIteration();
       this.logger.log(
-        `Forcing iteration evaluation to iteration ${currentIteration}`,
+        `Starting worker qualification process for iteration ${currentIteration}`,
       );
+
+      if (currentIteration === 0) {
+        this.logger.log(
+          'No iterations have started yet. Skipping worker qualification.',
+        );
+        return;
+      }
 
       // Get the threshold for eligibility
       const thresholdString = configService.getEnvValue('MX_THRESHOLD');
       const threshold = parseFloat(thresholdString);
+      this.logger.log(`Using eligibility threshold: ${threshold}`);
 
-      // Force the evaluation for all workers with role=worker
-      // Instead of filtering by iteration
-      const workersToEvaluate = await this.userModel
-        .find({ role: 'worker' })
-        .limit(this.workersPerIteration[2]) // Use the limit for iteration 3
-        .exec();
+      // Get all workers for all completed iterations
+      const workersToEvaluate =
+        await this.getWorkersForAllCompletedIterations();
 
       this.logger.log(
-        `Processing ${workersToEvaluate.length} workers (forced evaluation for all)`,
+        `Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`,
       );
 
-      // Focus on workers with null eligibility status first
+      // Focus on workers with null eligibility status first (these are the ones we need to fix)
       const pendingWorkers = workersToEvaluate.filter(
         (w) => w.isEligible === null,
       );
       this.logger.log(
-        `Found ${pendingWorkers.length} workers with null eligibility status`,
+        `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
       );
 
-      // Process all workers but prioritize those with null eligibility
-      const allWorkers = [
-        ...pendingWorkers,
-        ...workersToEvaluate.filter((w) => w.isEligible !== null),
-      ];
-
-      // Only process unique workers (avoid duplicates)
-      const uniqueWorkerIds = new Set();
-      const uniqueWorkers = allWorkers.filter((worker) => {
-        const workerId = worker._id.toString();
-        if (uniqueWorkerIds.has(workerId)) {
-          return false;
-        }
-        uniqueWorkerIds.add(workerId);
-        return true;
-      });
-
-      // Only evaluate workers that belong to the current iteration
-      for (const user of uniqueWorkers) {
+      // Process all pending workers first
+      for (const user of pendingWorkers) {
         const userIdStr = user._id.toString();
+
+        // Get all eligibility records for this worker
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
+        this.logger.debug(
+          `Worker ${userIdStr} has ${eligibilities.length} eligibility records`,
+        );
 
         // Check if worker has completed any tasks yet
         const hasCompletedTasks =
           user.completedTasks && user.completedTasks.length > 0;
 
-        // If no eligibility records but has completed tasks, set default false
-        // This ensures workers who have attempted tasks but don't yet have
-        // enough data for accurate evaluation aren't left with null status
         if (eligibilities.length === 0) {
-          if (user.isEligible === null && hasCompletedTasks) {
-            // Use findByIdAndUpdate instead of save()
+          // If the worker has completed tasks but has no eligibility records,
+          // set default to false until proper evaluation
+          if (hasCompletedTasks) {
             await this.userModel.findByIdAndUpdate(userIdStr, {
               $set: { isEligible: false },
             });
             this.logger.log(
-              `User ${userIdStr} set to default non-eligible state (pending evaluation)`,
+              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but pending evaluation)`,
             );
           }
           continue;
@@ -235,139 +258,60 @@ export class UpdateUserService {
         );
         const averageAccuracy = totalAccuracy / eligibilities.length;
 
-        // Update eligibility status based on threshold
+        // Determine eligibility status based on threshold
+        const isEligible = averageAccuracy >= threshold;
+
+        // Update the worker's eligibility status
+        await this.userModel.findByIdAndUpdate(userIdStr, {
+          $set: { isEligible: isEligible },
+        });
+
+        this.logger.log(
+          `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
+        );
+      }
+
+      // Also check any workers with existing eligibility status to ensure they're up to date
+      const workersWithStatus = workersToEvaluate.filter(
+        (w) => w.isEligible !== null,
+      );
+
+      this.logger.log(
+        `Checking ${workersWithStatus.length} workers with existing eligibility status for updates`,
+      );
+
+      for (const user of workersWithStatus) {
+        const userIdStr = user._id.toString();
+        const eligibilities =
+          await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
+
+        if (eligibilities.length === 0) continue;
+
+        // Calculate average accuracy
+        const totalAccuracy = eligibilities.reduce(
+          (sum, e) => sum + (e.accuracy || 0),
+          0,
+        );
+        const averageAccuracy = totalAccuracy / eligibilities.length;
         const newEligibilityStatus = averageAccuracy >= threshold;
 
-        // Only update if changed or null to avoid unnecessary DB writes
-        if (
-          user.isEligible !== newEligibilityStatus ||
-          user.isEligible === null
-        ) {
-          // Use findByIdAndUpdate with explicit $set to handle null→boolean conversion properly
+        // Only update if status has changed
+        if (user.isEligible !== newEligibilityStatus) {
           await this.userModel.findByIdAndUpdate(userIdStr, {
             $set: { isEligible: newEligibilityStatus },
           });
+
           this.logger.log(
-            `Updated eligibility for worker ${userIdStr}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
+            `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): changed from ${user.isEligible ? 'Eligible' : 'Not Eligible'} to ${newEligibilityStatus ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
           );
         }
       }
+
+      this.logger.log(
+        `Worker qualification process for iteration ${currentIteration} completed successfully`,
+      );
     } catch (error) {
       this.logger.error(`Error in qualifyUser: ${error.message}`);
-      throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
-    }
-  }
-
- // @Cron(CronExpression.EVERY_MINUTE)
-  async calculateWorkerEligibility() {
-    try {
-      // Get threshold from config service
-      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
-      const threshold = parseFloat(thresholdString);
-
-      // Get all users with worker role, focusing on those with null eligibility
-      const pendingWorkers = await this.userModel.find({
-        role: 'worker',
-        isEligible: null,
-      });
-      this.logger.log(
-        `Processing eligibility for ${pendingWorkers.length} workers with null status (threshold: ${threshold})`,
-      );
-
-      // Process pending workers first
-      for (const worker of pendingWorkers) {
-        const workerId = worker._id.toString();
-        // Get all eligibility records for this worker
-        const eligibilities =
-          await this.getEligibilityService.getEligibilityWorkerId(workerId);
-
-        // If worker has done tasks but has no eligibility records, set default to false
-        if (eligibilities.length === 0) {
-          if (worker.completedTasks && worker.completedTasks.length > 0) {
-            await this.userModel.findByIdAndUpdate(
-              workerId,
-              { $set: { isEligible: false } },
-              { new: true },
-            );
-            this.logger.log(
-              `Worker ${worker.firstName} ${worker.lastName} (${workerId}) has completed tasks but no evaluations - setting default to Not Eligible`,
-            );
-          }
-          continue;
-        }
-
-        // Calculate average accuracy from eligibility records
-        const totalAccuracy = eligibilities.reduce(
-          (sum, e) => sum + (e.accuracy || 0),
-          0,
-        );
-        const averageAccuracy = totalAccuracy / eligibilities.length;
-
-        // Determine eligibility status
-        const isEligible = averageAccuracy >= threshold;
-
-        // Update worker's eligibility
-        await this.userModel.findByIdAndUpdate(
-          workerId,
-          { $set: { isEligible: Boolean(isEligible) } },
-          { new: true },
-        );
-
-        this.logger.log(
-          `Worker: ${worker.firstName} ${worker.lastName} (${workerId}) - Updated status: ${isEligible ? 'Eligible' : 'Not Eligible'} (${(averageAccuracy * 100).toFixed(1)}%)`,
-        );
-      }
-
-      // Now process any remaining workers to ensure all are up to date
-      const allOtherWorkers = await this.userModel.find({
-        role: 'worker',
-        isEligible: { $ne: null },
-      });
-
-      this.logger.log(
-        `Checking ${allOtherWorkers.length} workers with existing eligibility status`,
-      );
-
-      for (const worker of allOtherWorkers) {
-        const workerId = worker._id.toString();
-        // Get all eligibility records for this worker
-        const eligibilities =
-          await this.getEligibilityService.getEligibilityWorkerId(workerId);
-
-        // Skip if no eligibility records
-        if (eligibilities.length === 0) continue;
-
-        // Calculate average accuracy from eligibility records
-        const totalAccuracy = eligibilities.reduce(
-          (sum, e) => sum + (e.accuracy || 0),
-          0,
-        );
-        const averageAccuracy = totalAccuracy / eligibilities.length;
-
-        // Determine eligibility status
-        const isEligible = averageAccuracy >= threshold;
-
-        // Only update if status would change
-        if (worker.isEligible !== isEligible) {
-          await this.userModel.findByIdAndUpdate(
-            workerId,
-            { $set: { isEligible: Boolean(isEligible) } },
-            { new: true },
-          );
-
-          this.logger.log(
-            `Worker: ${worker.firstName} ${worker.lastName} (${workerId}) - Status changed from ${worker.isEligible ? 'Eligible' : 'Not Eligible'} to ${isEligible ? 'Eligible' : 'Not Eligible'} (${(averageAccuracy * 100).toFixed(1)}%)`,
-          );
-        }
-      }
-
-      this.logger.log(
-        'Eligibility calculation completed - all workers processed',
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error calculating worker eligibility: ${error.message}`,
-      );
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }

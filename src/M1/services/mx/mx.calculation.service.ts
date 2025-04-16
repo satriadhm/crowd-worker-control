@@ -17,14 +17,28 @@ interface WorkerAnswer {
 
 /**
  * Service for calculating worker accuracy using the M-X algorithm
- * Updated to support iterative calculation based on 5 iterations with predefined user numbers
+ * Updated with correct iteration times: 4:00-5:29, 5:30-6:59, 7:00+
  */
 @Injectable()
 export class AccuracyCalculationServiceMX {
   private readonly logger = new Logger(AccuracyCalculationServiceMX.name);
   private currentIteration = 1; // Start from iteration 1
-  private readonly maxIterations = 5; // Total 5 iterations
-  private readonly workersPerIteration = [3, 6, 9, 12, 15]; // Target number of workers per iteration
+  private readonly maxIterations = 3; // Total 3 iterations
+  private readonly workersPerIteration = [3, 6, 9]; // Target number of workers per iteration
+
+  // Define specific timestamps for the three iterations based on requirements
+  private readonly iterationTimes = [
+    new Date('2025-04-15T04:00:00'), // Iteration 1 starts at 4:00
+    new Date('2025-04-15T05:30:00'), // Iteration 2 starts at 5:30
+    new Date('2025-04-15T07:00:00'), // Iteration 3 starts at 7:00
+  ];
+
+  // Define end times for each iteration
+  private readonly iterationEndTimes = [
+    new Date('2025-04-15T05:29:59'), // Iteration 1 ends at 5:29:59
+    new Date('2025-04-15T06:59:59'), // Iteration 2 ends at 6:59:59
+    new Date('2025-04-15T23:59:59'), // Iteration 3 ends at end of day
+  ];
 
   constructor(
     @InjectModel(RecordedAnswer.name)
@@ -34,6 +48,27 @@ export class AccuracyCalculationServiceMX {
     private readonly createEligibilityService: CreateEligibilityService,
     private readonly getTaskService: GetTaskService,
   ) {}
+
+  /**
+   * Determine which iteration we are currently in based on the current time
+   */
+  private getCurrentIteration(): number {
+    const now = new Date();
+
+    // For testing purposes, we can force the current time
+    // const now = new Date('2025-04-15T07:30:00'); // Uncomment for testing specific times
+
+    // Check which iteration we're in
+    if (now >= this.iterationTimes[2]) {
+      return 3; // We're in iteration 3 (starting from 7:00)
+    } else if (now >= this.iterationTimes[1]) {
+      return 2; // We're in iteration 2 (5:30 - 6:59)
+    } else if (now >= this.iterationTimes[0]) {
+      return 1; // We're in iteration 1 (4:00 - 5:29)
+    } else {
+      return 0; // We haven't started any iterations yet
+    }
+  }
 
   /**
    * Menghitung accuracy tiap worker menggunakan algoritma M-X.
@@ -276,66 +311,121 @@ export class AccuracyCalculationServiceMX {
   }
 
   /**
-   * Check if we should move to the next iteration based on the number of worker users
+   * Get workers for the current iteration based on worker creation time
    */
-  private async shouldMoveToNextIteration(): Promise<boolean> {
-    if (this.currentIteration >= this.maxIterations) {
-      return false; // Already at the maximum iteration
+  private async getWorkersForCurrentIteration(): Promise<string[]> {
+    const currentIteration = this.getCurrentIteration();
+    if (currentIteration === 0) {
+      return []; // No iterations have started yet
     }
 
-    const totalWorkers = await this.userModel.countDocuments({
-      role: 'worker',
-      isEligible: { $ne: null }, // Count workers who have been evaluated
-    });
+    // Get start and end time for the current iteration
+    const startTime = this.iterationTimes[currentIteration - 1];
+    const endTime = this.iterationEndTimes[currentIteration - 1];
 
-    // Check if we've reached or exceeded the worker target for current iteration
-    return totalWorkers >= this.workersPerIteration[this.currentIteration - 1];
+    this.logger.log(
+      `Getting workers for iteration ${currentIteration} (${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`,
+    );
+
+    // Get workers created within this timeframe
+    const workers = await this.userModel
+      .find({
+        role: 'worker',
+        createdAt: {
+          $gte: startTime,
+          $lte: endTime,
+        },
+      })
+      .sort({ createdAt: 1 })
+      .limit(this.workersPerIteration[currentIteration - 1])
+      .exec();
+
+    const workerIds = workers.map((worker) => worker._id.toString());
+
+    this.logger.log(
+      `Found ${workerIds.length} workers for iteration ${currentIteration}`,
+    );
+
+    return workerIds;
   }
 
   /**
-   * Get the workers eligible for evaluation in the current iteration
+   * Get all workers from all iterations up to and including current iteration
    */
-  private async getWorkersForCurrentIteration(): Promise<string[]> {
-    // Get all workers with role = worker, sorted by creation date (oldest first)
-    const workerLimit = this.workersPerIteration[this.currentIteration - 1];
+  private async getAllWorkersUpToCurrentIteration(): Promise<string[]> {
+    const currentIteration = this.getCurrentIteration();
+    if (currentIteration === 0) {
+      return []; // No iterations have started yet
+    }
+
+    // Get the earliest start time (iteration 1)
+    const earliestStartTime = this.iterationTimes[0];
+
+    // Get the latest end time (current iteration)
+    const latestEndTime = this.iterationEndTimes[currentIteration - 1];
+
+    // Calculate total worker limit for all iterations
+    let totalWorkerLimit = 0;
+    for (let i = 0; i < currentIteration; i++) {
+      totalWorkerLimit += this.workersPerIteration[i];
+    }
+
+    this.logger.log(
+      `Getting all workers from iteration 1 through ${currentIteration} (${earliestStartTime.toLocaleTimeString()} - ${latestEndTime.toLocaleTimeString()})`,
+    );
+
+    // Get all workers created from iteration 1 start to current iteration end
     const workers = await this.userModel
-      .find({ role: 'worker' })
+      .find({
+        role: 'worker',
+        createdAt: {
+          $gte: earliestStartTime,
+          $lte: latestEndTime,
+        },
+      })
       .sort({ createdAt: 1 })
-      .limit(workerLimit)
+      .limit(totalWorkerLimit)
       .exec();
 
-    return workers.map((worker) => worker._id.toString());
+    const workerIds = workers.map((worker) => worker._id.toString());
+
+    this.logger.log(
+      `Found ${workerIds.length} total workers across all iterations up to ${currentIteration}`,
+    );
+
+    return workerIds;
   }
 
   /**
    * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
-   * Updated to work with iterations
+   * Updated to work with new iteration times.
    */
-  // Update in calculateEligibility function
-  // @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
+  @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
   async calculateEligibility() {
     try {
-      // Check if we should move to next iteration based on number of workers
-      const shouldAdvance = await this.shouldMoveToNextIteration();
-      if (shouldAdvance && this.currentIteration < this.maxIterations) {
-        this.currentIteration++;
-        this.logger.log(`Advancing to iteration ${this.currentIteration}`);
-      }
-
+      // Determine current iteration based on time
+      const currentIteration = this.getCurrentIteration();
       this.logger.log(
-        `Running eligibility calculation for iteration ${this.currentIteration}`,
+        `Running eligibility calculation for iteration ${currentIteration}`,
       );
 
-      // Get workers for current iteration
-      const iterationWorkers = await this.getWorkersForCurrentIteration();
-      if (iterationWorkers.length === 0) {
-        this.logger.warn('No workers available for this iteration');
+      if (currentIteration === 0) {
+        this.logger.log(
+          'No iterations have started yet. Skipping eligibility calculations.',
+        );
+        return;
+      }
+
+      // Get all workers up to current iteration
+      const allWorkerIds = await this.getAllWorkersUpToCurrentIteration();
+      if (allWorkerIds.length === 0) {
+        this.logger.warn('No workers available up to current iteration');
         return;
       }
 
       this.logger.log(
-        `Processing ${iterationWorkers.length} workers in iteration ${this.currentIteration}`,
+        `Processing ${allWorkerIds.length} workers across iterations 1-${currentIteration}`,
       );
 
       // Get validated tasks
@@ -346,10 +436,10 @@ export class AccuracyCalculationServiceMX {
       }
 
       for (const task of tasks) {
-        // Get recorded answers for this task
+        // Get recorded answers for this task from workers in all current iterations
         const recordedAnswers = await this.recordedAnswerModel.find({
           taskId: task.id,
-          workerId: { $in: iterationWorkers }, // Only consider answers from workers in this iteration
+          workerId: { $in: allWorkerIds },
         });
 
         // Get unique worker IDs who have answered this task
@@ -381,7 +471,7 @@ export class AccuracyCalculationServiceMX {
             eligibilityInput,
           );
           this.logger.debug(
-            `Created/updated eligibility for worker ${workerId} in iteration ${this.currentIteration}: ${accuracy}`,
+            `Created/updated eligibility for worker ${workerId} in iteration ${currentIteration}: ${accuracy}`,
           );
         }
       }
