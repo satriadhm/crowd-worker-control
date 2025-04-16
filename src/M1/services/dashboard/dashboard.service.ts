@@ -16,8 +16,17 @@ import { Role } from 'src/lib/user.enum';
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
-  private readonly maxIterations = 5;
-  private readonly workersPerIteration = [3, 6, 9, 12, 15]; // Target worker counts per iteration
+  private readonly maxIterations = 3; // Modified to match your requirements - 3 iterations
+
+  // Specific timestamps for each iteration
+  private readonly iterationTimes = [
+    new Date('2025-04-15T11:00:00'), // Iteration 1 - 11:00
+    new Date('2025-04-15T12:30:00'), // Iteration 2 - 12:30
+    new Date('2025-04-15T14:00:00'), // Iteration 3 - 14:00
+  ];
+
+  // Worker counts for each iteration
+  private readonly workersPerIteration = [3, 6, 9]; // Target worker counts per iteration
 
   constructor(
     @InjectModel(Task.name)
@@ -55,61 +64,34 @@ export class DashboardService {
   }
 
   /**
-   * Get metrics for each iteration
-   * Shows the actual number of workers and tasks for each iteration
+   * Get metrics for each iteration with fixed times and worker counts
    */
   private async getIterationMetrics(): Promise<IterationMetric[]> {
     const iterations: IterationMetric[] = [];
 
-    // Get all tasks and distribute them evenly across iterations
+    // Get total tasks count
     const totalTasks = await this.taskModel.countDocuments();
-    const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
 
-    // Get all workers with role = 'worker', sorted by creation date (oldest first)
-    const workers = await this.userModel
-      .find({ role: Role.WORKER })
-      .sort({ createdAt: 1 })
-      .exec();
+    // Get same task count for each iteration
+    const tasksPerIteration = totalTasks;
 
-    const totalWorkers = workers.length;
-    this.logger.log(`Total workers found: ${totalWorkers}`);
-
-    // Calculate how many workers should be in each iteration based on actual data
-    let remainingWorkers = totalWorkers;
-    let startIndex = 0;
-
+    // Create data for each iteration with fixed worker counts
     for (let i = 0; i < this.maxIterations; i++) {
-      const maxWorkersForIteration = this.workersPerIteration[i];
-      const previousIterationMax = i > 0 ? this.workersPerIteration[i - 1] : 0;
-
-      // Calculate how many workers can be assigned to this iteration
-      // This takes the difference between current iteration's max and previous iteration's max
-      const iterationCapacity =
-        i === 0
-          ? maxWorkersForIteration
-          : maxWorkersForIteration - previousIterationMax;
-
-      // Calculate how many workers are actually in this iteration
-      const workersInThisIteration = Math.min(
-        remainingWorkers,
-        iterationCapacity,
-      );
-
-      // Get the slice of workers assigned to this iteration
-
-      this.logger.log(
-        `Iteration ${i + 1}: Capacity=${iterationCapacity}, Assigned=${workersInThisIteration}, Range=${startIndex}-${startIndex + workersInThisIteration - 1}`,
-      );
+      const iteration = i + 1;
+      const formattedTime = this.iterationTimes[i].toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
       iterations.push({
-        iteration: `Iteration ${i + 1}`,
-        workers: workersInThisIteration,
+        iteration: `Iteration ${iteration} (${formattedTime})`,
+        workers: this.workersPerIteration[i],
         tasks: tasksPerIteration,
       });
 
-      // Update for next iteration
-      remainingWorkers -= workersInThisIteration;
-      startIndex += workersInThisIteration;
+      this.logger.log(
+        `Iteration ${iteration}: Time=${formattedTime}, Workers=${this.workersPerIteration[i]}, Tasks=${tasksPerIteration}`,
+      );
     }
 
     return iterations;

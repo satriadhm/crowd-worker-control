@@ -224,7 +224,7 @@ export class AccuracyCalculationServiceM1 {
    * Method calculateEligibility melakukan perhitungan accuracy untuk tiap task,
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    */
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  // @Cron(CronExpression.EVERY_5_SECONDS)
   async calculateEligibility() {
     const tasks = await this.getTaskService.getTasks();
     if (!tasks) throw new Error('Task not found');

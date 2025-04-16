@@ -781,8 +781,13 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.logger = new common_1.Logger(DashboardService_1.name);
-        this.maxIterations = 5;
-        this.workersPerIteration = [3, 6, 9, 12, 15];
+        this.maxIterations = 3;
+        this.iterationTimes = [
+            new Date('2025-04-15T11:00:00'),
+            new Date('2025-04-15T12:30:00'),
+            new Date('2025-04-15T14:00:00'),
+        ];
+        this.workersPerIteration = [3, 6, 9];
     }
     async getDashboardSummary() {
         try {
@@ -805,30 +810,19 @@ let DashboardService = DashboardService_1 = class DashboardService {
     async getIterationMetrics() {
         const iterations = [];
         const totalTasks = await this.taskModel.countDocuments();
-        const tasksPerIteration = Math.ceil(totalTasks / this.maxIterations);
-        const workers = await this.userModel
-            .find({ role: user_enum_1.Role.WORKER })
-            .sort({ createdAt: 1 })
-            .exec();
-        const totalWorkers = workers.length;
-        this.logger.log(`Total workers found: ${totalWorkers}`);
-        let remainingWorkers = totalWorkers;
-        let startIndex = 0;
+        const tasksPerIteration = totalTasks;
         for (let i = 0; i < this.maxIterations; i++) {
-            const maxWorkersForIteration = this.workersPerIteration[i];
-            const previousIterationMax = i > 0 ? this.workersPerIteration[i - 1] : 0;
-            const iterationCapacity = i === 0
-                ? maxWorkersForIteration
-                : maxWorkersForIteration - previousIterationMax;
-            const workersInThisIteration = Math.min(remainingWorkers, iterationCapacity);
-            this.logger.log(`Iteration ${i + 1}: Capacity=${iterationCapacity}, Assigned=${workersInThisIteration}, Range=${startIndex}-${startIndex + workersInThisIteration - 1}`);
+            const iteration = i + 1;
+            const formattedTime = this.iterationTimes[i].toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
             iterations.push({
-                iteration: `Iteration ${i + 1}`,
-                workers: workersInThisIteration,
+                iteration: `Iteration ${iteration} (${formattedTime})`,
+                workers: this.workersPerIteration[i],
                 tasks: tasksPerIteration,
             });
-            remainingWorkers -= workersInThisIteration;
-            startIndex += workersInThisIteration;
+            this.logger.log(`Iteration ${iteration}: Time=${formattedTime}, Workers=${this.workersPerIteration[i]}, Tasks=${tasksPerIteration}`);
         }
         return iterations;
     }
@@ -1134,8 +1128,6 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
@@ -1333,12 +1325,6 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
     }
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
-__decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_MINUTE),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AccuracyCalculationServiceMX.prototype, "calculateEligibility", null);
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
@@ -2377,105 +2363,6 @@ const configService = new ConfigService(process.env).ensureValues([
     'MX_THRESHOLD',
 ]);
 exports.configService = configService;
-
-
-/***/ }),
-
-/***/ "./src/lib/cron.enum.ts":
-/*!******************************!*\
-  !*** ./src/lib/cron.enum.ts ***!
-  \******************************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CronExpression = void 0;
-var CronExpression;
-(function (CronExpression) {
-    CronExpression["EVERY_SECOND"] = "* * * * * *";
-    CronExpression["EVERY_5_SECONDS"] = "*/5 * * * * *";
-    CronExpression["EVERY_10_SECONDS"] = "*/10 * * * * *";
-    CronExpression["EVERY_30_SECONDS"] = "*/30 * * * * *";
-    CronExpression["EVERY_MINUTE"] = "*/1 * * * *";
-    CronExpression["EVERY_5_MINUTES"] = "0 */5 * * * *";
-    CronExpression["EVERY_10_MINUTES"] = "0 */10 * * * *";
-    CronExpression["EVERY_30_MINUTES"] = "0 */30 * * * *";
-    CronExpression["EVERY_HOUR"] = "0 0-23/1 * * *";
-    CronExpression["EVERY_2_HOURS"] = "0 0-23/2 * * *";
-    CronExpression["EVERY_3_HOURS"] = "0 0-23/3 * * *";
-    CronExpression["EVERY_4_HOURS"] = "0 0-23/4 * * *";
-    CronExpression["EVERY_5_HOURS"] = "0 0-23/5 * * *";
-    CronExpression["EVERY_6_HOURS"] = "0 0-23/6 * * *";
-    CronExpression["EVERY_7_HOURS"] = "0 0-23/7 * * *";
-    CronExpression["EVERY_8_HOURS"] = "0 0-23/8 * * *";
-    CronExpression["EVERY_9_HOURS"] = "0 0-23/9 * * *";
-    CronExpression["EVERY_10_HOURS"] = "0 0-23/10 * * *";
-    CronExpression["EVERY_11_HOURS"] = "0 0-23/11 * * *";
-    CronExpression["EVERY_12_HOURS"] = "0 0-23/12 * * *";
-    CronExpression["EVERY_DAY_AT_1AM"] = "0 01 * * *";
-    CronExpression["EVERY_DAY_AT_2AM"] = "0 02 * * *";
-    CronExpression["EVERY_DAY_AT_3AM"] = "0 03 * * *";
-    CronExpression["EVERY_DAY_AT_4AM"] = "0 04 * * *";
-    CronExpression["EVERY_DAY_AT_5AM"] = "0 05 * * *";
-    CronExpression["EVERY_DAY_AT_6AM"] = "0 06 * * *";
-    CronExpression["EVERY_DAY_AT_7AM"] = "0 07 * * *";
-    CronExpression["EVERY_DAY_AT_8AM"] = "0 08 * * *";
-    CronExpression["EVERY_DAY_AT_9AM"] = "0 09 * * *";
-    CronExpression["EVERY_DAY_AT_10AM"] = "0 10 * * *";
-    CronExpression["EVERY_DAY_AT_11AM"] = "0 11 * * *";
-    CronExpression["EVERY_DAY_AT_NOON"] = "0 12 * * *";
-    CronExpression["EVERY_DAY_AT_1PM"] = "0 13 * * *";
-    CronExpression["EVERY_DAY_AT_2PM"] = "0 14 * * *";
-    CronExpression["EVERY_DAY_AT_3PM"] = "0 15 * * *";
-    CronExpression["EVERY_DAY_AT_4PM"] = "0 16 * * *";
-    CronExpression["EVERY_DAY_AT_5PM"] = "0 17 * * *";
-    CronExpression["EVERY_DAY_AT_6PM"] = "0 18 * * *";
-    CronExpression["EVERY_DAY_AT_7PM"] = "0 19 * * *";
-    CronExpression["EVERY_DAY_AT_8PM"] = "0 20 * * *";
-    CronExpression["EVERY_DAY_AT_9PM"] = "0 21 * * *";
-    CronExpression["EVERY_DAY_AT_10PM"] = "0 22 * * *";
-    CronExpression["EVERY_DAY_AT_11PM"] = "0 23 * * *";
-    CronExpression["EVERY_DAY_AT_MIDNIGHT"] = "0 0 * * *";
-    CronExpression["EVERY_WEEK"] = "0 0 * * 0";
-    CronExpression["EVERY_WEEKDAY"] = "0 0 * * 1-5";
-    CronExpression["EVERY_WEEKEND"] = "0 0 * * 6,0";
-    CronExpression["EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT"] = "0 0 1 * *";
-    CronExpression["EVERY_1ST_DAY_OF_MONTH_AT_NOON"] = "0 12 1 * *";
-    CronExpression["EVERY_2ND_HOUR"] = "0 */2 * * *";
-    CronExpression["EVERY_2ND_HOUR_FROM_1AM_THROUGH_11PM"] = "0 1-23/2 * * *";
-    CronExpression["EVERY_2ND_MONTH"] = "0 0 1 */2 *";
-    CronExpression["EVERY_QUARTER"] = "0 0 1 */3 *";
-    CronExpression["EVERY_6_MONTHS"] = "0 0 1 */6 *";
-    CronExpression["EVERY_YEAR"] = "0 0 1 1 *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_9AM_AND_5PM"] = "0 */30 9-17 * * *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_9AM_AND_6PM"] = "0 */30 9-18 * * *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_10AM_AND_7PM"] = "0 */30 10-19 * * *";
-    CronExpression["MONDAY_TO_FRIDAY_AT_1AM"] = "0 0 01 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_2AM"] = "0 0 02 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_3AM"] = "0 0 03 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_4AM"] = "0 0 04 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_5AM"] = "0 0 05 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_6AM"] = "0 0 06 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_7AM"] = "0 0 07 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_8AM"] = "0 0 08 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_9AM"] = "0 0 09 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_09_30AM"] = "0 30 09 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_10AM"] = "0 0 10 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11AM"] = "0 0 11 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11_30AM"] = "0 30 11 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_12PM"] = "0 0 12 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_1PM"] = "0 0 13 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_2PM"] = "0 0 14 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_3PM"] = "0 0 15 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_4PM"] = "0 0 16 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_5PM"] = "0 0 17 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_6PM"] = "0 0 18 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_7PM"] = "0 0 19 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_8PM"] = "0 0 20 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_9PM"] = "0 0 21 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_10PM"] = "0 0 22 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11PM"] = "0 0 23 * * 1-5";
-})(CronExpression || (exports.CronExpression = CronExpression = {}));
 
 
 /***/ }),
@@ -4041,9 +3928,12 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     constructor(userModel, getEligibilityService) {
         this.userModel = userModel;
         this.getEligibilityService = getEligibilityService;
-        this.currentIteration = 1;
-        this.maxIterations = 5;
-        this.workersPerIteration = [3, 6, 9, 12, 15];
+        this.iterationTimes = [
+            new Date('2025-04-15T11:00:00'),
+            new Date('2025-04-15T12:30:00'),
+            new Date('2025-04-15T14:00:00'),
+        ];
+        this.workersPerIteration = [3, 6, 9];
         this.logger = new common_2.Logger(UpdateUserService_1.name);
     }
     async updateUser(input) {
@@ -4077,42 +3967,54 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
-    async shouldAdvanceIteration() {
-        if (this.currentIteration >= this.maxIterations) {
-            return false;
+    getCurrentIteration() {
+        const now = new Date();
+        if (now >= this.iterationTimes[2]) {
+            return 3;
         }
-        const totalWorkers = await this.userModel.countDocuments({
-            role: 'worker',
-        });
-        const nextIterationIndex = Math.min(this.currentIteration, this.maxIterations - 1);
-        const nextIterationTarget = this.workersPerIteration[nextIterationIndex];
-        this.logger.debug(`Total workers: ${totalWorkers}, Next iteration target: ${nextIterationTarget}`);
-        return totalWorkers >= nextIterationTarget;
+        else if (now >= this.iterationTimes[1]) {
+            return 2;
+        }
+        else if (now >= this.iterationTimes[0]) {
+            return 1;
+        }
+        else {
+            return 0;
+        }
     }
     async getWorkersForCurrentIteration() {
-        const currentTarget = this.workersPerIteration[this.currentIteration - 1];
-        const prevTarget = this.currentIteration > 1
-            ? this.workersPerIteration[this.currentIteration - 2]
-            : 0;
-        const allWorkers = await this.userModel
-            .find({ role: 'worker' })
-            .sort({ createdAt: 1 })
+        const currentIteration = this.getCurrentIteration();
+        if (currentIteration === 0) {
+            return [];
+        }
+        const startTime = this.iterationTimes[currentIteration - 1];
+        const endTime = currentIteration < 3
+            ? this.iterationTimes[currentIteration]
+            : new Date('2025-04-15T23:59:59');
+        const workersForIteration = await this.userModel
+            .find({
+            role: 'worker',
+            createdAt: {
+                $gte: startTime,
+                $lt: endTime,
+            },
+        })
+            .limit(this.workersPerIteration[currentIteration - 1])
             .exec();
-        const workersForIteration = allWorkers.slice(prevTarget, currentTarget);
-        this.logger.debug(`Workers for iteration ${this.currentIteration}: ${workersForIteration.length} workers (${prevTarget + 1}-${currentTarget})`);
+        this.logger.debug(`Workers for iteration ${currentIteration}: ${workersForIteration.length} workers created between ${startTime.toLocaleTimeString()} and ${endTime.toLocaleTimeString()}`);
         return workersForIteration;
     }
     async qualifyUser() {
         try {
-            const shouldAdvance = await this.shouldAdvanceIteration();
-            if (shouldAdvance) {
-                this.currentIteration = Math.min(this.currentIteration + 1, this.maxIterations);
-                this.logger.log(`Advanced to iteration ${this.currentIteration}`);
+            const currentIteration = this.getCurrentIteration();
+            if (currentIteration === 0) {
+                this.logger.log('No iterations have started yet');
+                return;
             }
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
             const workersForIteration = await this.getWorkersForCurrentIteration();
-            this.logger.log(`Processing ${workersForIteration.length} workers in iteration ${this.currentIteration}`);
+            this.logger.log(`Processing ${workersForIteration.length} workers in iteration ${currentIteration}`);
             for (const user of workersForIteration) {
                 const userIdStr = user._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
@@ -4134,7 +4036,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                     await this.userModel.findByIdAndUpdate(userIdStr, {
                         isEligible: newEligibilityStatus,
                     });
-                    this.logger.log(`Updated eligibility for worker ${userIdStr}: ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
+                    this.logger.log(`Updated eligibility for worker ${userIdStr} (Iteration ${currentIteration}): ${newEligibilityStatus} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
                 }
             }
         }
@@ -4143,14 +4045,54 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async calculateWorkerEligibility() {
+        try {
+            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
+            const threshold = parseFloat(thresholdString);
+            const workers = await this.userModel.find({ role: 'worker' });
+            console.log(`Processing eligibility for ${workers.length} workers (threshold: ${threshold})`);
+            for (const worker of workers) {
+                const workerId = worker._id.toString();
+                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(workerId);
+                if (eligibilities.length === 0) {
+                    console.log(`Worker ${worker.firstName} ${worker.lastName} (${workerId}) has no eligibility records yet`);
+                    continue;
+                }
+                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
+                const averageAccuracy = totalAccuracy / eligibilities.length;
+                const isEligible = averageAccuracy >= threshold;
+                const currentStatus = worker.isEligible === null
+                    ? 'undefined'
+                    : worker.isEligible
+                        ? 'eligible'
+                        : 'not eligible';
+                const newStatus = isEligible ? 'eligible' : 'not eligible';
+                console.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId})`);
+                console.log(`  Average Accuracy: ${averageAccuracy.toFixed(2)} | Threshold: ${threshold}`);
+                console.log(`  Current Status: ${currentStatus} | New Status: ${newStatus}`);
+                console.log(`  Records analyzed: ${eligibilities.length}`);
+                if (worker.isEligible !== isEligible && worker.isEligible !== null) {
+                    console.log(`  ⚠️ Status change detected: ${currentStatus} → ${newStatus}`);
+                }
+                else if (worker.isEligible === null) {
+                    console.log(`  ⚠️ Initial status would be set to: ${newStatus}`);
+                }
+                console.log('-----------------------------------');
+            }
+            console.log('Eligibility calculation completed (dry run - no changes saved)');
+        }
+        catch (error) {
+            console.error(`Error calculating worker eligibility: ${error.message}`);
+        }
+    }
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_SECOND),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "qualifyUser", null);
+], UpdateUserService.prototype, "calculateWorkerEligibility", null);
 exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
