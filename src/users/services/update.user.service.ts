@@ -208,6 +208,7 @@ export class UpdateUserService {
     }
   }
 
+  @Cron(CronExpression.EVERY_MINUTE)
   @Cron(CronExpression.EVERY_SECOND)
   async calculateWorkerEligibility() {
     try {
@@ -217,7 +218,7 @@ export class UpdateUserService {
 
       // Get all users with worker role
       const workers = await this.userModel.find({ role: 'worker' });
-      console.log(
+      this.logger.log(
         `Processing eligibility for ${workers.length} workers (threshold: ${threshold})`,
       );
 
@@ -229,7 +230,7 @@ export class UpdateUserService {
 
         // Skip if no eligibility records
         if (eligibilities.length === 0) {
-          console.log(
+          this.logger.log(
             `Worker ${worker.firstName} ${worker.lastName} (${workerId}) has no eligibility records yet`,
           );
           continue;
@@ -245,7 +246,7 @@ export class UpdateUserService {
         // Determine eligibility status
         const isEligible = averageAccuracy >= threshold;
 
-        // Log the result without saving
+        // Log the result
         const currentStatus =
           worker.isEligible === null
             ? 'undefined'
@@ -254,34 +255,42 @@ export class UpdateUserService {
               : 'not eligible';
         const newStatus = isEligible ? 'eligible' : 'not eligible';
 
-        console.log(
+        this.logger.log(
           `Worker: ${worker.firstName} ${worker.lastName} (${workerId})`,
         );
-        console.log(
+        this.logger.log(
           `  Average Accuracy: ${averageAccuracy.toFixed(2)} | Threshold: ${threshold}`,
         );
-        console.log(
+        this.logger.log(
           `  Current Status: ${currentStatus} | New Status: ${newStatus}`,
         );
-        console.log(`  Records analyzed: ${eligibilities.length}`);
+        this.logger.log(`  Records analyzed: ${eligibilities.length}`);
 
-        // Also check if status would change
-        if (worker.isEligible !== isEligible && worker.isEligible !== null) {
-          console.log(
-            `  ⚠️ Status change detected: ${currentStatus} → ${newStatus}`,
+        // Check if status would change
+        if (worker.isEligible !== isEligible || worker.isEligible === null) {
+          // IMPORTANT: Use explicit $set with strict Boolean value to handle null→false conversion properly
+          await this.userModel.findByIdAndUpdate(
+            workerId,
+            { $set: { isEligible: Boolean(isEligible) } },
+            { new: true },
           );
-        } else if (worker.isEligible === null) {
-          console.log(`  ⚠️ Initial status would be set to: ${newStatus}`);
+
+          this.logger.log(
+            `  ✅ Database updated: ${currentStatus} → ${newStatus} (Value type: ${typeof Boolean(isEligible)})`,
+          );
         }
 
-        console.log('-----------------------------------');
+        this.logger.log('-----------------------------------');
       }
 
-      console.log(
-        'Eligibility calculation completed (dry run - no changes saved)',
+      this.logger.log(
+        'Eligibility calculation completed - changes saved to database',
       );
     } catch (error) {
-      console.error(`Error calculating worker eligibility: ${error.message}`);
+      this.logger.error(
+        `Error calculating worker eligibility: ${error.message}`,
+      );
+      throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }
 }

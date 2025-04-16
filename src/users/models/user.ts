@@ -1,3 +1,5 @@
+// Correct pre-update hook implementation for TypeScript
+
 import { ObjectType, Field } from '@nestjs/graphql';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
@@ -12,7 +14,6 @@ export class TaskCompletion {
   answer: string;
 }
 
-// Use timestamps to track user creation order for iterations
 @Schema({ timestamps: true })
 @ObjectType()
 export class Users {
@@ -64,15 +65,14 @@ export class Users {
   @Prop({ required: false })
   address2: string;
 
-  // isEligible is now undefined by default and not required initially
-  // It will be set based on the iteration-based evaluation
+  // Perbaikan pada field isEligible
   @Field(() => Boolean, { nullable: true })
   @Prop({
     type: Boolean,
     required: false,
-    default: undefined,
+    default: null,
   })
-  isEligible?: boolean;
+  isEligible: boolean | null;
 
   @Field(() => [TaskCompletion])
   @Prop({
@@ -84,7 +84,6 @@ export class Users {
   })
   completedTasks: { taskId: string; answer: string }[];
 
-  // Add created/updated timestamps for tracking iteration eligibility
   @Field(() => Date)
   createdAt: Date;
 
@@ -94,3 +93,16 @@ export class Users {
 
 export type UserDocument = HydratedDocument<Users>;
 export const UsersSchema = SchemaFactory.createForClass(Users);
+
+// Perbaikan hook untuk TypeScript
+UsersSchema.pre('findOneAndUpdate', function () {
+  // Gunakan any untuk mengatasi masalah TypeScript dengan Mongoose update object
+  const update = this.getUpdate() as any;
+
+  if (update && update.$set && update.$set.isEligible !== undefined) {
+    // Jika nilai bukan null, pastikan itu boolean yang sesungguhnya
+    if (update.$set.isEligible !== null) {
+      update.$set.isEligible = Boolean(update.$set.isEligible);
+    }
+  }
+});

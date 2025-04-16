@@ -381,6 +381,10 @@ __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", Number)
 ], TesterAnalysisView.prototype, "accuracy", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", Boolean)
+], TesterAnalysisView.prototype, "isEligible", void 0);
 exports.TesterAnalysisView = TesterAnalysisView = __decorate([
     (0, graphql_1.ObjectType)()
 ], TesterAnalysisView);
@@ -406,11 +410,19 @@ __decorate([
 __decorate([
     (0, graphql_1.Field)({ nullable: true }),
     __metadata("design:type", String)
+], TestResultView.prototype, "eligibilityStatus", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
 ], TestResultView.prototype, "feedback", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
 ], TestResultView.prototype, "createdAt", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    __metadata("design:type", String)
+], TestResultView.prototype, "formattedDate", void 0);
 exports.TestResultView = TestResultView = __decorate([
     (0, graphql_1.ObjectType)()
 ], TestResultView);
@@ -1477,6 +1489,7 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
 const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
 const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
+const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
     constructor(eligibilityModel, recordedAnswerModel, getUserService) {
         this.eligibilityModel = eligibilityModel;
@@ -1484,25 +1497,13 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
         this.getUserService = getUserService;
         this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
         this.performanceHistory = [];
-        this.startDate = new Date('2025-01-01');
-        this.initializePerformanceHistory();
-    }
-    initializePerformanceHistory() {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-        const baseAccuracy = 0.88;
-        const baseResponseTime = 270;
-        this.performanceHistory = months.map((month, idx) => {
-            const improvement = idx * 0.015;
-            const speedImprovement = idx * 10;
-            return {
-                month,
-                accuracyRate: Math.min(0.99, baseAccuracy + improvement),
-                responseTime: Math.max(220, baseResponseTime - speedImprovement),
-            };
-        });
+        this.updatePerformanceMetrics();
     }
     async getAlgorithmPerformance() {
         try {
+            if (this.performanceHistory.length === 0) {
+                await this.updatePerformanceMetrics();
+            }
             return this.performanceHistory;
         }
         catch (error) {
@@ -1517,6 +1518,8 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             for (const eligibility of eligibilities) {
                 const workerId = eligibility.workerId.toString();
                 const worker = await this.getUserService.getUserById(workerId);
+                if (!worker)
+                    continue;
                 const workerName = worker
                     ? `${worker.firstName} ${worker.lastName}`
                     : 'Unknown Worker';
@@ -1527,24 +1530,30 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                         workerId,
                     });
                 }
-                if (eligibility.accuracy) {
+                if (eligibility.accuracy !== null &&
+                    eligibility.accuracy !== undefined) {
                     workerMap.get(workerId).scores.push(eligibility.accuracy);
                 }
             }
             const result = [];
+            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
+            const threshold = parseFloat(thresholdString) || 0.7;
+            this.logger.log(`Using threshold value: ${threshold} for worker analysis`);
             workerMap.forEach(({ scores, name, workerId }) => {
                 if (scores.length === 0)
                     return;
                 const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-                const accuracy = 0.5 + averageScore * 0.5;
+                const isEligible = averageScore >= threshold;
+                const accuracy = parseFloat(averageScore.toFixed(2));
                 result.push({
                     workerId,
                     testerName: name,
                     averageScore: parseFloat(averageScore.toFixed(2)),
-                    accuracy: parseFloat(accuracy.toFixed(2)),
+                    accuracy: accuracy,
+                    isEligible: isEligible,
                 });
             });
-            return result;
+            return result.sort((a, b) => b.accuracy - a.accuracy);
         }
         catch (error) {
             this.logger.error('Error getting tester analysis data', error);
@@ -1561,16 +1570,27 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             const results = [];
             for (const eligibility of eligibilities) {
                 const worker = await this.getUserService.getUserById(eligibility.workerId.toString());
+                if (!worker)
+                    continue;
                 const workerInfo = worker
                     ? `Worker: ${worker.firstName} ${worker.lastName}`
                     : '';
+                const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
+                const threshold = parseFloat(thresholdString) || 0.7;
+                const formattedDate = eligibility.createdAt
+                    ? new Date(eligibility.createdAt).toLocaleDateString()
+                    : 'N/A';
                 results.push({
                     id: eligibility._id.toString(),
                     workerId: eligibility.workerId.toString(),
                     testId: eligibility.taskId.toString(),
                     score: eligibility.accuracy || 0.5,
+                    eligibilityStatus: (eligibility.accuracy || 0) >= threshold
+                        ? 'Eligible'
+                        : 'Not Eligible',
                     feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
                     createdAt: eligibility.createdAt,
+                    formattedDate: formattedDate,
                 });
             }
             return results;
@@ -1597,37 +1617,56 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 'Nov',
                 'Dec',
             ];
-            const currentMonth = monthNames[now.getMonth()];
-            const existingEntryIndex = this.performanceHistory.findIndex((entry) => entry.month === currentMonth);
-            const recentEligibilities = await this.eligibilityModel
-                .find({
-                createdAt: { $gte: new Date(now.getFullYear(), now.getMonth(), 1) },
-            })
-                .exec();
-            const accuracies = recentEligibilities.map((e) => e.accuracy || 0.5);
-            const avgAccuracy = accuracies.length > 0
-                ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length
-                : 0.9 + Math.random() * 0.05;
-            const simulatedResponseTime = Math.max(210, 250 - Math.random() * 30);
-            const newMetrics = {
-                month: currentMonth,
-                accuracyRate: parseFloat(avgAccuracy.toFixed(2)),
-                responseTime: Math.round(simulatedResponseTime),
-            };
-            if (existingEntryIndex >= 0) {
-                this.performanceHistory[existingEntryIndex] = newMetrics;
+            const months = [];
+            for (let i = 5; i >= 0; i--) {
+                const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months.push({
+                    month: monthNames[monthDate.getMonth()],
+                    year: monthDate.getFullYear(),
+                    monthIndex: monthDate.getMonth(),
+                });
             }
-            else {
-                this.performanceHistory.push(newMetrics);
-                if (this.performanceHistory.length > 6) {
-                    this.performanceHistory.shift();
-                }
+            this.performanceHistory = [];
+            for (const monthData of months) {
+                const monthStart = new Date(monthData.year, monthData.monthIndex, 1);
+                const monthEnd = new Date(monthData.year, monthData.monthIndex + 1, 0);
+                const eligibilityRecords = await this.eligibilityModel
+                    .find({
+                    createdAt: {
+                        $gte: monthStart,
+                        $lte: monthEnd,
+                    },
+                })
+                    .exec();
+                const accuracies = eligibilityRecords.map((r) => r.accuracy || 0.5);
+                const avgAccuracy = accuracies.length > 0
+                    ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length
+                    : 0.88;
+                const recordedAnswers = await this.recordedAnswerModel
+                    .find({
+                    createdAt: {
+                        $gte: monthStart,
+                        $lte: monthEnd,
+                    },
+                })
+                    .exec();
+                const responseTime = recordedAnswers.length > 0
+                    ? 250 - Math.min(recordedAnswers.length, 30)
+                    : 270 - (5 - monthData.monthIndex) * 10;
+                this.performanceHistory.push({
+                    month: `${monthData.month} ${monthData.year}`,
+                    accuracyRate: parseFloat(avgAccuracy.toFixed(2)),
+                    responseTime: Math.round(Math.max(220, responseTime)),
+                });
             }
-            this.logger.log(`Updated algorithm performance metrics for ${currentMonth}`);
+            this.logger.log('Performance metrics updated successfully');
         }
         catch (error) {
             this.logger.error('Error updating performance metrics', error);
         }
+    }
+    formatAccuracyPercentage(value) {
+        return `${(value * 100).toFixed(1)}%`;
     }
 };
 exports.WorkerAnalysisService = WorkerAnalysisService;
@@ -3534,7 +3573,7 @@ const parseToView = (input) => {
         userName: input.userName,
         email: input.email,
         completedTasks: input.completedTasks,
-        isEligible: input.isEligible || undefined,
+        isEligible: input.isEligible,
         age: input.age,
         role: input.role,
         phoneNumber: input.phoneNumber,
@@ -3653,7 +3692,7 @@ __decorate([
     (0, mongoose_1.Prop)({
         type: Boolean,
         required: false,
-        default: undefined,
+        default: null,
     }),
     __metadata("design:type", Boolean)
 ], Users.prototype, "isEligible", void 0);
@@ -3681,6 +3720,14 @@ exports.Users = Users = __decorate([
     (0, graphql_1.ObjectType)()
 ], Users);
 exports.UsersSchema = mongoose_1.SchemaFactory.createForClass(Users);
+exports.UsersSchema.pre('findOneAndUpdate', function () {
+    const update = this.getUpdate();
+    if (update && update.$set && update.$set.isEligible !== undefined) {
+        if (update.$set.isEligible !== null) {
+            update.$set.isEligible = Boolean(update.$set.isEligible);
+        }
+    }
+});
 
 
 /***/ }),
@@ -4050,12 +4097,12 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
             const threshold = parseFloat(thresholdString);
             const workers = await this.userModel.find({ role: 'worker' });
-            console.log(`Processing eligibility for ${workers.length} workers (threshold: ${threshold})`);
+            this.logger.log(`Processing eligibility for ${workers.length} workers (threshold: ${threshold})`);
             for (const worker of workers) {
                 const workerId = worker._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(workerId);
                 if (eligibilities.length === 0) {
-                    console.log(`Worker ${worker.firstName} ${worker.lastName} (${workerId}) has no eligibility records yet`);
+                    this.logger.log(`Worker ${worker.firstName} ${worker.lastName} (${workerId}) has no eligibility records yet`);
                     continue;
                 }
                 const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
@@ -4067,27 +4114,27 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                         ? 'eligible'
                         : 'not eligible';
                 const newStatus = isEligible ? 'eligible' : 'not eligible';
-                console.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId})`);
-                console.log(`  Average Accuracy: ${averageAccuracy.toFixed(2)} | Threshold: ${threshold}`);
-                console.log(`  Current Status: ${currentStatus} | New Status: ${newStatus}`);
-                console.log(`  Records analyzed: ${eligibilities.length}`);
-                if (worker.isEligible !== isEligible && worker.isEligible !== null) {
-                    console.log(`  ⚠️ Status change detected: ${currentStatus} → ${newStatus}`);
+                this.logger.log(`Worker: ${worker.firstName} ${worker.lastName} (${workerId})`);
+                this.logger.log(`  Average Accuracy: ${averageAccuracy.toFixed(2)} | Threshold: ${threshold}`);
+                this.logger.log(`  Current Status: ${currentStatus} | New Status: ${newStatus}`);
+                this.logger.log(`  Records analyzed: ${eligibilities.length}`);
+                if (worker.isEligible !== isEligible || worker.isEligible === null) {
+                    await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible: Boolean(isEligible) } }, { new: true });
+                    this.logger.log(`  ✅ Database updated: ${currentStatus} → ${newStatus} (Value type: ${typeof Boolean(isEligible)})`);
                 }
-                else if (worker.isEligible === null) {
-                    console.log(`  ⚠️ Initial status would be set to: ${newStatus}`);
-                }
-                console.log('-----------------------------------');
+                this.logger.log('-----------------------------------');
             }
-            console.log('Eligibility calculation completed (dry run - no changes saved)');
+            this.logger.log('Eligibility calculation completed - changes saved to database');
         }
         catch (error) {
-            console.error(`Error calculating worker eligibility: ${error.message}`);
+            this.logger.error(`Error calculating worker eligibility: ${error.message}`);
+            throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
     (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_SECOND),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),

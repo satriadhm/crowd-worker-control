@@ -25,6 +25,9 @@ export class TesterAnalysisView {
 
   @Field()
   accuracy: number;
+
+  @Field({ nullable: true })
+  isEligible?: boolean;
 }
 
 @ObjectType()
@@ -42,8 +45,14 @@ export class TestResultView {
   score: number;
 
   @Field({ nullable: true })
-  feedback: string;
+  eligibilityStatus?: string;
+
+  @Field({ nullable: true })
+  feedback?: string;
 
   @Field()
   createdAt: Date;
+
+  @Field({ nullable: true })
+  formattedDate?: string;
 }
