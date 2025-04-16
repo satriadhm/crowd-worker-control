@@ -1178,8 +1178,6 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
@@ -1433,12 +1431,6 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
     }
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
-__decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_MINUTE),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AccuracyCalculationServiceMX.prototype, "calculateEligibility", null);
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
@@ -2573,105 +2565,6 @@ const configService = new ConfigService(process.env).ensureValues([
     'MX_THRESHOLD',
 ]);
 exports.configService = configService;
-
-
-/***/ }),
-
-/***/ "./src/lib/cron.enum.ts":
-/*!******************************!*\
-  !*** ./src/lib/cron.enum.ts ***!
-  \******************************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CronExpression = void 0;
-var CronExpression;
-(function (CronExpression) {
-    CronExpression["EVERY_SECOND"] = "* * * * * *";
-    CronExpression["EVERY_5_SECONDS"] = "*/5 * * * * *";
-    CronExpression["EVERY_10_SECONDS"] = "*/10 * * * * *";
-    CronExpression["EVERY_30_SECONDS"] = "*/30 * * * * *";
-    CronExpression["EVERY_MINUTE"] = "*/1 * * * *";
-    CronExpression["EVERY_5_MINUTES"] = "0 */5 * * * *";
-    CronExpression["EVERY_10_MINUTES"] = "0 */10 * * * *";
-    CronExpression["EVERY_30_MINUTES"] = "0 */30 * * * *";
-    CronExpression["EVERY_HOUR"] = "0 0-23/1 * * *";
-    CronExpression["EVERY_2_HOURS"] = "0 0-23/2 * * *";
-    CronExpression["EVERY_3_HOURS"] = "0 0-23/3 * * *";
-    CronExpression["EVERY_4_HOURS"] = "0 0-23/4 * * *";
-    CronExpression["EVERY_5_HOURS"] = "0 0-23/5 * * *";
-    CronExpression["EVERY_6_HOURS"] = "0 0-23/6 * * *";
-    CronExpression["EVERY_7_HOURS"] = "0 0-23/7 * * *";
-    CronExpression["EVERY_8_HOURS"] = "0 0-23/8 * * *";
-    CronExpression["EVERY_9_HOURS"] = "0 0-23/9 * * *";
-    CronExpression["EVERY_10_HOURS"] = "0 0-23/10 * * *";
-    CronExpression["EVERY_11_HOURS"] = "0 0-23/11 * * *";
-    CronExpression["EVERY_12_HOURS"] = "0 0-23/12 * * *";
-    CronExpression["EVERY_DAY_AT_1AM"] = "0 01 * * *";
-    CronExpression["EVERY_DAY_AT_2AM"] = "0 02 * * *";
-    CronExpression["EVERY_DAY_AT_3AM"] = "0 03 * * *";
-    CronExpression["EVERY_DAY_AT_4AM"] = "0 04 * * *";
-    CronExpression["EVERY_DAY_AT_5AM"] = "0 05 * * *";
-    CronExpression["EVERY_DAY_AT_6AM"] = "0 06 * * *";
-    CronExpression["EVERY_DAY_AT_7AM"] = "0 07 * * *";
-    CronExpression["EVERY_DAY_AT_8AM"] = "0 08 * * *";
-    CronExpression["EVERY_DAY_AT_9AM"] = "0 09 * * *";
-    CronExpression["EVERY_DAY_AT_10AM"] = "0 10 * * *";
-    CronExpression["EVERY_DAY_AT_11AM"] = "0 11 * * *";
-    CronExpression["EVERY_DAY_AT_NOON"] = "0 12 * * *";
-    CronExpression["EVERY_DAY_AT_1PM"] = "0 13 * * *";
-    CronExpression["EVERY_DAY_AT_2PM"] = "0 14 * * *";
-    CronExpression["EVERY_DAY_AT_3PM"] = "0 15 * * *";
-    CronExpression["EVERY_DAY_AT_4PM"] = "0 16 * * *";
-    CronExpression["EVERY_DAY_AT_5PM"] = "0 17 * * *";
-    CronExpression["EVERY_DAY_AT_6PM"] = "0 18 * * *";
-    CronExpression["EVERY_DAY_AT_7PM"] = "0 19 * * *";
-    CronExpression["EVERY_DAY_AT_8PM"] = "0 20 * * *";
-    CronExpression["EVERY_DAY_AT_9PM"] = "0 21 * * *";
-    CronExpression["EVERY_DAY_AT_10PM"] = "0 22 * * *";
-    CronExpression["EVERY_DAY_AT_11PM"] = "0 23 * * *";
-    CronExpression["EVERY_DAY_AT_MIDNIGHT"] = "0 0 * * *";
-    CronExpression["EVERY_WEEK"] = "0 0 * * 0";
-    CronExpression["EVERY_WEEKDAY"] = "0 0 * * 1-5";
-    CronExpression["EVERY_WEEKEND"] = "0 0 * * 6,0";
-    CronExpression["EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT"] = "0 0 1 * *";
-    CronExpression["EVERY_1ST_DAY_OF_MONTH_AT_NOON"] = "0 12 1 * *";
-    CronExpression["EVERY_2ND_HOUR"] = "0 */2 * * *";
-    CronExpression["EVERY_2ND_HOUR_FROM_1AM_THROUGH_11PM"] = "0 1-23/2 * * *";
-    CronExpression["EVERY_2ND_MONTH"] = "0 0 1 */2 *";
-    CronExpression["EVERY_QUARTER"] = "0 0 1 */3 *";
-    CronExpression["EVERY_6_MONTHS"] = "0 0 1 */6 *";
-    CronExpression["EVERY_YEAR"] = "0 0 1 1 *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_9AM_AND_5PM"] = "0 */30 9-17 * * *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_9AM_AND_6PM"] = "0 */30 9-18 * * *";
-    CronExpression["EVERY_30_MINUTES_BETWEEN_10AM_AND_7PM"] = "0 */30 10-19 * * *";
-    CronExpression["MONDAY_TO_FRIDAY_AT_1AM"] = "0 0 01 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_2AM"] = "0 0 02 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_3AM"] = "0 0 03 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_4AM"] = "0 0 04 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_5AM"] = "0 0 05 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_6AM"] = "0 0 06 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_7AM"] = "0 0 07 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_8AM"] = "0 0 08 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_9AM"] = "0 0 09 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_09_30AM"] = "0 30 09 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_10AM"] = "0 0 10 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11AM"] = "0 0 11 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11_30AM"] = "0 30 11 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_12PM"] = "0 0 12 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_1PM"] = "0 0 13 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_2PM"] = "0 0 14 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_3PM"] = "0 0 15 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_4PM"] = "0 0 16 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_5PM"] = "0 0 17 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_6PM"] = "0 0 18 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_7PM"] = "0 0 19 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_8PM"] = "0 0 20 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_9PM"] = "0 0 21 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_10PM"] = "0 0 22 * * 1-5";
-    CronExpression["MONDAY_TO_FRIDAY_AT_11PM"] = "0 0 23 * * 1-5";
-})(CronExpression || (exports.CronExpression = CronExpression = {}));
 
 
 /***/ }),
@@ -4228,7 +4121,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var UpdateUserService_1;
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -4239,10 +4132,11 @@ const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const get_eligibility_service_1 = __webpack_require__(/*! ../../M1/services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
+const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
 let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
-    constructor(userModel, getEligibilityService) {
+    constructor(userModel, eligibilityModel, getEligibilityService) {
         this.userModel = userModel;
+        this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
         this.iterationTimes = [
             new Date('2025-04-15T04:00:00'),
@@ -4350,6 +4244,16 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         this.logger.log(`Found ${allWorkers.length} total workers for all iterations up to ${currentIteration}`);
         return allWorkers;
     }
+    calculateMedian(values) {
+        if (values.length === 0)
+            return 0;
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 1) {
+            return sorted[middle];
+        }
+        return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
     async qualifyUser() {
         try {
             const currentIteration = this.getCurrentIteration();
@@ -4358,53 +4262,52 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 this.logger.log('No iterations have started yet. Skipping worker qualification.');
                 return;
             }
-            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
-            const threshold = parseFloat(thresholdString);
-            this.logger.log(`Using eligibility threshold: ${threshold}`);
             const workersToEvaluate = await this.getWorkersForAllCompletedIterations();
             this.logger.log(`Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`);
-            const pendingWorkers = workersToEvaluate.filter((w) => w.isEligible === null);
-            this.logger.log(`Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`);
-            for (const user of pendingWorkers) {
+            const workerAccuracies = new Map();
+            const allAccuracyValues = [];
+            for (const user of workersToEvaluate) {
                 const userIdStr = user._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-                this.logger.debug(`Worker ${userIdStr} has ${eligibilities.length} eligibility records`);
-                const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
                 if (eligibilities.length === 0) {
-                    if (hasCompletedTasks) {
+                    continue;
+                }
+                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
+                const averageAccuracy = totalAccuracy / eligibilities.length;
+                workerAccuracies.set(userIdStr, averageAccuracy);
+                allAccuracyValues.push(averageAccuracy);
+                this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`);
+            }
+            const medianAccuracy = this.calculateMedian(allAccuracyValues);
+            this.logger.log(`Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`);
+            const pendingWorkers = workersToEvaluate.filter((w) => w.isEligible === null);
+            this.logger.log(`Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`);
+            const allWorkersToProcess = [
+                ...pendingWorkers,
+                ...workersToEvaluate.filter((w) => w.isEligible !== null),
+            ];
+            for (const user of allWorkersToProcess) {
+                const userIdStr = user._id.toString();
+                if (!workerAccuracies.has(userIdStr)) {
+                    const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
+                    if (hasCompletedTasks && user.isEligible === null) {
                         await this.userModel.findByIdAndUpdate(userIdStr, {
                             $set: { isEligible: false },
                         });
-                        this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but pending evaluation)`);
+                        this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`);
                     }
                     continue;
                 }
-                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
-                const averageAccuracy = totalAccuracy / eligibilities.length;
-                const isEligible = averageAccuracy >= threshold;
-                await this.userModel.findByIdAndUpdate(userIdStr, {
-                    $set: { isEligible: isEligible },
-                });
-                this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
-            }
-            const workersWithStatus = workersToEvaluate.filter((w) => w.isEligible !== null);
-            this.logger.log(`Checking ${workersWithStatus.length} workers with existing eligibility status for updates`);
-            for (const user of workersWithStatus) {
-                const userIdStr = user._id.toString();
-                const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-                if (eligibilities.length === 0)
-                    continue;
-                const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
-                const averageAccuracy = totalAccuracy / eligibilities.length;
-                const newEligibilityStatus = averageAccuracy >= threshold;
-                if (user.isEligible !== newEligibilityStatus) {
+                const averageAccuracy = workerAccuracies.get(userIdStr);
+                const isEligible = averageAccuracy >= medianAccuracy;
+                if (user.isEligible !== isEligible || user.isEligible === null) {
                     await this.userModel.findByIdAndUpdate(userIdStr, {
-                        $set: { isEligible: newEligibilityStatus },
+                        $set: { isEligible: isEligible },
                     });
-                    this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): changed from ${user.isEligible ? 'Eligible' : 'Not Eligible'} to ${newEligibilityStatus ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`);
+                    this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`);
                 }
             }
-            this.logger.log(`Worker qualification process for iteration ${currentIteration} completed successfully`);
+            this.logger.log(`Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`);
         }
         catch (error) {
             this.logger.error(`Error in qualifyUser: ${error.message}`);
@@ -4422,7 +4325,8 @@ __decorate([
 exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _b : Object])
+    __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object])
 ], UpdateUserService);
 
 
@@ -4452,14 +4356,18 @@ const get_user_service_1 = __webpack_require__(/*! ./services/get.user.service *
 const update_user_service_1 = __webpack_require__(/*! ./services/update.user.service */ "./src/users/services/update.user.service.ts");
 const delete_user_service_1 = __webpack_require__(/*! ./services/delete.user.service */ "./src/users/services/delete.user.service.ts");
 const m1_module_1 = __webpack_require__(/*! ../M1/m1.module */ "./src/M1/m1.module.ts");
+const eligibility_1 = __webpack_require__(/*! ../M1/models/eligibility */ "./src/M1/models/eligibility.ts");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            m1_module_1.M1Module,
-            mongoose_1.MongooseModule.forFeature([{ name: user_1.Users.name, schema: user_1.UsersSchema }]),
+            (0, common_1.forwardRef)(() => m1_module_1.M1Module),
+            mongoose_1.MongooseModule.forFeature([
+                { name: user_1.Users.name, schema: user_1.UsersSchema },
+                { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
+            ]),
         ],
         providers: [
             users_resolver_1.UsersResolver,

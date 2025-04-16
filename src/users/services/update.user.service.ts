@@ -9,11 +9,11 @@ import { parseToView } from '../models/parser';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
 import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
-import { configService } from 'src/config/config.service';
+import { Eligibility } from 'src/M1/models/eligibility';
 
 @Injectable()
 export class UpdateUserService {
-  // Define specific timestamps for the three iterations based on the updated requirements
+  // Define specific timestamps for the three iterations
   private readonly iterationTimes = [
     new Date('2025-04-15T04:00:00'), // Iteration 1 starts at 4:00
     new Date('2025-04-15T05:30:00'), // Iteration 2 starts at 5:30
@@ -34,6 +34,8 @@ export class UpdateUserService {
   constructor(
     @InjectModel(Users.name)
     private userModel: Model<Users>,
+    @InjectModel(Eligibility.name) // Inject the Eligibility model properly
+    private eligibilityModel: Model<Eligibility>,
     private readonly getEligibilityService: GetEligibilityService,
   ) {}
 
@@ -88,9 +90,6 @@ export class UpdateUserService {
    */
   private getCurrentIteration(): number {
     const now = new Date();
-
-    // For testing purposes, we can force the current time
-    // const now = new Date('2025-04-15T07:30:00'); // Uncomment for testing specific times
 
     // Check which iteration we're in
     if (now >= this.iterationTimes[2]) {
@@ -186,6 +185,27 @@ export class UpdateUserService {
     return allWorkers;
   }
 
+  /**
+   * Calculate the median value from an array of numbers
+   */
+  private calculateMedian(values: number[]): number {
+    if (values.length === 0) return 0;
+
+    // Sort the array
+    const sorted = [...values].sort((a, b) => a - b);
+
+    // Find the middle
+    const middle = Math.floor(sorted.length / 2);
+
+    // If odd length, return the middle value
+    if (sorted.length % 2 === 1) {
+      return sorted[middle];
+    }
+
+    // If even length, return the average of the two middle values
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
   @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
   async qualifyUser() {
     try {
@@ -201,11 +221,6 @@ export class UpdateUserService {
         return;
       }
 
-      // Get the threshold for eligibility
-      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
-      const threshold = parseFloat(thresholdString);
-      this.logger.log(`Using eligibility threshold: ${threshold}`);
-
       // Get all workers for all completed iterations
       const workersToEvaluate =
         await this.getWorkersForAllCompletedIterations();
@@ -214,40 +229,19 @@ export class UpdateUserService {
         `Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`,
       );
 
-      // Focus on workers with null eligibility status first (these are the ones we need to fix)
-      const pendingWorkers = workersToEvaluate.filter(
-        (w) => w.isEligible === null,
-      );
-      this.logger.log(
-        `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
-      );
+      // Calculate average accuracy for each worker first
+      const workerAccuracies: Map<string, number> = new Map();
+      const allAccuracyValues: number[] = [];
 
-      // Process all pending workers first
-      for (const user of pendingWorkers) {
+      for (const user of workersToEvaluate) {
         const userIdStr = user._id.toString();
 
         // Get all eligibility records for this worker
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-        this.logger.debug(
-          `Worker ${userIdStr} has ${eligibilities.length} eligibility records`,
-        );
 
-        // Check if worker has completed any tasks yet
-        const hasCompletedTasks =
-          user.completedTasks && user.completedTasks.length > 0;
-
+        // Skip if no eligibility records
         if (eligibilities.length === 0) {
-          // If the worker has completed tasks but has no eligibility records,
-          // set default to false until proper evaluation
-          if (hasCompletedTasks) {
-            await this.userModel.findByIdAndUpdate(userIdStr, {
-              $set: { isEligible: false },
-            });
-            this.logger.log(
-              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but pending evaluation)`,
-            );
-          }
           continue;
         }
 
@@ -258,57 +252,77 @@ export class UpdateUserService {
         );
         const averageAccuracy = totalAccuracy / eligibilities.length;
 
-        // Determine eligibility status based on threshold
-        const isEligible = averageAccuracy >= threshold;
+        // Store the worker's average accuracy
+        workerAccuracies.set(userIdStr, averageAccuracy);
+        allAccuracyValues.push(averageAccuracy);
 
-        // Update the worker's eligibility status
-        await this.userModel.findByIdAndUpdate(userIdStr, {
-          $set: { isEligible: isEligible },
-        });
-
-        this.logger.log(
-          `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
+        this.logger.debug(
+          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`,
         );
       }
 
-      // Also check any workers with existing eligibility status to ensure they're up to date
-      const workersWithStatus = workersToEvaluate.filter(
-        (w) => w.isEligible !== null,
-      );
-
+      // Calculate the median accuracy across all workers
+      const medianAccuracy = this.calculateMedian(allAccuracyValues);
       this.logger.log(
-        `Checking ${workersWithStatus.length} workers with existing eligibility status for updates`,
+        `Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`,
       );
 
-      for (const user of workersWithStatus) {
+      // Process workers with null eligibility status first
+      const pendingWorkers = workersToEvaluate.filter(
+        (w) => w.isEligible === null,
+      );
+      this.logger.log(
+        `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
+      );
+
+      // Process all workers, starting with pending ones
+      const allWorkersToProcess = [
+        ...pendingWorkers,
+        ...workersToEvaluate.filter((w) => w.isEligible !== null),
+      ];
+
+      for (const user of allWorkersToProcess) {
         const userIdStr = user._id.toString();
-        const eligibilities =
-          await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
 
-        if (eligibilities.length === 0) continue;
+        // Skip if worker has no accuracy calculated yet
+        if (!workerAccuracies.has(userIdStr)) {
+          // Check if worker has completed any tasks yet
+          const hasCompletedTasks =
+            user.completedTasks && user.completedTasks.length > 0;
 
-        // Calculate average accuracy
-        const totalAccuracy = eligibilities.reduce(
-          (sum, e) => sum + (e.accuracy || 0),
-          0,
-        );
-        const averageAccuracy = totalAccuracy / eligibilities.length;
-        const newEligibilityStatus = averageAccuracy >= threshold;
+          // If they have completed tasks but no eligibility records, set to false
+          if (hasCompletedTasks && user.isEligible === null) {
+            await this.userModel.findByIdAndUpdate(userIdStr, {
+              $set: { isEligible: false },
+            });
+            this.logger.log(
+              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`,
+            );
+          }
+          continue;
+        }
 
-        // Only update if status has changed
-        if (user.isEligible !== newEligibilityStatus) {
+        // Get the worker's average accuracy
+        const averageAccuracy = workerAccuracies.get(userIdStr);
+
+        // Determine eligibility based on median threshold:
+        // Workers with accuracy above the median are eligible
+        const isEligible = averageAccuracy >= medianAccuracy;
+
+        // Only update if the eligibility status changed or was null
+        if (user.isEligible !== isEligible || user.isEligible === null) {
           await this.userModel.findByIdAndUpdate(userIdStr, {
-            $set: { isEligible: newEligibilityStatus },
+            $set: { isEligible: isEligible },
           });
 
           this.logger.log(
-            `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): changed from ${user.isEligible ? 'Eligible' : 'Not Eligible'} to ${newEligibilityStatus ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)})`,
+            `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`,
           );
         }
       }
 
       this.logger.log(
-        `Worker qualification process for iteration ${currentIteration} completed successfully`,
+        `Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`,
       );
     } catch (error) {
       this.logger.error(`Error in qualifyUser: ${error.message}`);

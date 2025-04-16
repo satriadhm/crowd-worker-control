@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Users, UsersSchema } from './models/user';
 import { UsersResolver } from './users.resolver';
@@ -7,11 +7,15 @@ import { GetUserService } from './services/get.user.service';
 import { UpdateUserService } from './services/update.user.service';
 import { DeleteUserService } from './services/delete.user.service';
 import { M1Module } from '../M1/m1.module';
+import { Eligibility, EligibilitySchema } from '../M1/models/eligibility';
 
 @Module({
   imports: [
-    M1Module,
-    MongooseModule.forFeature([{ name: Users.name, schema: UsersSchema }]),
+    forwardRef(() => M1Module),
+    MongooseModule.forFeature([
+      { name: Users.name, schema: UsersSchema },
+      { name: Eligibility.name, schema: EligibilitySchema }, // Add the Eligibility model here
+    ]),
   ],
   providers: [
     UsersResolver,
