@@ -1,3 +1,4 @@
+// src/MX/services/worker-analysis/worker-analysis.service.ts
 import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,6 +13,7 @@ import { Eligibility } from 'src/MX/models/eligibility';
 import { RecordedAnswer } from 'src/MX/models/recorded';
 import { GetUserService } from 'src/users/services/get.user.service';
 import { configService } from 'src/config/config.service';
+import { Users } from 'src/users/models/user';
 
 @Injectable()
 export class WorkerAnalysisService {
@@ -23,6 +25,8 @@ export class WorkerAnalysisService {
     private readonly eligibilityModel: Model<Eligibility>,
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    @InjectModel(Users.name)
+    private readonly userModel: Model<Users>,
     private readonly getUserService: GetUserService,
   ) {
     // Initialize performance history with real data at service start
@@ -138,6 +142,9 @@ export class WorkerAnalysisService {
           createdAt: eligibility.createdAt,
           formattedDate: formattedDate,
         });
+
+        // Auto-update worker eligibility status when we process a new eligibility
+        await this.updateWorkerEligibility(eligibility.workerId.toString());
       }
 
       return results;
@@ -146,6 +153,50 @@ export class WorkerAnalysisService {
       throw new ThrowGQL(
         'Failed to retrieve test results data',
         GQLThrowType.UNEXPECTED,
+      );
+    }
+  }
+
+  // Helper method to update a worker's eligibility status based on their eligibility records
+  async updateWorkerEligibility(workerId: string): Promise<void> {
+    try {
+      // Get eligibility records for this worker
+      const eligibilities = await this.eligibilityModel
+        .find({ workerId })
+        .exec();
+
+      if (eligibilities.length === 0) return; // Skip if no eligibility records
+
+      // Calculate average accuracy
+      const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+      const averageAccuracy =
+        accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+        accuracyValues.length;
+
+      // Get threshold
+      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
+      const threshold = parseFloat(thresholdString) || 0.7;
+
+      // Determine eligibility
+      const isEligible = averageAccuracy >= threshold;
+
+      // Update worker document
+      await this.userModel.findByIdAndUpdate(
+        workerId,
+        { $set: { isEligible } },
+        { new: true },
+      );
+
+      this.logger.log(
+        `Auto-updated eligibility for worker ${workerId}: ${
+          isEligible ? 'Eligible' : 'Not Eligible'
+        } (average accuracy: ${averageAccuracy.toFixed(
+          2,
+        )}, threshold: ${threshold})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error updating eligibility for worker ${workerId}: ${error.message}`,
       );
     }
   }
@@ -238,5 +289,27 @@ export class WorkerAnalysisService {
   // Helper method to consistently format accuracy percentages
   private formatAccuracyPercentage(value: number): string {
     return `${(value * 100).toFixed(1)}%`;
+  }
+
+  // Add a cron job that runs every minute to update all worker eligibility statuses
+  @Cron(CronExpression.EVERY_MINUTE)
+  async updateAllWorkerEligibility() {
+    try {
+      const workers = await this.getUserService.getAllWorkers();
+
+      this.logger.log(
+        `Starting eligibility update for ${workers.length} workers`,
+      );
+
+      for (const worker of workers) {
+        await this.updateWorkerEligibility(worker.id);
+      }
+
+      this.logger.log('All worker eligibility statuses updated successfully');
+    } catch (error) {
+      this.logger.error(
+        `Error updating all worker eligibility statuses: ${error.message}`,
+      );
+    }
   }
 }

@@ -763,7 +763,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
@@ -819,6 +819,15 @@ let M1Resolver = class M1Resolver {
     }
     async updateThresholdSettings(input) {
         return this.utilsService.updateThresholdSettings(input.thresholdType, input.thresholdValue);
+    }
+    async triggerEligibilityUpdate() {
+        try {
+            await this.workerAnalysisService.updateAllWorkerEligibility();
+            return true;
+        }
+        catch (error) {
+            return false;
+        }
     }
 };
 exports.M1Resolver = M1Resolver;
@@ -882,6 +891,13 @@ __decorate([
     __metadata("design:paramtypes", [typeof (_q = typeof create_utils_input_1.ThresholdSettingsInput !== "undefined" && create_utils_input_1.ThresholdSettingsInput) === "function" ? _q : Object]),
     __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
 ], M1Resolver.prototype, "updateThresholdSettings", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => Boolean),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_s = typeof Promise !== "undefined" && Promise) === "function" ? _s : Object)
+], M1Resolver.prototype, "triggerEligibilityUpdate", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
@@ -1595,7 +1611,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateRecordedService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1604,21 +1620,25 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
+const worker_analysis_service_1 = __webpack_require__(/*! ../worker-analysis/worker-analysis.service */ "./src/MX/services/worker-analysis/worker-analysis.service.ts");
 let CreateRecordedService = class CreateRecordedService {
-    constructor(recordedAnswerModel, getTaskService) {
+    constructor(recordedAnswerModel, getTaskService, workerAnalysisService) {
         this.recordedAnswerModel = recordedAnswerModel;
         this.getTaskService = getTaskService;
+        this.workerAnalysisService = workerAnalysisService;
     }
     async createRecordedAnswer(taskId, workerId, answerId) {
         try {
             const task = await this.getTaskService.getTaskById(taskId);
             const answerText = task?.answers.find((a) => a.answerId === answerId)?.answer || '';
-            return this.recordedAnswerModel.create({
+            const recordedAnswer = await this.recordedAnswerModel.create({
                 taskId,
                 workerId,
                 answerId,
                 answer: answerText,
             });
+            await this.workerAnalysisService.updateWorkerEligibility(workerId);
+            return recordedAnswer;
         }
         catch (error) {
             throw new gqlerr_1.ThrowGQL('Error in creating recorded answer', error);
@@ -1634,7 +1654,7 @@ exports.CreateRecordedService = CreateRecordedService;
 exports.CreateRecordedService = CreateRecordedService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof worker_analysis_service_1.WorkerAnalysisService !== "undefined" && worker_analysis_service_1.WorkerAnalysisService) === "function" ? _c : Object])
 ], CreateRecordedService);
 
 
@@ -1922,7 +1942,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var WorkerAnalysisService_1;
-var _a, _b, _c;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WorkerAnalysisService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1934,10 +1954,12 @@ const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./sr
 const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
 const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
+const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
-    constructor(eligibilityModel, recordedAnswerModel, getUserService) {
+    constructor(eligibilityModel, recordedAnswerModel, userModel, getUserService) {
         this.eligibilityModel = eligibilityModel;
         this.recordedAnswerModel = recordedAnswerModel;
+        this.userModel = userModel;
         this.getUserService = getUserService;
         this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
         this.performanceHistory = [];
@@ -2016,12 +2038,33 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                     createdAt: eligibility.createdAt,
                     formattedDate: formattedDate,
                 });
+                await this.updateWorkerEligibility(eligibility.workerId.toString());
             }
             return results;
         }
         catch (error) {
             this.logger.error('Error getting test results data', error);
             throw new gqlerr_1.ThrowGQL('Failed to retrieve test results data', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async updateWorkerEligibility(workerId) {
+        try {
+            const eligibilities = await this.eligibilityModel
+                .find({ workerId })
+                .exec();
+            if (eligibilities.length === 0)
+                return;
+            const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+            const averageAccuracy = accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+                accuracyValues.length;
+            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
+            const threshold = parseFloat(thresholdString) || 0.7;
+            const isEligible = averageAccuracy >= threshold;
+            await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible } }, { new: true });
+            this.logger.log(`Auto-updated eligibility for worker ${workerId}: ${isEligible ? 'Eligible' : 'Not Eligible'} (average accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold})`);
+        }
+        catch (error) {
+            this.logger.error(`Error updating eligibility for worker ${workerId}: ${error.message}`);
         }
     }
     async updatePerformanceMetrics() {
@@ -2092,6 +2135,19 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
     formatAccuracyPercentage(value) {
         return `${(value * 100).toFixed(1)}%`;
     }
+    async updateAllWorkerEligibility() {
+        try {
+            const workers = await this.getUserService.getAllWorkers();
+            this.logger.log(`Starting eligibility update for ${workers.length} workers`);
+            for (const worker of workers) {
+                await this.updateWorkerEligibility(worker.id);
+            }
+            this.logger.log('All worker eligibility statuses updated successfully');
+        }
+        catch (error) {
+            this.logger.error(`Error updating all worker eligibility statuses: ${error.message}`);
+        }
+    }
 };
 exports.WorkerAnalysisService = WorkerAnalysisService;
 __decorate([
@@ -2100,11 +2156,18 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], WorkerAnalysisService.prototype, "updatePerformanceMetrics", null);
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], WorkerAnalysisService.prototype, "updateAllWorkerEligibility", null);
 exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __param(1, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _c : Object])
+    __param(2, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object])
 ], WorkerAnalysisService);
 
 

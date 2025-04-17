@@ -1,3 +1,4 @@
+// src/MX/mx.resolver.ts
 import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Role } from 'src/lib/user.enum';
@@ -40,8 +41,13 @@ export class M1Resolver {
     @Context() context: any,
   ): Promise<boolean> {
     const workerId = context.req.user.id;
+
+    // Record answer and automatically update eligibility
     await this.createRecordedService.recordAnswer(input, workerId);
+
+    // Update user task completion history
     await this.updateUserService.userHasDoneTask(input, workerId);
+
     return true;
   }
 
@@ -54,7 +60,6 @@ export class M1Resolver {
   }
 
   // New APIs for Worker Analysis Page
-
   @Query(() => [AlgorithmPerformanceData])
   @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
   async getAlgorithmPerformance(): Promise<AlgorithmPerformanceData[]> {
@@ -94,5 +99,16 @@ export class M1Resolver {
       input.thresholdType as ThresholdType,
       input.thresholdValue,
     );
+  }
+
+  @Mutation(() => Boolean)
+  @Roles(Role.ADMIN)
+  async triggerEligibilityUpdate(): Promise<boolean> {
+    try {
+      await this.workerAnalysisService.updateAllWorkerEligibility();
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 }
