@@ -112,8 +112,6 @@ export class UtilsService {
     }
   }
 
-  // Method to calculate threshold based on current settings
-  // This will be used by the worker eligibility service
   async calculateThreshold(accuracyValues: number[]): Promise<number> {
     try {
       if (!accuracyValues || accuracyValues.length === 0) {
@@ -124,11 +122,9 @@ export class UtilsService {
 
       switch (settings.thresholdType) {
         case ThresholdType.MEDIAN: {
-          // Sort values and find the median
           const sorted = [...accuracyValues].sort((a, b) => a - b);
           const middle = Math.floor(sorted.length / 2);
 
-          // If odd length, return the middle value, otherwise average the two middle values
           const median =
             sorted.length % 2 === 1
               ? sorted[middle]
@@ -138,7 +134,6 @@ export class UtilsService {
         }
 
         case ThresholdType.MEAN: {
-          // Calculate the mean (average)
           const sum = accuracyValues.reduce((acc, val) => acc + val, 0);
           return sum / accuracyValues.length;
         }
