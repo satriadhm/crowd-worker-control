@@ -17,6 +17,9 @@ import {
 import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
 import { DashboardSummary } from './dto/dashboard/dashboard.view';
 import { DashboardService } from './services/dashboard/dashboard.service';
+import { ThresholdType, Utils } from './models/utils';
+import { UtilsService } from './services/utils/utils.service';
+import { ThresholdSettingsInput } from './dto/utils/create.utils.input';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -27,6 +30,7 @@ export class M1Resolver {
     private readonly updateUserService: UpdateUserService,
     private readonly workerAnalysisService: WorkerAnalysisService,
     private readonly dashboardService: DashboardService,
+    private readonly utilsService: UtilsService,
   ) {}
 
   @Mutation(() => Boolean)
@@ -73,5 +77,22 @@ export class M1Resolver {
   @Roles(Role.ADMIN, Role.WORKER)
   async getDashboardSummary(): Promise<DashboardSummary> {
     return this.dashboardService.getDashboardSummary();
+  }
+
+  @Query(() => Utils)
+  @Roles(Role.ADMIN)
+  async getThresholdSettings(): Promise<Utils> {
+    return this.utilsService.getThresholdSettings();
+  }
+
+  @Mutation(() => Utils)
+  @Roles(Role.ADMIN)
+  async updateThresholdSettings(
+    @Args('input') input: ThresholdSettingsInput,
+  ): Promise<Utils> {
+    return this.utilsService.updateThresholdSettings(
+      input.thresholdType as ThresholdType,
+      input.thresholdValue,
+    );
   }
 }

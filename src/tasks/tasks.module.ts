@@ -8,7 +8,7 @@ import { UpdateTaskService } from './services/update.task.service';
 import { DeleteTaskService } from './services/delete.task.service';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
-import { M1Module } from 'src/M1/m1.module';
+import { M1Module } from 'src/MX/mx.module';
 
 @Module({
   imports: [

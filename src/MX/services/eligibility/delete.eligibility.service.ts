@@ -3,8 +3,8 @@ import { Eligibility } from '../../models/eligibility';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
-import { EligibilityView } from 'src/M1/dto/eligibility/views/eligibility.view';
-import { parseToViewEligibility } from 'src/M1/models/parser';
+import { EligibilityView } from 'src/MX/dto/eligibility/views/eligibility.view';
+import { parseToViewEligibility } from 'src/MX/models/parser';
 
 @Injectable()
 export class DeleteEligibilityService {

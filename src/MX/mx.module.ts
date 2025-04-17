@@ -1,7 +1,7 @@
-import { TasksModule } from './../tasks/tasks.module';
+import { TasksModule } from '../tasks/tasks.module';
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { M1Resolver } from './m1.resolver';
+import { M1Resolver } from './mx.resolver';
 import { Task, TaskSchema } from 'src/tasks/models/task';
 import { RecordedAnswer, RecordedAnswerSchema } from './models/recorded';
 import { Eligibility, EligibilitySchema } from './models/eligibility';
@@ -17,6 +17,7 @@ import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.servi
 import { WorkerAnalysisService } from './services/worker-analysis/worker-analysis.service';
 import { DashboardService } from './services/dashboard/dashboard.service';
 import { MissingWorkerIdCronService } from './services/worker-analysis/data-analysis.service';
+import { UtilsService } from './services/utils/utils.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { MissingWorkerIdCronService } from './services/worker-analysis/data-anal
     UpdateEligibilityService,
     AccuracyCalculationServiceMX,
     WorkerAnalysisService,
+    UtilsService,
     DashboardService,
     M1Resolver,
   ],
@@ -50,6 +52,7 @@ import { MissingWorkerIdCronService } from './services/worker-analysis/data-anal
     GetRecordedAnswerService,
     UpdateEligibilityService,
     DashboardService,
+    UtilsService,
     AccuracyCalculationServiceMX,
     WorkerAnalysisService,
   ],

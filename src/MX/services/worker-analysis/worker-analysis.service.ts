@@ -7,9 +7,9 @@ import {
   AlgorithmPerformanceData,
   TesterAnalysisView,
   TestResultView,
-} from 'src/M1/dto/worker-analysis/worker-analysis.view';
-import { Eligibility } from 'src/M1/models/eligibility';
-import { RecordedAnswer } from 'src/M1/models/recorded';
+} from 'src/MX/dto/worker-analysis/worker-analysis.view';
+import { Eligibility } from 'src/MX/models/eligibility';
+import { RecordedAnswer } from 'src/MX/models/recorded';
 import { GetUserService } from 'src/users/services/get.user.service';
 import { configService } from 'src/config/config.service';
 

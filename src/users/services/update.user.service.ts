@@ -7,9 +7,10 @@ import { UserView } from '../dto/views/user.view';
 import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { parseToView } from '../models/parser';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { GetEligibilityService } from '../../M1/services/eligibility/get.eligibility.service';
-import { CreateRecordedAnswerInput } from 'src/M1/dto/recorded/create.recorded.input';
-import { Eligibility } from 'src/M1/models/eligibility';
+import { GetEligibilityService } from '../../MX/services/eligibility/get.eligibility.service';
+import { CreateRecordedAnswerInput } from 'src/MX/dto/recorded/create.recorded.input';
+import { Eligibility } from 'src/MX/models/eligibility';
+import { UtilsService } from 'src/MX/services/utils/utils.service';
 
 @Injectable()
 export class UpdateUserService {
@@ -34,9 +35,10 @@ export class UpdateUserService {
   constructor(
     @InjectModel(Users.name)
     private userModel: Model<Users>,
-    @InjectModel(Eligibility.name) // Inject the Eligibility model properly
+    @InjectModel(Eligibility.name)
     private eligibilityModel: Model<Eligibility>,
     private readonly getEligibilityService: GetEligibilityService,
+    private readonly utilsService: UtilsService, // Inject the UtilsService
   ) {}
 
   async updateUser(input: UpdateUserInput): Promise<UserView> {
@@ -185,152 +187,7 @@ export class UpdateUserService {
     return allWorkers;
   }
 
-  /**
-   * Calculate the median value from an array of numbers
-   */
-  private calculateMedian(values: number[]): number {
-    if (values.length === 0) return 0;
-
-    // Sort the array
-    const sorted = [...values].sort((a, b) => a - b);
-
-    // Find the middle
-    const middle = Math.floor(sorted.length / 2);
-
-    // If odd length, return the middle value
-    if (sorted.length % 2 === 1) {
-      return sorted[middle];
-    }
-
-    // If even length, return the average of the two middle values
-    return (sorted[middle - 1] + sorted[middle]) / 2;
-  }
-
-  // @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
-  // async qualifyUser() {
-  //   try {
-  //     const currentIteration = this.getCurrentIteration();
-  //     this.logger.log(
-  //       `Starting worker qualification process for iteration ${currentIteration}`,
-  //     );
-
-  //     if (currentIteration === 0) {
-  //       this.logger.log(
-  //         'No iterations have started yet. Skipping worker qualification.',
-  //       );
-  //       return;
-  //     }
-
-  //     // Get all workers for all completed iterations
-  //     const workersToEvaluate =
-  //       await this.getWorkersForAllCompletedIterations();
-
-  //     this.logger.log(
-  //       `Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`,
-  //     );
-
-  //     // Calculate average accuracy for each worker first
-  //     const workerAccuracies: Map<string, number> = new Map();
-  //     const allAccuracyValues: number[] = [];
-
-  //     for (const user of workersToEvaluate) {
-  //       const userIdStr = user._id.toString();
-
-  //       // Get all eligibility records for this worker
-  //       const eligibilities =
-  //         await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-
-  //       // Skip if no eligibility records
-  //       if (eligibilities.length === 0) {
-  //         continue;
-  //       }
-
-  //       // Calculate average accuracy from eligibility records
-  //       const totalAccuracy = eligibilities.reduce(
-  //         (sum, e) => sum + (e.accuracy || 0),
-  //         0,
-  //       );
-  //       const averageAccuracy = totalAccuracy / eligibilities.length;
-
-  //       // Store the worker's average accuracy
-  //       workerAccuracies.set(userIdStr, averageAccuracy);
-  //       allAccuracyValues.push(averageAccuracy);
-
-  //       this.logger.debug(
-  //         `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`,
-  //       );
-  //     }
-
-  //     // Calculate the median accuracy across all workers
-  //     const medianAccuracy = this.calculateMedian(allAccuracyValues);
-  //     this.logger.log(
-  //       `Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`,
-  //     );
-
-  //     // Process workers with null eligibility status first
-  //     const pendingWorkers = workersToEvaluate.filter(
-  //       (w) => w.isEligible === null,
-  //     );
-  //     this.logger.log(
-  //       `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
-  //     );
-
-  //     // Process all workers, starting with pending ones
-  //     const allWorkersToProcess = [
-  //       ...pendingWorkers,
-  //       ...workersToEvaluate.filter((w) => w.isEligible !== null),
-  //     ];
-
-  //     for (const user of allWorkersToProcess) {
-  //       const userIdStr = user._id.toString();
-
-  //       // Skip if worker has no accuracy calculated yet
-  //       if (!workerAccuracies.has(userIdStr)) {
-  //         // Check if worker has completed any tasks yet
-  //         const hasCompletedTasks =
-  //           user.completedTasks && user.completedTasks.length > 0;
-
-  //         // If they have completed tasks but no eligibility records, set to false
-  //         if (hasCompletedTasks && user.isEligible === null) {
-  //           await this.userModel.findByIdAndUpdate(userIdStr, {
-  //             $set: { isEligible: false },
-  //           });
-  //           this.logger.log(
-  //             `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`,
-  //           );
-  //         }
-  //         continue;
-  //       }
-
-  //       // Get the worker's average accuracy
-  //       const averageAccuracy = workerAccuracies.get(userIdStr);
-
-  //       // Determine eligibility based on median threshold:
-  //       // Workers with accuracy above the median are eligible
-  //       const isEligible = averageAccuracy > medianAccuracy;
-
-  //       // Only update if the eligibility status changed or was null
-  //       if (user.isEligible !== isEligible || user.isEligible === null) {
-  //         await this.userModel.findByIdAndUpdate(userIdStr, {
-  //           $set: { isEligible: isEligible },
-  //         });
-
-  //         this.logger.log(
-  //           `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`,
-  //         );
-  //       }
-  //     }
-
-  //     this.logger.log(
-  //       `Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`,
-  //     );
-  //   } catch (error) {
-  //     this.logger.error(`Error in qualifyUser: ${error.message}`);
-  //     throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
-  //   }
-  // }
-
-  @Cron(CronExpression.EVERY_DAY_AT_10PM) // Anda bisa sesuaikan jadwalnya atau memanggilnya secara manual
+  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
   async requalifyAllUsers() {
     try {
       // Ambil semua worker tanpa mempedulikan iteration
@@ -369,11 +226,13 @@ export class UpdateUserService {
         );
       }
 
-      // Hitung nilai median accuracy dan bulatkan ke tiga angka di belakang koma
-      const medianAccuracy = this.calculateMedian(allAccuracyValues);
-      const medianRounded = Number(medianAccuracy.toFixed(3));
+      // Calculate the threshold using the UtilsService instead of fixed median calculation
+      const threshold =
+        await this.utilsService.calculateThreshold(allAccuracyValues);
+      const thresholdRounded = Number(threshold.toFixed(3));
+
       this.logger.log(
-        `Median accuracy (rounded) across all workers: ${medianRounded.toFixed(3)}`,
+        `Threshold value (rounded) for worker eligibility: ${thresholdRounded.toFixed(3)}`,
       );
 
       // Update eligibility untuk masing-masing worker yang memiliki average accuracy
@@ -396,24 +255,24 @@ export class UpdateUserService {
         const averageAccuracy = workerAccuracies.get(userIdStr);
         const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
 
-        // Tentukan eligibility dengan operator > (strictly greater)
-        const isEligible = averageAccuracyRounded > medianRounded;
+        // Tentukan eligibility berdasarkan threshold yang telah dihitung
+        const isEligible = averageAccuracyRounded > thresholdRounded;
         console.log(
           `Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(
             3,
-          )}, Median: ${medianRounded.toFixed(3)}, Eligible: ${isEligible}`,
+          )}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}`,
         );
         await this.userModel.findByIdAndUpdate(userIdStr, {
           $set: { isEligible: isEligible },
         });
 
         this.logger.log(
-          `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, median: ${medianRounded.toFixed(3)})`,
+          `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)})`,
         );
       }
 
       this.logger.log(
-        `Requalify process completed. Median threshold (rounded): ${medianRounded.toFixed(3)}`,
+        `Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}`,
       );
     } catch (error) {
       this.logger.error(`Error in requalifyAllUsers: ${error.message}`);

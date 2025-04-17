@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { RecordedAnswer } from 'src/M1/models/recorded';
+import { RecordedAnswer } from 'src/MX/models/recorded';
 import { Users } from 'src/users/models/user';
 
 @Injectable()

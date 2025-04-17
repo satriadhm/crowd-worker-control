@@ -7,7 +7,7 @@ import { configService } from './config/config.service';
 import { TasksModule } from './tasks/tasks.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { M1Module } from './M1/m1.module';
+import { M1Module } from './MX/mx.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GQLErrFormatter } from '@app/gqlerr';
 import { ScheduleModule } from '@nestjs/schedule';

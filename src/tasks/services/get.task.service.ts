@@ -7,7 +7,7 @@ import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { parseToView } from '../models/parser';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
-import { GetRecordedAnswerService } from 'src/M1/services/recorded/get.recorded.service';
+import { GetRecordedAnswerService } from 'src/MX/services/recorded/get.recorded.service';
 
 @Injectable()
 export class GetTaskService {

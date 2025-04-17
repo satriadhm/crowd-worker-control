@@ -138,9 +138,9 @@ exports.CThrowType = {
 
 /***/ }),
 
-/***/ "./src/M1/dto/dashboard/dashboard.view.ts":
+/***/ "./src/MX/dto/dashboard/dashboard.view.ts":
 /*!************************************************!*\
-  !*** ./src/M1/dto/dashboard/dashboard.view.ts ***!
+  !*** ./src/MX/dto/dashboard/dashboard.view.ts ***!
   \************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -229,9 +229,9 @@ exports.DashboardSummary = DashboardSummary = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/dto/eligibility/views/eligibility.view.ts":
+/***/ "./src/MX/dto/eligibility/views/eligibility.view.ts":
 /*!**********************************************************!*\
-  !*** ./src/M1/dto/eligibility/views/eligibility.view.ts ***!
+  !*** ./src/MX/dto/eligibility/views/eligibility.view.ts ***!
   \**********************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -283,9 +283,9 @@ exports.EligibilityView = EligibilityView = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/dto/recorded/create.recorded.input.ts":
+/***/ "./src/MX/dto/recorded/create.recorded.input.ts":
 /*!******************************************************!*\
-  !*** ./src/M1/dto/recorded/create.recorded.input.ts ***!
+  !*** ./src/MX/dto/recorded/create.recorded.input.ts ***!
   \******************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -324,9 +324,53 @@ exports.CreateRecordedAnswerInput = CreateRecordedAnswerInput = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/dto/worker-analysis/worker-analysis.view.ts":
+/***/ "./src/MX/dto/utils/create.utils.input.ts":
+/*!************************************************!*\
+  !*** ./src/MX/dto/utils/create.utils.input.ts ***!
+  \************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ThresholdSettingsInput = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+const class_validator_1 = __webpack_require__(/*! class-validator */ "class-validator");
+const utils_1 = __webpack_require__(/*! ../../models/utils */ "./src/MX/models/utils.ts");
+let ThresholdSettingsInput = class ThresholdSettingsInput {
+};
+exports.ThresholdSettingsInput = ThresholdSettingsInput;
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    (0, class_validator_1.IsEnum)(utils_1.ThresholdType),
+    __metadata("design:type", String)
+], ThresholdSettingsInput.prototype, "thresholdType", void 0);
+__decorate([
+    (0, graphql_1.Field)({ nullable: true }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(1),
+    __metadata("design:type", Number)
+], ThresholdSettingsInput.prototype, "thresholdValue", void 0);
+exports.ThresholdSettingsInput = ThresholdSettingsInput = __decorate([
+    (0, graphql_1.InputType)()
+], ThresholdSettingsInput);
+
+
+/***/ }),
+
+/***/ "./src/MX/dto/worker-analysis/worker-analysis.view.ts":
 /*!************************************************************!*\
-  !*** ./src/M1/dto/worker-analysis/worker-analysis.view.ts ***!
+  !*** ./src/MX/dto/worker-analysis/worker-analysis.view.ts ***!
   \************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -430,210 +474,9 @@ exports.TestResultView = TestResultView = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/m1.module.ts":
-/*!*****************************!*\
-  !*** ./src/M1/m1.module.ts ***!
-  \*****************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.M1Module = void 0;
-const tasks_module_1 = __webpack_require__(/*! ./../tasks/tasks.module */ "./src/tasks/tasks.module.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const m1_resolver_1 = __webpack_require__(/*! ./m1.resolver */ "./src/M1/m1.resolver.ts");
-const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
-const recorded_1 = __webpack_require__(/*! ./models/recorded */ "./src/M1/models/recorded.ts");
-const eligibility_1 = __webpack_require__(/*! ./models/eligibility */ "./src/M1/models/eligibility.ts");
-const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
-const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
-const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/M1/services/eligibility/update.eligibility.service.ts");
-const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
-const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
-const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
-const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx/mx.calculation.service */ "./src/M1/services/mx/mx.calculation.service.ts");
-const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
-const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/M1/services/dashboard/dashboard.service.ts");
-const data_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/data-analysis.service */ "./src/M1/services/worker-analysis/data-analysis.service.ts");
-let M1Module = class M1Module {
-};
-exports.M1Module = M1Module;
-exports.M1Module = M1Module = __decorate([
-    (0, common_1.Module)({
-        imports: [
-            (0, common_1.forwardRef)(() => tasks_module_1.TasksModule),
-            (0, common_1.forwardRef)(() => users_module_1.UsersModule),
-            mongoose_1.MongooseModule.forFeature([
-                { name: task_1.Task.name, schema: task_1.TaskSchema },
-                { name: recorded_1.RecordedAnswer.name, schema: recorded_1.RecordedAnswerSchema },
-                { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
-                { name: user_1.Users.name, schema: user_1.UsersSchema },
-            ]),
-        ],
-        providers: [
-            create_recorded_input_1.CreateRecordedAnswerInput,
-            data_analysis_service_1.MissingWorkerIdCronService,
-            create_recorded_service_1.CreateRecordedService,
-            create_eligibility_service_1.CreateEligibilityService,
-            get_eligibility_service_1.GetEligibilityService,
-            get_recorded_service_1.GetRecordedAnswerService,
-            update_eligibility_service_1.UpdateEligibilityService,
-            mx_calculation_service_1.AccuracyCalculationServiceMX,
-            worker_analysis_service_1.WorkerAnalysisService,
-            dashboard_service_1.DashboardService,
-            m1_resolver_1.M1Resolver,
-        ],
-        exports: [
-            create_recorded_input_1.CreateRecordedAnswerInput,
-            create_recorded_service_1.CreateRecordedService,
-            create_eligibility_service_1.CreateEligibilityService,
-            get_eligibility_service_1.GetEligibilityService,
-            get_recorded_service_1.GetRecordedAnswerService,
-            update_eligibility_service_1.UpdateEligibilityService,
-            dashboard_service_1.DashboardService,
-            mx_calculation_service_1.AccuracyCalculationServiceMX,
-            worker_analysis_service_1.WorkerAnalysisService,
-        ],
-    })
-], M1Module);
-
-
-/***/ }),
-
-/***/ "./src/M1/m1.resolver.ts":
-/*!*******************************!*\
-  !*** ./src/M1/m1.resolver.ts ***!
-  \*******************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.M1Resolver = void 0;
-const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
-const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
-const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/M1/services/recorded/create.recorded.service.ts");
-const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligibility.view */ "./src/M1/dto/eligibility/views/eligibility.view.ts");
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
-const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
-const update_user_service_1 = __webpack_require__(/*! ../users/services/update.user.service */ "./src/users/services/update.user.service.ts");
-const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
-const worker_analysis_view_1 = __webpack_require__(/*! ./dto/worker-analysis/worker-analysis.view */ "./src/M1/dto/worker-analysis/worker-analysis.view.ts");
-const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/M1/services/worker-analysis/worker-analysis.service.ts");
-const dashboard_view_1 = __webpack_require__(/*! ./dto/dashboard/dashboard.view */ "./src/M1/dto/dashboard/dashboard.view.ts");
-const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/M1/services/dashboard/dashboard.service.ts");
-let M1Resolver = class M1Resolver {
-    constructor(getEligibilityService, createRecordedService, updateUserService, workerAnalysisService, dashboardService) {
-        this.getEligibilityService = getEligibilityService;
-        this.createRecordedService = createRecordedService;
-        this.updateUserService = updateUserService;
-        this.workerAnalysisService = workerAnalysisService;
-        this.dashboardService = dashboardService;
-    }
-    async submitAnswer(input, context) {
-        const workerId = context.req.user.id;
-        await this.createRecordedService.recordAnswer(input, workerId);
-        await this.updateUserService.userHasDoneTask(input, workerId);
-        return true;
-    }
-    async getEligibilityHistory(workerId) {
-        return this.getEligibilityService.getEligibilityWorkerId(workerId);
-    }
-    async getAlgorithmPerformance() {
-        return this.workerAnalysisService.getAlgorithmPerformance();
-    }
-    async getTesterAnalysis() {
-        return this.workerAnalysisService.getTesterAnalysis();
-    }
-    async getTestResults() {
-        return this.workerAnalysisService.getTestResults();
-    }
-    async getDashboardSummary() {
-        return this.dashboardService.getDashboardSummary();
-    }
-};
-exports.M1Resolver = M1Resolver;
-__decorate([
-    (0, graphql_1.Mutation)(() => Boolean),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
-    __param(0, (0, graphql_1.Args)('input')),
-    __param(1, (0, graphql_1.Context)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_f = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _f : Object, Object]),
-    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
-], M1Resolver.prototype, "submitAnswer", null);
-__decorate([
-    (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('workerId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
-], M1Resolver.prototype, "getEligibilityHistory", null);
-__decorate([
-    (0, graphql_1.Query)(() => [worker_analysis_view_1.AlgorithmPerformanceData]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
-], M1Resolver.prototype, "getAlgorithmPerformance", null);
-__decorate([
-    (0, graphql_1.Query)(() => [worker_analysis_view_1.TesterAnalysisView]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
-], M1Resolver.prototype, "getTesterAnalysis", null);
-__decorate([
-    (0, graphql_1.Query)(() => [worker_analysis_view_1.TestResultView]),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
-], M1Resolver.prototype, "getTestResults", null);
-__decorate([
-    (0, graphql_1.Query)(() => dashboard_view_1.DashboardSummary),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.WORKER),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
-], M1Resolver.prototype, "getDashboardSummary", null);
-exports.M1Resolver = M1Resolver = __decorate([
-    (0, graphql_1.Resolver)(),
-    (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [typeof (_a = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _a : Object, typeof (_b = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _b : Object, typeof (_c = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _c : Object, typeof (_d = typeof worker_analysis_service_1.WorkerAnalysisService !== "undefined" && worker_analysis_service_1.WorkerAnalysisService) === "function" ? _d : Object, typeof (_e = typeof dashboard_service_1.DashboardService !== "undefined" && dashboard_service_1.DashboardService) === "function" ? _e : Object])
-], M1Resolver);
-
-
-/***/ }),
-
-/***/ "./src/M1/models/eligibility.ts":
+/***/ "./src/MX/models/eligibility.ts":
 /*!**************************************!*\
-  !*** ./src/M1/models/eligibility.ts ***!
+  !*** ./src/MX/models/eligibility.ts ***!
   \**************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -688,9 +531,9 @@ exports.EligibilitySchema = mongoose_1.SchemaFactory.createForClass(Eligibility)
 
 /***/ }),
 
-/***/ "./src/M1/models/parser.ts":
+/***/ "./src/MX/models/parser.ts":
 /*!*********************************!*\
-  !*** ./src/M1/models/parser.ts ***!
+  !*** ./src/MX/models/parser.ts ***!
   \*********************************/
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -712,9 +555,9 @@ exports.parseToViewEligibility = parseToViewEligibility;
 
 /***/ }),
 
-/***/ "./src/M1/models/recorded.ts":
+/***/ "./src/MX/models/recorded.ts":
 /*!***********************************!*\
-  !*** ./src/M1/models/recorded.ts ***!
+  !*** ./src/MX/models/recorded.ts ***!
   \***********************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -759,9 +602,296 @@ exports.RecordedAnswerSchema = mongoose_1.SchemaFactory.createForClass(RecordedA
 
 /***/ }),
 
-/***/ "./src/M1/services/dashboard/dashboard.service.ts":
+/***/ "./src/MX/models/utils.ts":
+/*!********************************!*\
+  !*** ./src/MX/models/utils.ts ***!
+  \********************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UtilsSchema = exports.Utils = exports.ThresholdType = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+var ThresholdType;
+(function (ThresholdType) {
+    ThresholdType["MEDIAN"] = "median";
+    ThresholdType["MEAN"] = "mean";
+    ThresholdType["CUSTOM"] = "custom";
+})(ThresholdType || (exports.ThresholdType = ThresholdType = {}));
+let Utils = class Utils {
+};
+exports.Utils = Utils;
+__decorate([
+    (0, graphql_1.Field)(() => String),
+    (0, mongoose_1.Prop)({
+        type: String,
+        enum: ThresholdType,
+        default: ThresholdType.MEDIAN,
+    }),
+    __metadata("design:type", String)
+], Utils.prototype, "thresholdType", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, mongoose_1.Prop)({ default: 0.7 }),
+    __metadata("design:type", Number)
+], Utils.prototype, "thresholdValue", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date),
+    (0, mongoose_1.Prop)({ default: Date.now }),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], Utils.prototype, "lastUpdated", void 0);
+exports.Utils = Utils = __decorate([
+    (0, mongoose_1.Schema)(),
+    (0, graphql_1.ObjectType)()
+], Utils);
+exports.UtilsSchema = mongoose_1.SchemaFactory.createForClass(Utils);
+
+
+/***/ }),
+
+/***/ "./src/MX/mx.module.ts":
+/*!*****************************!*\
+  !*** ./src/MX/mx.module.ts ***!
+  \*****************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.M1Module = void 0;
+const tasks_module_1 = __webpack_require__(/*! ../tasks/tasks.module */ "./src/tasks/tasks.module.ts");
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mx_resolver_1 = __webpack_require__(/*! ./mx.resolver */ "./src/MX/mx.resolver.ts");
+const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
+const recorded_1 = __webpack_require__(/*! ./models/recorded */ "./src/MX/models/recorded.ts");
+const eligibility_1 = __webpack_require__(/*! ./models/eligibility */ "./src/MX/models/eligibility.ts");
+const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.recorded.service */ "./src/MX/services/recorded/get.recorded.service.ts");
+const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/MX/services/eligibility/create.eligibility.service.ts");
+const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/MX/services/recorded/create.recorded.service.ts");
+const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/MX/services/eligibility/get.eligibility.service.ts");
+const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/MX/services/eligibility/update.eligibility.service.ts");
+const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
+const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
+const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/MX/dto/recorded/create.recorded.input.ts");
+const mx_calculation_service_1 = __webpack_require__(/*! ./services/mx/mx.calculation.service */ "./src/MX/services/mx/mx.calculation.service.ts");
+const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/MX/services/worker-analysis/worker-analysis.service.ts");
+const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/MX/services/dashboard/dashboard.service.ts");
+const data_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/data-analysis.service */ "./src/MX/services/worker-analysis/data-analysis.service.ts");
+const utils_service_1 = __webpack_require__(/*! ./services/utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
+let M1Module = class M1Module {
+};
+exports.M1Module = M1Module;
+exports.M1Module = M1Module = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            (0, common_1.forwardRef)(() => tasks_module_1.TasksModule),
+            (0, common_1.forwardRef)(() => users_module_1.UsersModule),
+            mongoose_1.MongooseModule.forFeature([
+                { name: task_1.Task.name, schema: task_1.TaskSchema },
+                { name: recorded_1.RecordedAnswer.name, schema: recorded_1.RecordedAnswerSchema },
+                { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
+                { name: user_1.Users.name, schema: user_1.UsersSchema },
+            ]),
+        ],
+        providers: [
+            create_recorded_input_1.CreateRecordedAnswerInput,
+            data_analysis_service_1.MissingWorkerIdCronService,
+            create_recorded_service_1.CreateRecordedService,
+            create_eligibility_service_1.CreateEligibilityService,
+            get_eligibility_service_1.GetEligibilityService,
+            get_recorded_service_1.GetRecordedAnswerService,
+            update_eligibility_service_1.UpdateEligibilityService,
+            mx_calculation_service_1.AccuracyCalculationServiceMX,
+            worker_analysis_service_1.WorkerAnalysisService,
+            utils_service_1.UtilsService,
+            dashboard_service_1.DashboardService,
+            mx_resolver_1.M1Resolver,
+        ],
+        exports: [
+            create_recorded_input_1.CreateRecordedAnswerInput,
+            create_recorded_service_1.CreateRecordedService,
+            create_eligibility_service_1.CreateEligibilityService,
+            get_eligibility_service_1.GetEligibilityService,
+            get_recorded_service_1.GetRecordedAnswerService,
+            update_eligibility_service_1.UpdateEligibilityService,
+            dashboard_service_1.DashboardService,
+            utils_service_1.UtilsService,
+            mx_calculation_service_1.AccuracyCalculationServiceMX,
+            worker_analysis_service_1.WorkerAnalysisService,
+        ],
+    })
+], M1Module);
+
+
+/***/ }),
+
+/***/ "./src/MX/mx.resolver.ts":
+/*!*******************************!*\
+  !*** ./src/MX/mx.resolver.ts ***!
+  \*******************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.M1Resolver = void 0;
+const graphql_1 = __webpack_require__(/*! @nestjs/graphql */ "@nestjs/graphql");
+const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decorator */ "./src/auth/decorators/role.decorator.ts");
+const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
+const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/MX/services/recorded/create.recorded.service.ts");
+const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/MX/services/eligibility/get.eligibility.service.ts");
+const eligibility_view_1 = __webpack_require__(/*! ./dto/eligibility/views/eligibility.view */ "./src/MX/dto/eligibility/views/eligibility.view.ts");
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
+const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
+const update_user_service_1 = __webpack_require__(/*! ../users/services/update.user.service */ "./src/users/services/update.user.service.ts");
+const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/MX/dto/recorded/create.recorded.input.ts");
+const worker_analysis_view_1 = __webpack_require__(/*! ./dto/worker-analysis/worker-analysis.view */ "./src/MX/dto/worker-analysis/worker-analysis.view.ts");
+const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/worker-analysis.service */ "./src/MX/services/worker-analysis/worker-analysis.service.ts");
+const dashboard_view_1 = __webpack_require__(/*! ./dto/dashboard/dashboard.view */ "./src/MX/dto/dashboard/dashboard.view.ts");
+const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/MX/services/dashboard/dashboard.service.ts");
+const utils_1 = __webpack_require__(/*! ./models/utils */ "./src/MX/models/utils.ts");
+const utils_service_1 = __webpack_require__(/*! ./services/utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
+const create_utils_input_1 = __webpack_require__(/*! ./dto/utils/create.utils.input */ "./src/MX/dto/utils/create.utils.input.ts");
+let M1Resolver = class M1Resolver {
+    constructor(getEligibilityService, createRecordedService, updateUserService, workerAnalysisService, dashboardService, utilsService) {
+        this.getEligibilityService = getEligibilityService;
+        this.createRecordedService = createRecordedService;
+        this.updateUserService = updateUserService;
+        this.workerAnalysisService = workerAnalysisService;
+        this.dashboardService = dashboardService;
+        this.utilsService = utilsService;
+    }
+    async submitAnswer(input, context) {
+        const workerId = context.req.user.id;
+        await this.createRecordedService.recordAnswer(input, workerId);
+        await this.updateUserService.userHasDoneTask(input, workerId);
+        return true;
+    }
+    async getEligibilityHistory(workerId) {
+        return this.getEligibilityService.getEligibilityWorkerId(workerId);
+    }
+    async getAlgorithmPerformance() {
+        return this.workerAnalysisService.getAlgorithmPerformance();
+    }
+    async getTesterAnalysis() {
+        return this.workerAnalysisService.getTesterAnalysis();
+    }
+    async getTestResults() {
+        return this.workerAnalysisService.getTestResults();
+    }
+    async getDashboardSummary() {
+        return this.dashboardService.getDashboardSummary();
+    }
+    async getThresholdSettings() {
+        return this.utilsService.getThresholdSettings();
+    }
+    async updateThresholdSettings(input) {
+        return this.utilsService.updateThresholdSettings(input.thresholdType, input.thresholdValue);
+    }
+};
+exports.M1Resolver = M1Resolver;
+__decorate([
+    (0, graphql_1.Mutation)(() => Boolean),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER),
+    __param(0, (0, graphql_1.Args)('input')),
+    __param(1, (0, graphql_1.Context)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_g = typeof create_recorded_input_1.CreateRecordedAnswerInput !== "undefined" && create_recorded_input_1.CreateRecordedAnswerInput) === "function" ? _g : Object, Object]),
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], M1Resolver.prototype, "submitAnswer", null);
+__decorate([
+    (0, graphql_1.Query)(() => [eligibility_view_1.EligibilityView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.WORKER, user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('workerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
+], M1Resolver.prototype, "getEligibilityHistory", null);
+__decorate([
+    (0, graphql_1.Query)(() => [worker_analysis_view_1.AlgorithmPerformanceData]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.QUESTION_VALIDATOR),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
+], M1Resolver.prototype, "getAlgorithmPerformance", null);
+__decorate([
+    (0, graphql_1.Query)(() => [worker_analysis_view_1.TesterAnalysisView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_l = typeof Promise !== "undefined" && Promise) === "function" ? _l : Object)
+], M1Resolver.prototype, "getTesterAnalysis", null);
+__decorate([
+    (0, graphql_1.Query)(() => [worker_analysis_view_1.TestResultView]),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_m = typeof Promise !== "undefined" && Promise) === "function" ? _m : Object)
+], M1Resolver.prototype, "getTestResults", null);
+__decorate([
+    (0, graphql_1.Query)(() => dashboard_view_1.DashboardSummary),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN, user_enum_1.Role.WORKER),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
+], M1Resolver.prototype, "getDashboardSummary", null);
+__decorate([
+    (0, graphql_1.Query)(() => utils_1.Utils),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_p = typeof Promise !== "undefined" && Promise) === "function" ? _p : Object)
+], M1Resolver.prototype, "getThresholdSettings", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => utils_1.Utils),
+    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
+    __param(0, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_q = typeof create_utils_input_1.ThresholdSettingsInput !== "undefined" && create_utils_input_1.ThresholdSettingsInput) === "function" ? _q : Object]),
+    __metadata("design:returntype", typeof (_r = typeof Promise !== "undefined" && Promise) === "function" ? _r : Object)
+], M1Resolver.prototype, "updateThresholdSettings", null);
+exports.M1Resolver = M1Resolver = __decorate([
+    (0, graphql_1.Resolver)(),
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
+    __metadata("design:paramtypes", [typeof (_a = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _a : Object, typeof (_b = typeof create_recorded_service_1.CreateRecordedService !== "undefined" && create_recorded_service_1.CreateRecordedService) === "function" ? _b : Object, typeof (_c = typeof update_user_service_1.UpdateUserService !== "undefined" && update_user_service_1.UpdateUserService) === "function" ? _c : Object, typeof (_d = typeof worker_analysis_service_1.WorkerAnalysisService !== "undefined" && worker_analysis_service_1.WorkerAnalysisService) === "function" ? _d : Object, typeof (_e = typeof dashboard_service_1.DashboardService !== "undefined" && dashboard_service_1.DashboardService) === "function" ? _e : Object, typeof (_f = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _f : Object])
+], M1Resolver);
+
+
+/***/ }),
+
+/***/ "./src/MX/services/dashboard/dashboard.service.ts":
 /*!********************************************************!*\
-  !*** ./src/M1/services/dashboard/dashboard.service.ts ***!
+  !*** ./src/MX/services/dashboard/dashboard.service.ts ***!
   \********************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -787,7 +917,7 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const task_1 = __webpack_require__(/*! src/tasks/models/task */ "./src/tasks/models/task.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
-const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
+const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
 let DashboardService = DashboardService_1 = class DashboardService {
     constructor(taskModel, userModel, eligibilityModel) {
@@ -948,9 +1078,9 @@ exports.DashboardService = DashboardService = DashboardService_1 = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/eligibility/create.eligibility.service.ts":
+/***/ "./src/MX/services/eligibility/create.eligibility.service.ts":
 /*!*******************************************************************!*\
-  !*** ./src/M1/services/eligibility/create.eligibility.service.ts ***!
+  !*** ./src/MX/services/eligibility/create.eligibility.service.ts ***!
   \*******************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -972,9 +1102,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateEligibilityService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
+const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/M1/models/parser.ts");
+const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/MX/models/parser.ts");
 let CreateEligibilityService = class CreateEligibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
@@ -1016,9 +1146,9 @@ exports.CreateEligibilityService = CreateEligibilityService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/eligibility/get.eligibility.service.ts":
+/***/ "./src/MX/services/eligibility/get.eligibility.service.ts":
 /*!****************************************************************!*\
-  !*** ./src/M1/services/eligibility/get.eligibility.service.ts ***!
+  !*** ./src/MX/services/eligibility/get.eligibility.service.ts ***!
   \****************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1041,9 +1171,9 @@ exports.GetEligibilityService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
+const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
-const parser_1 = __webpack_require__(/*! src/M1/models/parser */ "./src/M1/models/parser.ts");
+const parser_1 = __webpack_require__(/*! src/MX/models/parser */ "./src/MX/models/parser.ts");
 let GetEligibilityService = class GetEligibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
@@ -1101,9 +1231,9 @@ exports.GetEligibilityService = GetEligibilityService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/eligibility/update.eligibility.service.ts":
+/***/ "./src/MX/services/eligibility/update.eligibility.service.ts":
 /*!*******************************************************************!*\
-  !*** ./src/M1/services/eligibility/update.eligibility.service.ts ***!
+  !*** ./src/MX/services/eligibility/update.eligibility.service.ts ***!
   \*******************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1126,8 +1256,8 @@ exports.UpdateEligibilityService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/M1/models/eligibility.ts");
-const get_recorded_service_1 = __webpack_require__(/*! ../recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
+const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
+const get_recorded_service_1 = __webpack_require__(/*! ../recorded/get.recorded.service */ "./src/MX/services/recorded/get.recorded.service.ts");
 let UpdateEligibilityService = class UpdateEligibilityService {
     constructor(eligibilityModel, getRecordedAnswerService) {
         this.eligibilityModel = eligibilityModel;
@@ -1144,9 +1274,9 @@ exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/mx/mx.calculation.service.ts":
+/***/ "./src/MX/services/mx/mx.calculation.service.ts":
 /*!******************************************************!*\
-  !*** ./src/M1/services/mx/mx.calculation.service.ts ***!
+  !*** ./src/MX/services/mx/mx.calculation.service.ts ***!
   \******************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1171,11 +1301,11 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const get_task_service_1 = __webpack_require__(/*! ../../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
+const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/MX/models/recorded.ts");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const cron_enum_1 = __webpack_require__(/*! src/lib/cron.enum */ "./src/lib/cron.enum.ts");
-const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/M1/services/eligibility/create.eligibility.service.ts");
+const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/MX/services/eligibility/create.eligibility.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
     constructor(recordedAnswerModel, userModel, createEligibilityService, getTaskService) {
@@ -1444,9 +1574,9 @@ exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCa
 
 /***/ }),
 
-/***/ "./src/M1/services/recorded/create.recorded.service.ts":
+/***/ "./src/MX/services/recorded/create.recorded.service.ts":
 /*!*************************************************************!*\
-  !*** ./src/M1/services/recorded/create.recorded.service.ts ***!
+  !*** ./src/MX/services/recorded/create.recorded.service.ts ***!
   \*************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1470,7 +1600,7 @@ const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 let CreateRecordedService = class CreateRecordedService {
     constructor(recordedAnswerModel, getTaskService) {
@@ -1508,9 +1638,9 @@ exports.CreateRecordedService = CreateRecordedService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/recorded/get.recorded.service.ts":
+/***/ "./src/MX/services/recorded/get.recorded.service.ts":
 /*!**********************************************************!*\
-  !*** ./src/M1/services/recorded/get.recorded.service.ts ***!
+  !*** ./src/MX/services/recorded/get.recorded.service.ts ***!
   \**********************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1532,7 +1662,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetRecordedAnswerService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/M1/models/recorded.ts");
+const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/MX/models/recorded.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 let GetRecordedAnswerService = class GetRecordedAnswerService {
     constructor(recordedAnswerModel) {
@@ -1555,9 +1685,156 @@ exports.GetRecordedAnswerService = GetRecordedAnswerService = __decorate([
 
 /***/ }),
 
-/***/ "./src/M1/services/worker-analysis/data-analysis.service.ts":
+/***/ "./src/MX/services/utils/utils.service.ts":
+/*!************************************************!*\
+  !*** ./src/MX/services/utils/utils.service.ts ***!
+  \************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var UtilsService_1;
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UtilsService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
+const utils_1 = __webpack_require__(/*! src/MX/models/utils */ "./src/MX/models/utils.ts");
+let UtilsService = UtilsService_1 = class UtilsService {
+    constructor(utilsModel) {
+        this.utilsModel = utilsModel;
+        this.logger = new common_1.Logger(UtilsService_1.name);
+        this.initializeUtils();
+    }
+    async initializeUtils() {
+        try {
+            const count = await this.utilsModel.countDocuments().exec();
+            if (count === 0) {
+                await this.utilsModel.create({
+                    thresholdType: utils_1.ThresholdType.MEDIAN,
+                    thresholdValue: 0.7,
+                    lastUpdated: new Date(),
+                });
+                this.logger.log('Created default utils configuration');
+            }
+        }
+        catch (error) {
+            this.logger.error('Failed to initialize utils configuration', error);
+        }
+    }
+    async getThresholdSettings() {
+        try {
+            let utils = await this.utilsModel.findOne().exec();
+            if (!utils) {
+                utils = await this.utilsModel.create({
+                    thresholdType: utils_1.ThresholdType.MEDIAN,
+                    thresholdValue: 0.7,
+                    lastUpdated: new Date(),
+                });
+            }
+            return utils;
+        }
+        catch (error) {
+            this.logger.error('Failed to get threshold settings', error);
+            throw new gqlerr_1.ThrowGQL('Failed to get threshold settings', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async updateThresholdSettings(thresholdType, thresholdValue) {
+        try {
+            if (thresholdType === utils_1.ThresholdType.CUSTOM) {
+                if (thresholdValue === undefined) {
+                    throw new gqlerr_1.ThrowGQL('Threshold value must be provided when type is custom', gqlerr_1.GQLThrowType.BAD_REQUEST);
+                }
+                if (thresholdValue < 0 || thresholdValue > 1) {
+                    throw new gqlerr_1.ThrowGQL('Threshold value must be between 0 and 1', gqlerr_1.GQLThrowType.BAD_REQUEST);
+                }
+            }
+            const updateData = {
+                thresholdType,
+                lastUpdated: new Date(),
+            };
+            if (thresholdValue !== undefined) {
+                updateData.thresholdValue = thresholdValue;
+            }
+            const utils = await this.utilsModel.findOneAndUpdate({}, { $set: updateData }, { upsert: true, new: true });
+            return utils;
+        }
+        catch (error) {
+            if (error instanceof gqlerr_1.ThrowGQL) {
+                throw error;
+            }
+            this.logger.error('Failed to update threshold settings', error);
+            throw new gqlerr_1.ThrowGQL('Failed to update threshold settings', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async calculateThreshold(accuracyValues) {
+        try {
+            if (!accuracyValues || accuracyValues.length === 0) {
+                return 0.7;
+            }
+            const settings = await this.getThresholdSettings();
+            switch (settings.thresholdType) {
+                case utils_1.ThresholdType.MEDIAN: {
+                    const sorted = [...accuracyValues].sort((a, b) => a - b);
+                    const middle = Math.floor(sorted.length / 2);
+                    const median = sorted.length % 2 === 1
+                        ? sorted[middle]
+                        : (sorted[middle - 1] + sorted[middle]) / 2;
+                    return median;
+                }
+                case utils_1.ThresholdType.MEAN: {
+                    const sum = accuracyValues.reduce((acc, val) => acc + val, 0);
+                    return sum / accuracyValues.length;
+                }
+                case utils_1.ThresholdType.CUSTOM: {
+                    return settings.thresholdValue;
+                }
+                default:
+                    return this.calculateMedian(accuracyValues);
+            }
+        }
+        catch (error) {
+            this.logger.error('Failed to calculate threshold', error);
+            return 0.7;
+        }
+    }
+    calculateMedian(values) {
+        if (values.length === 0)
+            return 0;
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 1) {
+            return sorted[middle];
+        }
+        return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+};
+exports.UtilsService = UtilsService;
+exports.UtilsService = UtilsService = UtilsService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(utils_1.Utils.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], UtilsService);
+
+
+/***/ }),
+
+/***/ "./src/MX/services/worker-analysis/data-analysis.service.ts":
 /*!******************************************************************!*\
-  !*** ./src/M1/services/worker-analysis/data-analysis.service.ts ***!
+  !*** ./src/MX/services/worker-analysis/data-analysis.service.ts ***!
   \******************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1581,7 +1858,7 @@ exports.MissingWorkerIdCronService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 let MissingWorkerIdCronService = MissingWorkerIdCronService_1 = class MissingWorkerIdCronService {
     constructor(recordedAnswerModel, usersModel) {
@@ -1623,9 +1900,9 @@ exports.MissingWorkerIdCronService = MissingWorkerIdCronService = MissingWorkerI
 
 /***/ }),
 
-/***/ "./src/M1/services/worker-analysis/worker-analysis.service.ts":
+/***/ "./src/MX/services/worker-analysis/worker-analysis.service.ts":
 /*!********************************************************************!*\
-  !*** ./src/M1/services/worker-analysis/worker-analysis.service.ts ***!
+  !*** ./src/MX/services/worker-analysis/worker-analysis.service.ts ***!
   \********************************************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1651,8 +1928,8 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
-const recorded_1 = __webpack_require__(/*! src/M1/models/recorded */ "./src/M1/models/recorded.ts");
+const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
+const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
 const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
@@ -1871,7 +2148,7 @@ const config_service_1 = __webpack_require__(/*! ./config/config.service */ "./s
 const tasks_module_1 = __webpack_require__(/*! ./tasks/tasks.module */ "./src/tasks/tasks.module.ts");
 const auth_module_1 = __webpack_require__(/*! ./auth/auth.module */ "./src/auth/auth.module.ts");
 const users_module_1 = __webpack_require__(/*! ./users/users.module */ "./src/users/users.module.ts");
-const m1_module_1 = __webpack_require__(/*! ./M1/m1.module */ "./src/M1/m1.module.ts");
+const mx_module_1 = __webpack_require__(/*! ./MX/mx.module */ "./src/MX/mx.module.ts");
 const throttler_1 = __webpack_require__(/*! @nestjs/throttler */ "@nestjs/throttler");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
@@ -1907,7 +2184,7 @@ exports.AppModule = AppModule = __decorate([
             tasks_module_1.TasksModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
-            m1_module_1.M1Module,
+            mx_module_1.M1Module,
         ],
     })
 ], AppModule);
@@ -3246,7 +3523,7 @@ const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/tasks/models/parser.ts");
 const mongoose_2 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const get_recorded_service_1 = __webpack_require__(/*! src/M1/services/recorded/get.recorded.service */ "./src/M1/services/recorded/get.recorded.service.ts");
+const get_recorded_service_1 = __webpack_require__(/*! src/MX/services/recorded/get.recorded.service */ "./src/MX/services/recorded/get.recorded.service.ts");
 let GetTaskService = class GetTaskService {
     constructor(taskModel, getRecordedAnswerService) {
         this.taskModel = taskModel;
@@ -3426,7 +3703,7 @@ const update_task_service_1 = __webpack_require__(/*! ./services/update.task.ser
 const delete_task_service_1 = __webpack_require__(/*! ./services/delete.task.service */ "./src/tasks/services/delete.task.service.ts");
 const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
 const auth_module_1 = __webpack_require__(/*! src/auth/auth.module */ "./src/auth/auth.module.ts");
-const m1_module_1 = __webpack_require__(/*! src/M1/m1.module */ "./src/M1/m1.module.ts");
+const mx_module_1 = __webpack_require__(/*! src/MX/mx.module */ "./src/MX/mx.module.ts");
 let TasksModule = class TasksModule {
 };
 exports.TasksModule = TasksModule;
@@ -3434,7 +3711,7 @@ exports.TasksModule = TasksModule = __decorate([
     (0, common_1.Module)({
         imports: [
             mongoose_1.MongooseModule.forFeature([{ name: task_1.Task.name, schema: task_1.TaskSchema }]),
-            (0, common_1.forwardRef)(() => m1_module_1.M1Module),
+            (0, common_1.forwardRef)(() => mx_module_1.M1Module),
             users_module_1.UsersModule,
             auth_module_1.AuthModule,
         ],
@@ -4218,7 +4495,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var UpdateUserService_1;
-var _a, _b, _c;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -4228,13 +4505,15 @@ const user_1 = __webpack_require__(/*! ../models/user */ "./src/users/models/use
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const parser_1 = __webpack_require__(/*! ../models/parser */ "./src/users/models/parser.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const get_eligibility_service_1 = __webpack_require__(/*! ../../M1/services/eligibility/get.eligibility.service */ "./src/M1/services/eligibility/get.eligibility.service.ts");
-const eligibility_1 = __webpack_require__(/*! src/M1/models/eligibility */ "./src/M1/models/eligibility.ts");
+const get_eligibility_service_1 = __webpack_require__(/*! ../../MX/services/eligibility/get.eligibility.service */ "./src/MX/services/eligibility/get.eligibility.service.ts");
+const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
+const utils_service_1 = __webpack_require__(/*! src/MX/services/utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
 let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
-    constructor(userModel, eligibilityModel, getEligibilityService) {
+    constructor(userModel, eligibilityModel, getEligibilityService, utilsService) {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
+        this.utilsService = utilsService;
         this.iterationTimes = [
             new Date('2025-04-15T04:00:00'),
             new Date('2025-04-15T05:30:00'),
@@ -4341,16 +4620,6 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         this.logger.log(`Found ${allWorkers.length} total workers for all iterations up to ${currentIteration}`);
         return allWorkers;
     }
-    calculateMedian(values) {
-        if (values.length === 0)
-            return 0;
-        const sorted = [...values].sort((a, b) => a - b);
-        const middle = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 1) {
-            return sorted[middle];
-        }
-        return (sorted[middle - 1] + sorted[middle]) / 2;
-    }
     async requalifyAllUsers() {
         try {
             const allWorkers = await this.userModel
@@ -4372,9 +4641,9 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 allAccuracyValues.push(averageAccuracy);
                 this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)}`);
             }
-            const medianAccuracy = this.calculateMedian(allAccuracyValues);
-            const medianRounded = Number(medianAccuracy.toFixed(3));
-            this.logger.log(`Median accuracy (rounded) across all workers: ${medianRounded.toFixed(3)}`);
+            const threshold = await this.utilsService.calculateThreshold(allAccuracyValues);
+            const thresholdRounded = Number(threshold.toFixed(3));
+            this.logger.log(`Threshold value (rounded) for worker eligibility: ${thresholdRounded.toFixed(3)}`);
             for (const user of allWorkers) {
                 const userIdStr = user._id.toString();
                 if (!workerAccuracies.has(userIdStr)) {
@@ -4388,14 +4657,14 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 }
                 const averageAccuracy = workerAccuracies.get(userIdStr);
                 const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
-                const isEligible = averageAccuracyRounded > medianRounded;
-                console.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(3)}, Median: ${medianRounded.toFixed(3)}, Eligible: ${isEligible}`);
+                const isEligible = averageAccuracyRounded > thresholdRounded;
+                console.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(3)}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}`);
                 await this.userModel.findByIdAndUpdate(userIdStr, {
                     $set: { isEligible: isEligible },
                 });
-                this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, median: ${medianRounded.toFixed(3)})`);
+                this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)})`);
             }
-            this.logger.log(`Requalify process completed. Median threshold (rounded): ${medianRounded.toFixed(3)}`);
+            this.logger.log(`Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}`);
         }
         catch (error) {
             this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
@@ -4405,7 +4674,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_DAY_AT_10PM),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -4414,7 +4683,7 @@ exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
     __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _d : Object])
 ], UpdateUserService);
 
 
@@ -4443,15 +4712,15 @@ const create_user_service_1 = __webpack_require__(/*! ./services/create.user.ser
 const get_user_service_1 = __webpack_require__(/*! ./services/get.user.service */ "./src/users/services/get.user.service.ts");
 const update_user_service_1 = __webpack_require__(/*! ./services/update.user.service */ "./src/users/services/update.user.service.ts");
 const delete_user_service_1 = __webpack_require__(/*! ./services/delete.user.service */ "./src/users/services/delete.user.service.ts");
-const m1_module_1 = __webpack_require__(/*! ../M1/m1.module */ "./src/M1/m1.module.ts");
-const eligibility_1 = __webpack_require__(/*! ../M1/models/eligibility */ "./src/M1/models/eligibility.ts");
+const mx_module_1 = __webpack_require__(/*! ../MX/mx.module */ "./src/MX/mx.module.ts");
+const eligibility_1 = __webpack_require__(/*! ../MX/models/eligibility */ "./src/MX/models/eligibility.ts");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            (0, common_1.forwardRef)(() => m1_module_1.M1Module),
+            (0, common_1.forwardRef)(() => mx_module_1.M1Module),
             mongoose_1.MongooseModule.forFeature([
                 { name: user_1.Users.name, schema: user_1.UsersSchema },
                 { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
@@ -4514,7 +4783,7 @@ const role_decorator_1 = __webpack_require__(/*! src/auth/decorators/role.decora
 const role_guard_1 = __webpack_require__(/*! src/auth/guards/role.guard */ "./src/auth/guards/role.guard.ts");
 const jwt_guard_1 = __webpack_require__(/*! src/auth/guards/jwt.guard */ "./src/auth/guards/jwt.guard.ts");
 const user_enum_1 = __webpack_require__(/*! src/lib/user.enum */ "./src/lib/user.enum.ts");
-const create_recorded_input_1 = __webpack_require__(/*! src/M1/dto/recorded/create.recorded.input */ "./src/M1/dto/recorded/create.recorded.input.ts");
+const create_recorded_input_1 = __webpack_require__(/*! src/MX/dto/recorded/create.recorded.input */ "./src/MX/dto/recorded/create.recorded.input.ts");
 let UsersResolver = class UsersResolver {
     constructor(createUserService, updateUserService, deleteUserService, getUserService) {
         this.createUserService = createUserService;

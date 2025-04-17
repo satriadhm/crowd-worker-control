@@ -6,8 +6,8 @@ import { CreateUserService } from './services/create.user.service';
 import { GetUserService } from './services/get.user.service';
 import { UpdateUserService } from './services/update.user.service';
 import { DeleteUserService } from './services/delete.user.service';
-import { M1Module } from '../M1/m1.module';
-import { Eligibility, EligibilitySchema } from '../M1/models/eligibility';
+import { M1Module } from '../MX/mx.module';
+import { Eligibility, EligibilitySchema } from '../MX/models/eligibility';
 
 @Module({
   imports: [
