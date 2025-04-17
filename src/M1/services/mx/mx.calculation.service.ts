@@ -401,7 +401,7 @@ export class AccuracyCalculationServiceMX {
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    * Updated to work with new iteration times.
    */
-  // @Cron(CronExpression.EVERY_MINUTE) // Run the eligibility check every minute
+  @Cron(CronExpression.EVERY_MINUTE)
   async calculateEligibility() {
     try {
       // Determine current iteration based on time
@@ -467,11 +467,11 @@ export class AccuracyCalculationServiceMX {
           };
 
           // Create new eligibility record or update existing one
-          await this.createEligibilityService.upSertEligibility(
+          await this.createEligibilityService.createEligibility(
             eligibilityInput,
           );
           this.logger.debug(
-            `Created/updated eligibility for worker ${workerId} in iteration ${currentIteration}: ${accuracy}`,
+            `Created eligibility for worker ${workerId} in iteration ${currentIteration}: ${accuracy}`,
           );
         }
       }

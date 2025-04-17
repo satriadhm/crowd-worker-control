@@ -13,16 +13,16 @@ export class CreateEligibilityService {
     private readonly eligibilityModel: Model<EligibilityDocument>,
   ) {}
 
-  // This is the existing method that updates or inserts
-  async upSertEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
-    const { taskId, workerId, accuracy } = input;
-    const eligibility = await this.eligibilityModel.findOneAndUpdate(
-      { taskId, workerId },
-      { taskId, workerId, accuracy },
-      { upsert: true, new: true },
-    );
-    return eligibility;
-  }
+  // // This is the existing method that updates or inserts
+  // async upSertEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
+  //   const { taskId, workerId, accuracy } = input;
+  //   const eligibility = await this.eligibilityModel.findOneAndUpdate(
+  //     { taskId, workerId },
+  //     { taskId, workerId, accuracy },
+  //     { upsert: true, new: true },
+  //   );
+  //   return eligibility;
+  // }
 
   // New method that only creates a new eligibility record if one doesn't exist
   async createEligibility(input: CreateEligibilityInput): Promise<Eligibility> {

@@ -979,11 +979,6 @@ let CreateEligibilityService = class CreateEligibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
     }
-    async upSertEligibility(input) {
-        const { taskId, workerId, accuracy } = input;
-        const eligibility = await this.eligibilityModel.findOneAndUpdate({ taskId, workerId }, { taskId, workerId, accuracy }, { upsert: true, new: true });
-        return eligibility;
-    }
     async createEligibility(input) {
         const { taskId, workerId, accuracy } = input;
         const existingEligibility = await this.eligibilityModel.findOne({
@@ -1420,7 +1415,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                         workerId: workerId,
                         accuracy: accuracy,
                     };
-                    await this.createEligibilityService.upSertEligibility(eligibilityInput);
+                    await this.createEligibilityService.createEligibility(eligibilityInput);
                     this.logger.debug(`Created/updated eligibility for worker ${workerId} in iteration ${currentIteration}: ${accuracy}`);
                 }
             }
@@ -1682,14 +1677,13 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 const worker = await this.getUserService.getUserById(workerId);
                 if (!worker)
                     continue;
-                const workerName = worker
-                    ? `${worker.firstName} ${worker.lastName}`
-                    : 'Unknown Worker';
+                const workerName = `${worker.firstName} ${worker.lastName}`;
                 if (!workerMap.has(workerId)) {
                     workerMap.set(workerId, {
                         scores: [],
                         name: workerName,
                         workerId,
+                        isEligible: worker.isEligible,
                     });
                 }
                 if (eligibility.accuracy !== null &&
@@ -1698,22 +1692,18 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 }
             }
             const result = [];
-            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
-            const threshold = parseFloat(thresholdString) || 0.7;
-            this.logger.log(`Using threshold value: ${threshold} for worker analysis`);
-            workerMap.forEach(({ scores, name, workerId }) => {
+            workerMap.forEach(({ scores, name, workerId, isEligible }) => {
                 if (scores.length === 0)
                     return;
                 const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-                const isEligible = averageScore >= threshold;
                 const accuracy = parseFloat(averageScore.toFixed(2));
-                console.log(`Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`);
+                this.logger.debug(`Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`);
                 result.push({
                     workerId,
                     testerName: name,
                     averageScore: parseFloat(averageScore.toFixed(2)),
-                    accuracy: accuracy,
-                    isEligible: isEligible,
+                    accuracy,
+                    isEligible,
                 });
             });
             return result.sort((a, b) => b.accuracy - a.accuracy);
@@ -4254,19 +4244,16 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         }
         return (sorted[middle - 1] + sorted[middle]) / 2;
     }
-    async qualifyUser() {
+    async requalifyAllUsers() {
         try {
-            const currentIteration = this.getCurrentIteration();
-            this.logger.log(`Starting worker qualification process for iteration ${currentIteration}`);
-            if (currentIteration === 0) {
-                this.logger.log('No iterations have started yet. Skipping worker qualification.');
-                return;
-            }
-            const workersToEvaluate = await this.getWorkersForAllCompletedIterations();
-            this.logger.log(`Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`);
+            const allWorkers = await this.userModel
+                .find({ role: 'worker' })
+                .sort({ createdAt: 1 })
+                .exec();
+            this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
             const workerAccuracies = new Map();
             const allAccuracyValues = [];
-            for (const user of workersToEvaluate) {
+            for (const user of allWorkers) {
                 const userIdStr = user._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
                 if (eligibilities.length === 0) {
@@ -4276,41 +4263,35 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 const averageAccuracy = totalAccuracy / eligibilities.length;
                 workerAccuracies.set(userIdStr, averageAccuracy);
                 allAccuracyValues.push(averageAccuracy);
-                this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`);
+                this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)}`);
             }
             const medianAccuracy = this.calculateMedian(allAccuracyValues);
-            this.logger.log(`Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`);
-            const pendingWorkers = workersToEvaluate.filter((w) => w.isEligible === null);
-            this.logger.log(`Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`);
-            const allWorkersToProcess = [
-                ...pendingWorkers,
-                ...workersToEvaluate.filter((w) => w.isEligible !== null),
-            ];
-            for (const user of allWorkersToProcess) {
+            const medianRounded = Number(medianAccuracy.toFixed(3));
+            this.logger.log(`Median accuracy (rounded) across all workers: ${medianRounded.toFixed(3)}`);
+            for (const user of allWorkers) {
                 const userIdStr = user._id.toString();
                 if (!workerAccuracies.has(userIdStr)) {
-                    const hasCompletedTasks = user.completedTasks && user.completedTasks.length > 0;
-                    if (hasCompletedTasks && user.isEligible === null) {
+                    if (user.completedTasks && user.completedTasks.length > 0) {
                         await this.userModel.findByIdAndUpdate(userIdStr, {
                             $set: { isEligible: false },
                         });
-                        this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`);
+                        this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to non-eligible (default, no eligibility records).`);
                     }
                     continue;
                 }
                 const averageAccuracy = workerAccuracies.get(userIdStr);
-                const isEligible = averageAccuracy >= medianAccuracy;
-                if (user.isEligible !== isEligible || user.isEligible === null) {
-                    await this.userModel.findByIdAndUpdate(userIdStr, {
-                        $set: { isEligible: isEligible },
-                    });
-                    this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`);
-                }
+                const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
+                const isEligible = averageAccuracyRounded > medianRounded;
+                console.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(3)}, Median: ${medianRounded.toFixed(3)}, Eligible: ${isEligible}`);
+                await this.userModel.findByIdAndUpdate(userIdStr, {
+                    $set: { isEligible: isEligible },
+                });
+                this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, median: ${medianRounded.toFixed(3)})`);
             }
-            this.logger.log(`Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`);
+            this.logger.log(`Requalify process completed. Median threshold (rounded): ${medianRounded.toFixed(3)}`);
         }
         catch (error) {
-            this.logger.error(`Error in qualifyUser: ${error.message}`);
+            this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
             throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
@@ -4321,7 +4302,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "qualifyUser", null);
+], UpdateUserService.prototype, "requalifyAllUsers", null);
 exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),

@@ -206,126 +206,217 @@ export class UpdateUserService {
     return (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
-  async qualifyUser() {
+  // @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
+  // async qualifyUser() {
+  //   try {
+  //     const currentIteration = this.getCurrentIteration();
+  //     this.logger.log(
+  //       `Starting worker qualification process for iteration ${currentIteration}`,
+  //     );
+
+  //     if (currentIteration === 0) {
+  //       this.logger.log(
+  //         'No iterations have started yet. Skipping worker qualification.',
+  //       );
+  //       return;
+  //     }
+
+  //     // Get all workers for all completed iterations
+  //     const workersToEvaluate =
+  //       await this.getWorkersForAllCompletedIterations();
+
+  //     this.logger.log(
+  //       `Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`,
+  //     );
+
+  //     // Calculate average accuracy for each worker first
+  //     const workerAccuracies: Map<string, number> = new Map();
+  //     const allAccuracyValues: number[] = [];
+
+  //     for (const user of workersToEvaluate) {
+  //       const userIdStr = user._id.toString();
+
+  //       // Get all eligibility records for this worker
+  //       const eligibilities =
+  //         await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
+
+  //       // Skip if no eligibility records
+  //       if (eligibilities.length === 0) {
+  //         continue;
+  //       }
+
+  //       // Calculate average accuracy from eligibility records
+  //       const totalAccuracy = eligibilities.reduce(
+  //         (sum, e) => sum + (e.accuracy || 0),
+  //         0,
+  //       );
+  //       const averageAccuracy = totalAccuracy / eligibilities.length;
+
+  //       // Store the worker's average accuracy
+  //       workerAccuracies.set(userIdStr, averageAccuracy);
+  //       allAccuracyValues.push(averageAccuracy);
+
+  //       this.logger.debug(
+  //         `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`,
+  //       );
+  //     }
+
+  //     // Calculate the median accuracy across all workers
+  //     const medianAccuracy = this.calculateMedian(allAccuracyValues);
+  //     this.logger.log(
+  //       `Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`,
+  //     );
+
+  //     // Process workers with null eligibility status first
+  //     const pendingWorkers = workersToEvaluate.filter(
+  //       (w) => w.isEligible === null,
+  //     );
+  //     this.logger.log(
+  //       `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
+  //     );
+
+  //     // Process all workers, starting with pending ones
+  //     const allWorkersToProcess = [
+  //       ...pendingWorkers,
+  //       ...workersToEvaluate.filter((w) => w.isEligible !== null),
+  //     ];
+
+  //     for (const user of allWorkersToProcess) {
+  //       const userIdStr = user._id.toString();
+
+  //       // Skip if worker has no accuracy calculated yet
+  //       if (!workerAccuracies.has(userIdStr)) {
+  //         // Check if worker has completed any tasks yet
+  //         const hasCompletedTasks =
+  //           user.completedTasks && user.completedTasks.length > 0;
+
+  //         // If they have completed tasks but no eligibility records, set to false
+  //         if (hasCompletedTasks && user.isEligible === null) {
+  //           await this.userModel.findByIdAndUpdate(userIdStr, {
+  //             $set: { isEligible: false },
+  //           });
+  //           this.logger.log(
+  //             `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`,
+  //           );
+  //         }
+  //         continue;
+  //       }
+
+  //       // Get the worker's average accuracy
+  //       const averageAccuracy = workerAccuracies.get(userIdStr);
+
+  //       // Determine eligibility based on median threshold:
+  //       // Workers with accuracy above the median are eligible
+  //       const isEligible = averageAccuracy > medianAccuracy;
+
+  //       // Only update if the eligibility status changed or was null
+  //       if (user.isEligible !== isEligible || user.isEligible === null) {
+  //         await this.userModel.findByIdAndUpdate(userIdStr, {
+  //           $set: { isEligible: isEligible },
+  //         });
+
+  //         this.logger.log(
+  //           `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`,
+  //         );
+  //       }
+  //     }
+
+  //     this.logger.log(
+  //       `Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`,
+  //     );
+  //   } catch (error) {
+  //     this.logger.error(`Error in qualifyUser: ${error.message}`);
+  //     throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
+  //   }
+  // }
+
+  @Cron(CronExpression.EVERY_30_SECONDS) // Anda bisa sesuaikan jadwalnya atau memanggilnya secara manual
+  async requalifyAllUsers() {
     try {
-      const currentIteration = this.getCurrentIteration();
-      this.logger.log(
-        `Starting worker qualification process for iteration ${currentIteration}`,
-      );
+      // Ambil semua worker tanpa mempedulikan iteration
+      const allWorkers = await this.userModel
+        .find({ role: 'worker' })
+        .sort({ createdAt: 1 })
+        .exec();
 
-      if (currentIteration === 0) {
-        this.logger.log(
-          'No iterations have started yet. Skipping worker qualification.',
-        );
-        return;
-      }
+      this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
 
-      // Get all workers for all completed iterations
-      const workersToEvaluate =
-        await this.getWorkersForAllCompletedIterations();
-
-      this.logger.log(
-        `Found ${workersToEvaluate.length} workers to evaluate across all iterations up to iteration ${currentIteration}`,
-      );
-
-      // Calculate average accuracy for each worker first
+      // Hitung average accuracy untuk masing-masing worker yang punya record eligibility
       const workerAccuracies: Map<string, number> = new Map();
       const allAccuracyValues: number[] = [];
-
-      for (const user of workersToEvaluate) {
+      for (const user of allWorkers) {
         const userIdStr = user._id.toString();
 
-        // Get all eligibility records for this worker
+        // Ambil semua eligibility record untuk worker tersebut
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-
-        // Skip if no eligibility records
         if (eligibilities.length === 0) {
-          continue;
+          continue; // Lewati jika worker belum punya eligibility record
         }
 
-        // Calculate average accuracy from eligibility records
+        // Hitung nilai rata-rata accuracy dari record-record tersebut
         const totalAccuracy = eligibilities.reduce(
           (sum, e) => sum + (e.accuracy || 0),
           0,
         );
         const averageAccuracy = totalAccuracy / eligibilities.length;
 
-        // Store the worker's average accuracy
         workerAccuracies.set(userIdStr, averageAccuracy);
         allAccuracyValues.push(averageAccuracy);
 
         this.logger.debug(
-          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(4)}`,
+          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)}`,
         );
       }
 
-      // Calculate the median accuracy across all workers
+      // Hitung nilai median accuracy dan bulatkan ke tiga angka di belakang koma
       const medianAccuracy = this.calculateMedian(allAccuracyValues);
+      const medianRounded = Number(medianAccuracy.toFixed(3));
       this.logger.log(
-        `Median accuracy across all workers: ${medianAccuracy.toFixed(4)}`,
+        `Median accuracy (rounded) across all workers: ${medianRounded.toFixed(3)}`,
       );
 
-      // Process workers with null eligibility status first
-      const pendingWorkers = workersToEvaluate.filter(
-        (w) => w.isEligible === null,
-      );
-      this.logger.log(
-        `Found ${pendingWorkers.length} workers with null eligibility status that need evaluation`,
-      );
-
-      // Process all workers, starting with pending ones
-      const allWorkersToProcess = [
-        ...pendingWorkers,
-        ...workersToEvaluate.filter((w) => w.isEligible !== null),
-      ];
-
-      for (const user of allWorkersToProcess) {
+      // Update eligibility untuk masing-masing worker yang memiliki average accuracy
+      for (const user of allWorkers) {
         const userIdStr = user._id.toString();
-
-        // Skip if worker has no accuracy calculated yet
+        // Jika worker tidak memiliki eligibility record, dan sudah memiliki completedTasks, set default ke false
         if (!workerAccuracies.has(userIdStr)) {
-          // Check if worker has completed any tasks yet
-          const hasCompletedTasks =
-            user.completedTasks && user.completedTasks.length > 0;
-
-          // If they have completed tasks but no eligibility records, set to false
-          if (hasCompletedTasks && user.isEligible === null) {
+          if (user.completedTasks && user.completedTasks.length > 0) {
             await this.userModel.findByIdAndUpdate(userIdStr, {
               $set: { isEligible: false },
             });
             this.logger.log(
-              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to default non-eligible state (has completed tasks but no eligibility records)`,
+              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to non-eligible (default, no eligibility records).`,
             );
           }
           continue;
         }
 
-        // Get the worker's average accuracy
+        // Dapatkan rata-rata accuracy dan bulatkan
         const averageAccuracy = workerAccuracies.get(userIdStr);
+        const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
 
-        // Determine eligibility based on median threshold:
-        // Workers with accuracy above the median are eligible
-        const isEligible = averageAccuracy >= medianAccuracy;
+        // Tentukan eligibility dengan operator > (strictly greater)
+        const isEligible = averageAccuracyRounded > medianRounded;
+        console.log(
+          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(
+            3,
+          )}, Median: ${medianRounded.toFixed(3)}, Eligible: ${isEligible}`,
+        );
+        await this.userModel.findByIdAndUpdate(userIdStr, {
+          $set: { isEligible: isEligible },
+        });
 
-        // Only update if the eligibility status changed or was null
-        if (user.isEligible !== isEligible || user.isEligible === null) {
-          await this.userModel.findByIdAndUpdate(userIdStr, {
-            $set: { isEligible: isEligible },
-          });
-
-          this.logger.log(
-            `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (accuracy: ${averageAccuracy.toFixed(4)}, median: ${medianAccuracy.toFixed(4)})`,
-          );
-        }
+        this.logger.log(
+          `Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, median: ${medianRounded.toFixed(3)})`,
+        );
       }
 
       this.logger.log(
-        `Worker qualification process completed for iteration ${currentIteration}. Median threshold: ${medianAccuracy.toFixed(4)}`,
+        `Requalify process completed. Median threshold (rounded): ${medianRounded.toFixed(3)}`,
       );
     } catch (error) {
-      this.logger.error(`Error in qualifyUser: ${error.message}`);
+      this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }

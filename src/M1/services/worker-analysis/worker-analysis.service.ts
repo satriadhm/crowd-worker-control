@@ -49,36 +49,36 @@ export class WorkerAnalysisService {
   // Get worker performance analysis
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
-      // Get all eligibility records
+      // Ambil semua eligibility records
       const eligibilities = await this.eligibilityModel.find().exec();
 
-      // Group by worker
+      // Group by worker; simpan juga detail worker seperti nama dan isEligible
       const workerMap = new Map<
         string,
         {
           scores: number[];
           name: string;
           workerId: string;
+          isEligible: boolean | null;
         }
       >();
 
-      // Process each eligibility record
+      // Proses setiap eligibility record
       for (const eligibility of eligibilities) {
         const workerId = eligibility.workerId.toString();
 
-        // Get worker details using the user service instead of populate
+        // Dapatkan detail worker menggunakan getUserService
         const worker = await this.getUserService.getUserById(workerId);
-        if (!worker) continue; // Skip if worker not found
+        if (!worker) continue; // Lewati jika worker tidak ditemukan
 
-        const workerName = worker
-          ? `${worker.firstName} ${worker.lastName}`
-          : 'Unknown Worker';
+        const workerName = `${worker.firstName} ${worker.lastName}`;
 
         if (!workerMap.has(workerId)) {
           workerMap.set(workerId, {
             scores: [],
             name: workerName,
             workerId,
+            isEligible: worker.isEligible,
           });
         }
 
@@ -90,42 +90,28 @@ export class WorkerAnalysisService {
         }
       }
 
-      // Calculate average scores and format response
+      // Hitung rata-rata skor dan format response
       const result: TesterAnalysisView[] = [];
-
-      // Get threshold from config service for better consistency
-      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
-      const threshold = parseFloat(thresholdString) || 0.7; // Default threshold as fallback
-      this.logger.log(
-        `Using threshold value: ${threshold} for worker analysis`,
-      );
-
-      workerMap.forEach(({ scores, name, workerId }) => {
+      workerMap.forEach(({ scores, name, workerId, isEligible }) => {
         if (scores.length === 0) return;
-
-        // Calculate average score - use the same calculation as in update.user.service.ts
         const averageScore =
           scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        const accuracy = parseFloat(averageScore.toFixed(2)); // Bulatkan ke dua angka di belakang koma
 
-        // Use the same eligibility determination logic as in qualifyUser
-        const isEligible = averageScore >= threshold;
-
-        // Normalize accuracy to match what's shown in the dashboard
-        // This ensures consistency in how accuracy is displayed
-        const accuracy = parseFloat(averageScore.toFixed(2));
-        console.log(
+        this.logger.debug(
           `Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`,
         );
+
         result.push({
           workerId,
           testerName: name,
           averageScore: parseFloat(averageScore.toFixed(2)),
-          accuracy: accuracy,
-          isEligible: isEligible,
+          accuracy,
+          isEligible, // langsung gunakan nilai isEligible dari data worker
         });
       });
 
-      // Sort by accuracy for consistent display
+      // Urutkan berdasarkan accuracy dari yang tertinggi
       return result.sort((a, b) => b.accuracy - a.accuracy);
     } catch (error) {
       this.logger.error('Error getting tester analysis data', error);
