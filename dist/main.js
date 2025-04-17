@@ -1957,42 +1957,26 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
     }
     async getTesterAnalysis() {
         try {
-            const eligibilities = await this.eligibilityModel.find().exec();
-            const workerMap = new Map();
-            for (const eligibility of eligibilities) {
-                const workerId = eligibility.workerId.toString();
-                const worker = await this.getUserService.getUserById(workerId);
-                if (!worker)
-                    continue;
-                const workerName = `${worker.firstName} ${worker.lastName}`;
-                if (!workerMap.has(workerId)) {
-                    workerMap.set(workerId, {
-                        scores: [],
-                        name: workerName,
-                        workerId,
-                        isEligible: worker.isEligible,
-                    });
-                }
-                if (eligibility.accuracy !== null &&
-                    eligibility.accuracy !== undefined) {
-                    workerMap.get(workerId).scores.push(eligibility.accuracy);
-                }
-            }
+            const workers = await this.getUserService.getAllWorkers();
             const result = [];
-            workerMap.forEach(({ scores, name, workerId, isEligible }) => {
-                if (scores.length === 0)
-                    return;
-                const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-                const accuracy = parseFloat(averageScore.toFixed(2));
-                this.logger.debug(`Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`);
+            for (const worker of workers) {
+                const workerId = worker.id.toString();
+                const eligibilities = await this.eligibilityModel
+                    .find({ workerId })
+                    .exec();
+                if (eligibilities.length === 0)
+                    continue;
+                const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+                const averageAccuracy = accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+                    accuracyValues.length;
                 result.push({
                     workerId,
-                    testerName: name,
-                    averageScore: parseFloat(averageScore.toFixed(2)),
-                    accuracy,
-                    isEligible,
+                    testerName: `${worker.firstName} ${worker.lastName}`,
+                    averageScore: parseFloat(averageAccuracy.toFixed(2)),
+                    accuracy: parseFloat(averageAccuracy.toFixed(2)),
+                    isEligible: worker.isEligible,
                 });
-            });
+            }
             return result.sort((a, b) => b.accuracy - a.accuracy);
         }
         catch (error) {
@@ -4458,6 +4442,15 @@ let GetUserService = class GetUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async getAllWorkers() {
+        try {
+            const workers = await this.usersModel.find({ role: user_enum_1.Role.WORKER });
+            return workers.map(parser_1.parseToView);
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
     async getTotalUsers() {
         try {
             return this.usersModel.countDocuments({ role: user_enum_1.Role.WORKER });
@@ -4676,7 +4669,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

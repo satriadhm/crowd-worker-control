@@ -51,6 +51,15 @@ export class GetUserService {
     }
   }
 
+  async getAllWorkers(): Promise<UserView[]> {
+    try {
+      const workers = await this.usersModel.find({ role: Role.WORKER });
+      return workers.map(parseToView);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
+
   async getTotalUsers(): Promise<number> {
     try {
       return this.usersModel.countDocuments({ role: Role.WORKER });

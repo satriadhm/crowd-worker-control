@@ -49,69 +49,37 @@ export class WorkerAnalysisService {
   // Get worker performance analysis
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
-      // Ambil semua eligibility records
-      const eligibilities = await this.eligibilityModel.find().exec();
+      // Get all workers with role=worker
+      const workers = await this.getUserService.getAllWorkers();
 
-      // Group by worker; simpan juga detail worker seperti nama dan isEligible
-      const workerMap = new Map<
-        string,
-        {
-          scores: number[];
-          name: string;
-          workerId: string;
-          isEligible: boolean | null;
-        }
-      >();
-
-      // Proses setiap eligibility record
-      for (const eligibility of eligibilities) {
-        const workerId = eligibility.workerId.toString();
-
-        // Dapatkan detail worker menggunakan getUserService
-        const worker = await this.getUserService.getUserById(workerId);
-        if (!worker) continue; // Lewati jika worker tidak ditemukan
-
-        const workerName = `${worker.firstName} ${worker.lastName}`;
-
-        if (!workerMap.has(workerId)) {
-          workerMap.set(workerId, {
-            scores: [],
-            name: workerName,
-            workerId,
-            isEligible: worker.isEligible,
-          });
-        }
-
-        if (
-          eligibility.accuracy !== null &&
-          eligibility.accuracy !== undefined
-        ) {
-          workerMap.get(workerId).scores.push(eligibility.accuracy);
-        }
-      }
-
-      // Hitung rata-rata skor dan format response
       const result: TesterAnalysisView[] = [];
-      workerMap.forEach(({ scores, name, workerId, isEligible }) => {
-        if (scores.length === 0) return;
-        const averageScore =
-          scores.reduce((sum, score) => sum + score, 0) / scores.length;
-        const accuracy = parseFloat(averageScore.toFixed(2)); // Bulatkan ke dua angka di belakang koma
 
-        this.logger.debug(
-          `Worker ID: ${workerId}, Name: ${name}, Average Score: ${averageScore}, Accuracy: ${accuracy}`,
-        );
+      // Process each worker
+      for (const worker of workers) {
+        const workerId = worker.id.toString();
+
+        // Get eligibility records for this worker
+        const eligibilities = await this.eligibilityModel
+          .find({ workerId })
+          .exec();
+
+        if (eligibilities.length === 0) continue; // Skip if no eligibility records
+
+        // Calculate actual average accuracy
+        const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+        const averageAccuracy =
+          accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+          accuracyValues.length;
 
         result.push({
           workerId,
-          testerName: name,
-          averageScore: parseFloat(averageScore.toFixed(2)),
-          accuracy,
-          isEligible, // langsung gunakan nilai isEligible dari data worker
+          testerName: `${worker.firstName} ${worker.lastName}`,
+          averageScore: parseFloat(averageAccuracy.toFixed(2)),
+          accuracy: parseFloat(averageAccuracy.toFixed(2)),
+          isEligible: worker.isEligible, // Use actual DB value
         });
-      });
+      }
 
-      // Urutkan berdasarkan accuracy dari yang tertinggi
       return result.sort((a, b) => b.accuracy - a.accuracy);
     } catch (error) {
       this.logger.error('Error getting tester analysis data', error);

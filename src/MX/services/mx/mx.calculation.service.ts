@@ -358,13 +358,10 @@ export class AccuracyCalculationServiceMX {
       return []; // No iterations have started yet
     }
 
-    // Get the earliest start time (iteration 1)
     const earliestStartTime = this.iterationTimes[0];
 
-    // Get the latest end time (current iteration)
     const latestEndTime = this.iterationEndTimes[currentIteration - 1];
 
-    // Calculate total worker limit for all iterations
     let totalWorkerLimit = 0;
     for (let i = 0; i < currentIteration; i++) {
       totalWorkerLimit += this.workersPerIteration[i];
@@ -404,7 +401,6 @@ export class AccuracyCalculationServiceMX {
   @Cron(CronExpression.EVERY_12_HOURS)
   async calculateEligibility() {
     try {
-      // Determine current iteration based on time
       const currentIteration = this.getCurrentIteration();
       this.logger.log(
         `Running eligibility calculation for iteration ${currentIteration}`,
@@ -417,7 +413,6 @@ export class AccuracyCalculationServiceMX {
         return;
       }
 
-      // Get all workers up to current iteration
       const allWorkerIds = await this.getAllWorkersUpToCurrentIteration();
       if (allWorkerIds.length === 0) {
         this.logger.warn('No workers available up to current iteration');
@@ -428,7 +423,6 @@ export class AccuracyCalculationServiceMX {
         `Processing ${allWorkerIds.length} workers across iterations 1-${currentIteration}`,
       );
 
-      // Get validated tasks
       const tasks = await this.getTaskService.getValidatedTasks();
       if (!tasks || tasks.length === 0) {
         this.logger.warn('No validated tasks found');
@@ -436,13 +430,11 @@ export class AccuracyCalculationServiceMX {
       }
 
       for (const task of tasks) {
-        // Get recorded answers for this task from workers in all current iterations
         const recordedAnswers = await this.recordedAnswerModel.find({
           taskId: task.id,
           workerId: { $in: allWorkerIds },
         });
 
-        // Get unique worker IDs who have answered this task
         const workerIds = Array.from(
           new Set(recordedAnswers.map((answer) => answer.workerId.toString())),
         );
@@ -454,10 +446,8 @@ export class AccuracyCalculationServiceMX {
           continue;
         }
 
-        // Calculate accuracies for all workers who have answered this task
         const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
 
-        // Create eligibility records for all workers in this batch
         for (const workerId of workerIds) {
           const accuracy = accuracies[workerId];
           const eligibilityInput: CreateEligibilityInput = {
@@ -466,7 +456,6 @@ export class AccuracyCalculationServiceMX {
             accuracy: accuracy,
           };
 
-          // Create new eligibility record or update existing one
           await this.createEligibilityService.createEligibility(
             eligibilityInput,
           );

@@ -187,10 +187,9 @@ export class UpdateUserService {
     return allWorkers;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // Run frequently to ensure all workers are evaluated
+  @Cron(CronExpression.EVERY_MINUTE)
   async requalifyAllUsers() {
     try {
-      // Ambil semua worker tanpa mempedulikan iteration
       const allWorkers = await this.userModel
         .find({ role: 'worker' })
         .sort({ createdAt: 1 })
@@ -198,20 +197,17 @@ export class UpdateUserService {
 
       this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
 
-      // Hitung average accuracy untuk masing-masing worker yang punya record eligibility
       const workerAccuracies: Map<string, number> = new Map();
       const allAccuracyValues: number[] = [];
       for (const user of allWorkers) {
         const userIdStr = user._id.toString();
 
-        // Ambil semua eligibility record untuk worker tersebut
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
         if (eligibilities.length === 0) {
           continue; // Lewati jika worker belum punya eligibility record
         }
 
-        // Hitung nilai rata-rata accuracy dari record-record tersebut
         const totalAccuracy = eligibilities.reduce(
           (sum, e) => sum + (e.accuracy || 0),
           0,
@@ -280,4 +276,3 @@ export class UpdateUserService {
     }
   }
 }
-    
