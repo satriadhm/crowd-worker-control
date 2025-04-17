@@ -695,6 +695,7 @@ const worker_analysis_service_1 = __webpack_require__(/*! ./services/worker-anal
 const dashboard_service_1 = __webpack_require__(/*! ./services/dashboard/dashboard.service */ "./src/MX/services/dashboard/dashboard.service.ts");
 const data_analysis_service_1 = __webpack_require__(/*! ./services/worker-analysis/data-analysis.service */ "./src/MX/services/worker-analysis/data-analysis.service.ts");
 const utils_service_1 = __webpack_require__(/*! ./services/utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
+const utils_1 = __webpack_require__(/*! ./models/utils */ "./src/MX/models/utils.ts");
 let M1Module = class M1Module {
 };
 exports.M1Module = M1Module;
@@ -708,6 +709,7 @@ exports.M1Module = M1Module = __decorate([
                 { name: recorded_1.RecordedAnswer.name, schema: recorded_1.RecordedAnswerSchema },
                 { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
                 { name: user_1.Users.name, schema: user_1.UsersSchema },
+                { name: utils_1.Utils.name, schema: utils_1.UtilsSchema },
             ]),
         ],
         providers: [

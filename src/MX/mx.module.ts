@@ -18,6 +18,7 @@ import { WorkerAnalysisService } from './services/worker-analysis/worker-analysi
 import { DashboardService } from './services/dashboard/dashboard.service';
 import { MissingWorkerIdCronService } from './services/worker-analysis/data-analysis.service';
 import { UtilsService } from './services/utils/utils.service';
+import { Utils, UtilsSchema } from './models/utils';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { UtilsService } from './services/utils/utils.service';
       { name: Task.name, schema: TaskSchema },
       { name: RecordedAnswer.name, schema: RecordedAnswerSchema },
       { name: Eligibility.name, schema: EligibilitySchema },
-      { name: Users.name, schema: UsersSchema }, // Added Users model
+      { name: Users.name, schema: UsersSchema },
+      { name: Utils.name, schema: UtilsSchema },
     ]),
   ],
   providers: [
