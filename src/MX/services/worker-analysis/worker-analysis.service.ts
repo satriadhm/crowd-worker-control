@@ -12,8 +12,8 @@ import {
 import { Eligibility } from 'src/MX/models/eligibility';
 import { RecordedAnswer } from 'src/MX/models/recorded';
 import { GetUserService } from 'src/users/services/get.user.service';
-import { configService } from 'src/config/config.service';
 import { Users } from 'src/users/models/user';
+import { UtilsService } from '../utils/utils.service';
 
 @Injectable()
 export class WorkerAnalysisService {
@@ -28,6 +28,7 @@ export class WorkerAnalysisService {
     @InjectModel(Users.name)
     private readonly userModel: Model<Users>,
     private readonly getUserService: GetUserService,
+    private readonly utilsService: UtilsService, // Inject UtilsService
   ) {
     // Initialize performance history with real data at service start
     this.updatePerformanceMetrics();
@@ -56,6 +57,11 @@ export class WorkerAnalysisService {
       // Get all workers with role=worker
       const workers = await this.getUserService.getAllWorkers();
 
+      // Get current threshold settings from UtilsService
+      const thresholdSettings = await this.utilsService.getThresholdSettings();
+      const thresholdValue = thresholdSettings.thresholdValue;
+      this.logger.log(`Current threshold value: ${thresholdValue}`);
+
       const result: TesterAnalysisView[] = [];
 
       // Process each worker
@@ -75,12 +81,15 @@ export class WorkerAnalysisService {
           accuracyValues.reduce((sum, acc) => sum + acc, 0) /
           accuracyValues.length;
 
+        // Determine eligibility status based on threshold comparison
+        const isEligible = averageAccuracy > thresholdValue;
+
         result.push({
           workerId,
           testerName: `${worker.firstName} ${worker.lastName}`,
           averageScore: parseFloat(averageAccuracy.toFixed(2)),
           accuracy: parseFloat(averageAccuracy.toFixed(2)),
-          isEligible: worker.isEligible, // Use actual DB value
+          isEligible: isEligible, // Use calculated value
         });
       }
 
@@ -104,6 +113,10 @@ export class WorkerAnalysisService {
         .limit(50)
         .exec();
 
+      // Get current threshold settings
+      const thresholdSettings = await this.utilsService.getThresholdSettings();
+      const threshold = thresholdSettings.thresholdValue;
+
       const results: TestResultView[] = [];
 
       // Process each eligibility record
@@ -120,30 +133,27 @@ export class WorkerAnalysisService {
           ? `Worker: ${worker.firstName} ${worker.lastName}`
           : '';
 
-        // Get threshold to determine if worker is eligible from this test
-        const thresholdString = configService.getEnvValue('MX_THRESHOLD');
-        const threshold = parseFloat(thresholdString) || 0.7;
-
         // Format date for consistent display
         const formattedDate = eligibility.createdAt
           ? new Date(eligibility.createdAt).toLocaleDateString()
           : 'N/A';
+
+        // Determine eligibility status based on threshold
+        const eligibilityStatus =
+          (eligibility.accuracy || 0) > threshold ? 'Eligible' : 'Not Eligible';
 
         results.push({
           id: eligibility._id.toString(),
           workerId: eligibility.workerId.toString(),
           testId: eligibility.taskId.toString(),
           score: eligibility.accuracy || 0.5,
-          eligibilityStatus:
-            (eligibility.accuracy || 0) >= threshold
-              ? 'Eligible'
-              : 'Not Eligible',
+          eligibilityStatus: eligibilityStatus,
           feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
           createdAt: eligibility.createdAt,
           formattedDate: formattedDate,
         });
 
-        // Auto-update worker eligibility status when we process a new eligibility
+        // Auto-update worker eligibility status
         await this.updateWorkerEligibility(eligibility.workerId.toString());
       }
 
@@ -173,12 +183,12 @@ export class WorkerAnalysisService {
         accuracyValues.reduce((sum, acc) => sum + acc, 0) /
         accuracyValues.length;
 
-      // Get threshold
-      const thresholdString = configService.getEnvValue('MX_THRESHOLD');
-      const threshold = parseFloat(thresholdString) || 0.7;
+      // Get threshold from UtilsService
+      const thresholdSettings = await this.utilsService.getThresholdSettings();
+      const threshold = thresholdSettings.thresholdValue;
 
       // Determine eligibility
-      const isEligible = averageAccuracy >= threshold;
+      const isEligible = averageAccuracy > threshold;
 
       // Update worker document
       await this.userModel.findByIdAndUpdate(
@@ -192,7 +202,7 @@ export class WorkerAnalysisService {
           isEligible ? 'Eligible' : 'Not Eligible'
         } (average accuracy: ${averageAccuracy.toFixed(
           2,
-        )}, threshold: ${threshold})`,
+        )}, threshold: ${threshold.toFixed(2)})`,
       );
     } catch (error) {
       this.logger.error(
@@ -295,6 +305,14 @@ export class WorkerAnalysisService {
   @Cron(CronExpression.EVERY_2ND_MONTH)
   async updateAllWorkerEligibility() {
     try {
+      // Get the most recent threshold value
+      const thresholdSettings = await this.utilsService.getThresholdSettings();
+      const threshold = thresholdSettings.thresholdValue;
+
+      this.logger.log(
+        `Running eligibility update with threshold: ${threshold}`,
+      );
+
       const workers = await this.getUserService.getAllWorkers();
 
       this.logger.log(
@@ -302,7 +320,42 @@ export class WorkerAnalysisService {
       );
 
       for (const worker of workers) {
-        await this.updateWorkerEligibility(worker.id);
+        // Get eligibility records for this worker
+        const eligibilities = await this.eligibilityModel
+          .find({ workerId: worker.id })
+          .exec();
+
+        if (eligibilities.length === 0) {
+          // If no eligibility records, set to null (pending)
+          await this.userModel.findByIdAndUpdate(
+            worker.id,
+            { $set: { isEligible: null } },
+            { new: true },
+          );
+          continue;
+        }
+
+        // Calculate average accuracy
+        const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+        const averageAccuracy =
+          accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+          accuracyValues.length;
+
+        // Determine eligibility using threshold from settings
+        const isEligible = averageAccuracy > threshold;
+
+        // Update worker document
+        await this.userModel.findByIdAndUpdate(
+          worker.id,
+          { $set: { isEligible } },
+          { new: true },
+        );
+
+        this.logger.log(
+          `Updated eligibility for worker ${worker.id}: ${
+            isEligible ? 'Eligible' : 'Not Eligible'
+          } (avg accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`,
+        );
       }
 
       this.logger.log('All worker eligibility statuses updated successfully');

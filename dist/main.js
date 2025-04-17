@@ -1727,7 +1727,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var UtilsService_1;
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UtilsService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -1735,9 +1735,11 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const utils_1 = __webpack_require__(/*! src/MX/models/utils */ "./src/MX/models/utils.ts");
+const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
 let UtilsService = UtilsService_1 = class UtilsService {
-    constructor(utilsModel) {
+    constructor(utilsModel, eligibilityModel) {
         this.utilsModel = utilsModel;
+        this.eligibilityModel = eligibilityModel;
         this.logger = new common_1.Logger(UtilsService_1.name);
         this.initializeUtils();
     }
@@ -1788,10 +1790,19 @@ let UtilsService = UtilsService_1 = class UtilsService {
                 thresholdType,
                 lastUpdated: new Date(),
             };
-            if (thresholdValue !== undefined) {
+            if (thresholdType === utils_1.ThresholdType.MEDIAN ||
+                thresholdType === utils_1.ThresholdType.MEAN) {
+                const allAccuracies = await this.getAllWorkerAccuracies();
+                const calculatedThreshold = thresholdType === utils_1.ThresholdType.MEDIAN
+                    ? this.calculateMedian(allAccuracies)
+                    : this.calculateMean(allAccuracies);
+                updateData.thresholdValue = calculatedThreshold;
+            }
+            else if (thresholdValue !== undefined) {
                 updateData.thresholdValue = thresholdValue;
             }
             const utils = await this.utilsModel.findOneAndUpdate({}, { $set: updateData }, { upsert: true, new: true });
+            this.logger.log(`Updated threshold settings: type=${thresholdType}, value=${utils.thresholdValue}`);
             return utils;
         }
         catch (error) {
@@ -1802,6 +1813,35 @@ let UtilsService = UtilsService_1 = class UtilsService {
             throw new gqlerr_1.ThrowGQL('Failed to update threshold settings', gqlerr_1.GQLThrowType.UNEXPECTED);
         }
     }
+    async getAllWorkerAccuracies() {
+        try {
+            const eligibilityRecords = await this.eligibilityModel.find().exec();
+            if (eligibilityRecords.length === 0) {
+                return [0.7];
+            }
+            const workerAccuracies = new Map();
+            for (const record of eligibilityRecords) {
+                const workerId = record.workerId.toString();
+                const accuracy = record.accuracy || 0;
+                if (!workerAccuracies.has(workerId)) {
+                    workerAccuracies.set(workerId, []);
+                }
+                workerAccuracies.get(workerId)?.push(accuracy);
+            }
+            const averageAccuracies = [];
+            for (const accuracies of workerAccuracies.values()) {
+                if (accuracies.length > 0) {
+                    const avgAccuracy = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+                    averageAccuracies.push(avgAccuracy);
+                }
+            }
+            return averageAccuracies.length > 0 ? averageAccuracies : [0.7];
+        }
+        catch (error) {
+            this.logger.error('Error getting worker accuracies', error);
+            return [0.7];
+        }
+    }
     async calculateThreshold(accuracyValues) {
         try {
             if (!accuracyValues || accuracyValues.length === 0) {
@@ -1810,16 +1850,10 @@ let UtilsService = UtilsService_1 = class UtilsService {
             const settings = await this.getThresholdSettings();
             switch (settings.thresholdType) {
                 case utils_1.ThresholdType.MEDIAN: {
-                    const sorted = [...accuracyValues].sort((a, b) => a - b);
-                    const middle = Math.floor(sorted.length / 2);
-                    const median = sorted.length % 2 === 1
-                        ? sorted[middle]
-                        : (sorted[middle - 1] + sorted[middle]) / 2;
-                    return median;
+                    return this.calculateMedian(accuracyValues);
                 }
                 case utils_1.ThresholdType.MEAN: {
-                    const sum = accuracyValues.reduce((acc, val) => acc + val, 0);
-                    return sum / accuracyValues.length;
+                    return this.calculateMean(accuracyValues);
                 }
                 case utils_1.ThresholdType.CUSTOM: {
                     return settings.thresholdValue;
@@ -1835,7 +1869,7 @@ let UtilsService = UtilsService_1 = class UtilsService {
     }
     calculateMedian(values) {
         if (values.length === 0)
-            return 0;
+            return 0.7;
         const sorted = [...values].sort((a, b) => a - b);
         const middle = Math.floor(sorted.length / 2);
         if (sorted.length % 2 === 1) {
@@ -1843,12 +1877,18 @@ let UtilsService = UtilsService_1 = class UtilsService {
         }
         return (sorted[middle - 1] + sorted[middle]) / 2;
     }
+    calculateMean(values) {
+        if (values.length === 0)
+            return 0.7;
+        return values.reduce((sum, val) => sum + val, 0) / values.length;
+    }
 };
 exports.UtilsService = UtilsService;
 exports.UtilsService = UtilsService = UtilsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(utils_1.Utils.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+    __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
 ], UtilsService);
 
 
@@ -1942,7 +1982,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var WorkerAnalysisService_1;
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WorkerAnalysisService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1953,14 +1993,15 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
 const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
-const config_service_1 = __webpack_require__(/*! src/config/config.service */ "./src/config/config.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
+const utils_service_1 = __webpack_require__(/*! ../utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
-    constructor(eligibilityModel, recordedAnswerModel, userModel, getUserService) {
+    constructor(eligibilityModel, recordedAnswerModel, userModel, getUserService, utilsService) {
         this.eligibilityModel = eligibilityModel;
         this.recordedAnswerModel = recordedAnswerModel;
         this.userModel = userModel;
         this.getUserService = getUserService;
+        this.utilsService = utilsService;
         this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
         this.performanceHistory = [];
         this.updatePerformanceMetrics();
@@ -1980,6 +2021,9 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
     async getTesterAnalysis() {
         try {
             const workers = await this.getUserService.getAllWorkers();
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const thresholdValue = thresholdSettings.thresholdValue;
+            this.logger.log(`Current threshold value: ${thresholdValue}`);
             const result = [];
             for (const worker of workers) {
                 const workerId = worker.id.toString();
@@ -1991,12 +2035,13 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
                 const averageAccuracy = accuracyValues.reduce((sum, acc) => sum + acc, 0) /
                     accuracyValues.length;
+                const isEligible = averageAccuracy > thresholdValue;
                 result.push({
                     workerId,
                     testerName: `${worker.firstName} ${worker.lastName}`,
                     averageScore: parseFloat(averageAccuracy.toFixed(2)),
                     accuracy: parseFloat(averageAccuracy.toFixed(2)),
-                    isEligible: worker.isEligible,
+                    isEligible: isEligible,
                 });
             }
             return result.sort((a, b) => b.accuracy - a.accuracy);
@@ -2013,6 +2058,8 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 .sort({ createdAt: -1 })
                 .limit(50)
                 .exec();
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const threshold = thresholdSettings.thresholdValue;
             const results = [];
             for (const eligibility of eligibilities) {
                 const worker = await this.getUserService.getUserById(eligibility.workerId.toString());
@@ -2021,19 +2068,16 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 const workerInfo = worker
                     ? `Worker: ${worker.firstName} ${worker.lastName}`
                     : '';
-                const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
-                const threshold = parseFloat(thresholdString) || 0.7;
                 const formattedDate = eligibility.createdAt
                     ? new Date(eligibility.createdAt).toLocaleDateString()
                     : 'N/A';
+                const eligibilityStatus = (eligibility.accuracy || 0) > threshold ? 'Eligible' : 'Not Eligible';
                 results.push({
                     id: eligibility._id.toString(),
                     workerId: eligibility.workerId.toString(),
                     testId: eligibility.taskId.toString(),
                     score: eligibility.accuracy || 0.5,
-                    eligibilityStatus: (eligibility.accuracy || 0) >= threshold
-                        ? 'Eligible'
-                        : 'Not Eligible',
+                    eligibilityStatus: eligibilityStatus,
                     feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
                     createdAt: eligibility.createdAt,
                     formattedDate: formattedDate,
@@ -2057,11 +2101,11 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
             const averageAccuracy = accuracyValues.reduce((sum, acc) => sum + acc, 0) /
                 accuracyValues.length;
-            const thresholdString = config_service_1.configService.getEnvValue('MX_THRESHOLD');
-            const threshold = parseFloat(thresholdString) || 0.7;
-            const isEligible = averageAccuracy >= threshold;
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const threshold = thresholdSettings.thresholdValue;
+            const isEligible = averageAccuracy > threshold;
             await this.userModel.findByIdAndUpdate(workerId, { $set: { isEligible } }, { new: true });
-            this.logger.log(`Auto-updated eligibility for worker ${workerId}: ${isEligible ? 'Eligible' : 'Not Eligible'} (average accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold})`);
+            this.logger.log(`Auto-updated eligibility for worker ${workerId}: ${isEligible ? 'Eligible' : 'Not Eligible'} (average accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`);
         }
         catch (error) {
             this.logger.error(`Error updating eligibility for worker ${workerId}: ${error.message}`);
@@ -2137,10 +2181,25 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
     }
     async updateAllWorkerEligibility() {
         try {
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const threshold = thresholdSettings.thresholdValue;
+            this.logger.log(`Running eligibility update with threshold: ${threshold}`);
             const workers = await this.getUserService.getAllWorkers();
             this.logger.log(`Starting eligibility update for ${workers.length} workers`);
             for (const worker of workers) {
-                await this.updateWorkerEligibility(worker.id);
+                const eligibilities = await this.eligibilityModel
+                    .find({ workerId: worker.id })
+                    .exec();
+                if (eligibilities.length === 0) {
+                    await this.userModel.findByIdAndUpdate(worker.id, { $set: { isEligible: null } }, { new: true });
+                    continue;
+                }
+                const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
+                const averageAccuracy = accuracyValues.reduce((sum, acc) => sum + acc, 0) /
+                    accuracyValues.length;
+                const isEligible = averageAccuracy > threshold;
+                await this.userModel.findByIdAndUpdate(worker.id, { $set: { isEligible } }, { new: true });
+                this.logger.log(`Updated eligibility for worker ${worker.id}: ${isEligible ? 'Eligible' : 'Not Eligible'} (avg accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`);
             }
             this.logger.log('All worker eligibility statuses updated successfully');
         }
@@ -2167,7 +2226,7 @@ exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __param(1, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
     __param(2, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
 ], WorkerAnalysisService);
 
 

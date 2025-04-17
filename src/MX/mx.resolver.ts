@@ -59,7 +59,7 @@ export class M1Resolver {
     return this.getEligibilityService.getEligibilityWorkerId(workerId);
   }
 
-  // New APIs for Worker Analysis Page
+  // Worker Analysis APIs
   @Query(() => [AlgorithmPerformanceData])
   @Roles(Role.ADMIN, Role.QUESTION_VALIDATOR)
   async getAlgorithmPerformance(): Promise<AlgorithmPerformanceData[]> {
