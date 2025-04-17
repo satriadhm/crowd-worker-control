@@ -1577,7 +1577,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
 __decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_12_HOURS),
+    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_2ND_MONTH),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -2151,13 +2151,13 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
 };
 exports.WorkerAnalysisService = WorkerAnalysisService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_DAY_AT_MIDNIGHT),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], WorkerAnalysisService.prototype, "updatePerformanceMetrics", null);
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -4732,7 +4732,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
