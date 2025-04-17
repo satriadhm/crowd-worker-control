@@ -330,7 +330,7 @@ export class UpdateUserService {
   //   }
   // }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // Anda bisa sesuaikan jadwalnya atau memanggilnya secara manual
+  @Cron(CronExpression.EVERY_DAY_AT_10PM) // Anda bisa sesuaikan jadwalnya atau memanggilnya secara manual
   async requalifyAllUsers() {
     try {
       // Ambil semua worker tanpa mempedulikan iteration
