@@ -187,7 +187,7 @@ export class UpdateUserService {
     return allWorkers;
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_2ND_MONTH)
   async requalifyAllUsers() {
     try {
       const allWorkers = await this.userModel

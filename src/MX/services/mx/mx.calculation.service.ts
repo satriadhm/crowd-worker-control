@@ -398,7 +398,7 @@ export class AccuracyCalculationServiceMX {
    * kemudian menentukan status eligible untuk masing-masing worker berdasarkan threshold.
    * Updated to work with new iteration times.
    */
-  @Cron(CronExpression.EVERY_12_HOURS)
+  @Cron(CronExpression.EVERY_2ND_MONTH)
   async calculateEligibility() {
     try {
       const currentIteration = this.getCurrentIteration();

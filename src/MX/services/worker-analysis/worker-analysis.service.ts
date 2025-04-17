@@ -202,7 +202,7 @@ export class WorkerAnalysisService {
   }
 
   // Update performance metrics periodically
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_2ND_MONTH)
   async updatePerformanceMetrics() {
     try {
       const now = new Date();
@@ -292,7 +292,7 @@ export class WorkerAnalysisService {
   }
 
   // Add a cron job that runs every minute to update all worker eligibility statuses
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_2ND_MONTH)
   async updateAllWorkerEligibility() {
     try {
       const workers = await this.getUserService.getAllWorkers();
