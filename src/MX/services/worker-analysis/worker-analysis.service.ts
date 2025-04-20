@@ -110,7 +110,6 @@ export class WorkerAnalysisService {
       const eligibilities = await this.eligibilityModel
         .find()
         .sort({ createdAt: -1 })
-        .limit(50)
         .exec();
 
       // Get current threshold settings
