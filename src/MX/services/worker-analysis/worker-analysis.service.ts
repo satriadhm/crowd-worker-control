@@ -137,7 +137,6 @@ export class WorkerAnalysisService {
           ? new Date(eligibility.createdAt).toLocaleDateString()
           : 'N/A';
 
-        // Determine eligibility status based on threshold
         const eligibilityStatus =
           (eligibility.accuracy || 0) > threshold ? 'Eligible' : 'Not Eligible';
 
