@@ -2056,7 +2056,6 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             const eligibilities = await this.eligibilityModel
                 .find()
                 .sort({ createdAt: -1 })
-                .limit(50)
                 .exec();
             const thresholdSettings = await this.utilsService.getThresholdSettings();
             const threshold = thresholdSettings.thresholdValue;
