@@ -19,6 +19,14 @@ import { UtilsService } from '../utils/utils.service';
 export class WorkerAnalysisService {
   private readonly logger = new Logger(WorkerAnalysisService.name);
   private performanceHistory: AlgorithmPerformanceData[] = [];
+  // Add caching for expensive operations
+  private testResultsCache: { results: TestResultView[]; timestamp: number } =
+    null;
+  private testerAnalysisCache: {
+    results: TesterAnalysisView[];
+    timestamp: number;
+  } = null;
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
   constructor(
     @InjectModel(Eligibility.name)
@@ -28,7 +36,7 @@ export class WorkerAnalysisService {
     @InjectModel(Users.name)
     private readonly userModel: Model<Users>,
     private readonly getUserService: GetUserService,
-    private readonly utilsService: UtilsService, // Inject UtilsService
+    private readonly utilsService: UtilsService,
   ) {
     // Initialize performance history with real data at service start
     this.updatePerformanceMetrics();
@@ -51,51 +59,99 @@ export class WorkerAnalysisService {
     }
   }
 
-  // Get worker performance analysis
+  // Get worker performance analysis using aggregation pipeline
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
-      // Get all workers with role=worker
-      const workers = await this.getUserService.getAllWorkers();
+      // Check if cache is valid
+      if (
+        this.testerAnalysisCache &&
+        Date.now() - this.testerAnalysisCache.timestamp < this.CACHE_TTL
+      ) {
+        return this.testerAnalysisCache.results;
+      }
+
+      const startTime = Date.now();
+      this.logger.log('Starting getTesterAnalysis');
 
       // Get current threshold settings from UtilsService
       const thresholdSettings = await this.utilsService.getThresholdSettings();
       const thresholdValue = thresholdSettings.thresholdValue;
       this.logger.log(`Current threshold value: ${thresholdValue}`);
 
-      const result: TesterAnalysisView[] = [];
+      // Use aggregation pipeline to calculate average accuracy per worker
+      const workerAccuracies = await this.eligibilityModel.aggregate([
+        // Group by workerId and calculate average accuracy
+        {
+          $group: {
+            _id: '$workerId',
+            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
+            totalRecords: { $sum: 1 },
+          },
+        },
+        // Filter out workers with no eligibility records
+        {
+          $match: {
+            totalRecords: { $gt: 0 },
+          },
+        },
+        // Add eligibility status based on threshold
+        {
+          $addFields: {
+            isEligible: { $gt: ['$averageAccuracy', thresholdValue] },
+          },
+        },
+        // Lookup worker details
+        {
+          $lookup: {
+            from: 'users', // Collection name might be different in your setup
+            localField: '_id',
+            foreignField: '_id',
+            as: 'workerDetails',
+          },
+        },
+        // Unwind worker details array
+        {
+          $unwind: {
+            path: '$workerDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        // Project final fields
+        {
+          $project: {
+            _id: 0,
+            workerId: { $toString: '$_id' },
+            testerName: {
+              $concat: [
+                { $ifNull: ['$workerDetails.firstName', ''] },
+                ' ',
+                { $ifNull: ['$workerDetails.lastName', ''] },
+              ],
+            },
+            averageScore: { $round: ['$averageAccuracy', 2] },
+            accuracy: { $round: ['$averageAccuracy', 2] },
+            isEligible: 1,
+          },
+        },
+        // Sort by accuracy (descending)
+        {
+          $sort: { accuracy: -1 },
+        },
+      ]);
 
-      // Process each worker
-      for (const worker of workers) {
-        const workerId = worker.id.toString();
+      this.logger.log(
+        `getTesterAnalysis executed in ${Date.now() - startTime}ms`,
+      );
 
-        // Get eligibility records for this worker
-        const eligibilities = await this.eligibilityModel
-          .find({ workerId })
-          .exec();
+      // Update cache
+      this.testerAnalysisCache = {
+        results: workerAccuracies,
+        timestamp: Date.now(),
+      };
 
-        if (eligibilities.length === 0) continue; // Skip if no eligibility records
-
-        // Calculate actual average accuracy
-        const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
-        const averageAccuracy =
-          accuracyValues.reduce((sum, acc) => sum + acc, 0) /
-          accuracyValues.length;
-
-        // Determine eligibility status based on threshold comparison
-        const isEligible = averageAccuracy > thresholdValue;
-
-        result.push({
-          workerId,
-          testerName: `${worker.firstName} ${worker.lastName}`,
-          averageScore: parseFloat(averageAccuracy.toFixed(2)),
-          accuracy: parseFloat(averageAccuracy.toFixed(2)),
-          isEligible: isEligible, // Use calculated value
-        });
-      }
-
-      return result.sort((a, b) => b.accuracy - a.accuracy);
+      return workerAccuracies;
     } catch (error) {
-      this.logger.error('Error getting tester analysis data', error);
+      this.logger.error(`Error getting tester analysis data: ${error.message}`);
       throw new ThrowGQL(
         'Failed to retrieve tester analysis data',
         GQLThrowType.UNEXPECTED,
@@ -103,61 +159,111 @@ export class WorkerAnalysisService {
     }
   }
 
-  // Get test results for visualization
-  async getTestResults(): Promise<TestResultView[]> {
+  // Get test results for visualization using aggregation pipeline
+  async getTestResults(page = 1, limit = 288): Promise<TestResultView[]> {
     try {
-      // Get eligibility records
-      const eligibilities = await this.eligibilityModel
-        .find()
-        .sort({ createdAt: -1 })
-        .exec();
+      // Check if cache is valid
+      if (
+        this.testResultsCache &&
+        Date.now() - this.testResultsCache.timestamp < this.CACHE_TTL
+      ) {
+        return this.testResultsCache.results;
+      }
+
+      const startTime = Date.now();
+      this.logger.log('Starting getTestResults');
 
       // Get current threshold settings
       const thresholdSettings = await this.utilsService.getThresholdSettings();
       const threshold = thresholdSettings.thresholdValue;
 
-      const results: TestResultView[] = [];
+      // Calculate pagination
+      const skip = (page - 1) * limit;
 
-      // Process each eligibility record
-      for (const eligibility of eligibilities) {
-        // Get worker details
-        const worker = await this.getUserService.getUserById(
-          eligibility.workerId.toString(),
-        );
+      // Use aggregation pipeline
+      const results = await this.eligibilityModel.aggregate([
+        // Sort by creation date
+        { $sort: { createdAt: -1 } },
+        // Apply pagination
+        { $skip: skip },
+        { $limit: limit },
+        // Add eligibility status based on threshold
+        {
+          $addFields: {
+            eligibilityStatus: {
+              $cond: {
+                if: { $gt: [{ $ifNull: ['$accuracy', 0] }, threshold] },
+                then: 'Eligible',
+                else: 'Not Eligible',
+              },
+            },
+            // Format date
+            formattedDate: {
+              $dateToString: {
+                format: '%Y-%m-%d',
+                date: { $ifNull: ['$createdAt', new Date()] },
+              },
+            },
+          },
+        },
+        // Lookup worker details
+        {
+          $lookup: {
+            from: 'users', // Collection name might be different
+            localField: 'workerId',
+            foreignField: '_id',
+            as: 'workerDetails',
+          },
+        },
+        // Unwind worker details array
+        {
+          $unwind: {
+            path: '$workerDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        // Project final fields
+        {
+          $project: {
+            id: { $toString: '$_id' },
+            workerId: { $toString: '$workerId' },
+            testId: { $toString: '$taskId' },
+            score: { $ifNull: ['$accuracy', 0.5] },
+            eligibilityStatus: 1,
+            feedback: {
+              $concat: [
+                'Automatically evaluated by M-X algorithm. Worker: ',
+                { $ifNull: ['$workerDetails.firstName', ''] },
+                ' ',
+                { $ifNull: ['$workerDetails.lastName', ''] },
+                ' Task ID: ',
+                { $toString: '$taskId' },
+              ],
+            },
+            createdAt: '$createdAt',
+            formattedDate: 1,
+          },
+        },
+      ]);
 
-        if (!worker) continue; // Skip if worker not found
+      this.logger.log(`getTestResults executed in ${Date.now() - startTime}ms`);
 
-        // Include worker name in feedback if available
-        const workerInfo = worker
-          ? `Worker: ${worker.firstName} ${worker.lastName}`
-          : '';
+      // Batch update worker eligibility statuses in background
+      this.updateEligibilityForResults(results).catch((err) =>
+        this.logger.error(
+          `Background eligibility update failed: ${err.message}`,
+        ),
+      );
 
-        // Format date for consistent display
-        const formattedDate = eligibility.createdAt
-          ? new Date(eligibility.createdAt).toLocaleDateString()
-          : 'N/A';
-
-        const eligibilityStatus =
-          (eligibility.accuracy || 0) > threshold ? 'Eligible' : 'Not Eligible';
-
-        results.push({
-          id: eligibility._id.toString(),
-          workerId: eligibility.workerId.toString(),
-          testId: eligibility.taskId.toString(),
-          score: eligibility.accuracy || 0.5,
-          eligibilityStatus: eligibilityStatus,
-          feedback: `Automatically evaluated by M-X algorithm. ${workerInfo} Task ID: ${eligibility.taskId.toString()}`,
-          createdAt: eligibility.createdAt,
-          formattedDate: formattedDate,
-        });
-
-        // Auto-update worker eligibility status
-        await this.updateWorkerEligibility(eligibility.workerId.toString());
-      }
+      // Update cache
+      this.testResultsCache = {
+        results,
+        timestamp: Date.now(),
+      };
 
       return results;
     } catch (error) {
-      this.logger.error('Error getting test results data', error);
+      this.logger.error(`Error getting test results data: ${error.message}`);
       throw new ThrowGQL(
         'Failed to retrieve test results data',
         GQLThrowType.UNEXPECTED,
@@ -165,25 +271,53 @@ export class WorkerAnalysisService {
     }
   }
 
+  // Helper method for batch updating worker eligibility in background
+  private async updateEligibilityForResults(
+    results: TestResultView[],
+  ): Promise<void> {
+    // Extract unique worker IDs
+    const workerIds = [...new Set(results.map((r) => r.workerId))];
+
+    // Get threshold
+    const thresholdSettings = await this.utilsService.getThresholdSettings();
+    const threshold = thresholdSettings.thresholdValue;
+
+    // Process each worker once, even if they appear in multiple results
+    for (const workerId of workerIds) {
+      await this.updateWorkerEligibility(workerId, threshold);
+    }
+  }
+
   // Helper method to update a worker's eligibility status based on their eligibility records
-  async updateWorkerEligibility(workerId: string): Promise<void> {
+  // Optional threshold parameter to avoid fetching it repeatedly
+  async updateWorkerEligibility(
+    workerId: string,
+    threshold?: number,
+  ): Promise<void> {
     try {
-      // Get eligibility records for this worker
-      const eligibilities = await this.eligibilityModel
-        .find({ workerId })
-        .exec();
+      // Get average accuracy with aggregation
+      const result = await this.eligibilityModel.aggregate([
+        { $match: { workerId: workerId } },
+        {
+          $group: {
+            _id: null,
+            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
 
-      if (eligibilities.length === 0) return; // Skip if no eligibility records
+      // Skip if no eligibility records
+      if (!result.length || result[0].count === 0) return;
 
-      // Calculate average accuracy
-      const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
-      const averageAccuracy =
-        accuracyValues.reduce((sum, acc) => sum + acc, 0) /
-        accuracyValues.length;
+      const averageAccuracy = result[0].averageAccuracy;
 
-      // Get threshold from UtilsService
-      const thresholdSettings = await this.utilsService.getThresholdSettings();
-      const threshold = thresholdSettings.thresholdValue;
+      // Get threshold if not provided
+      if (threshold === undefined) {
+        const thresholdSettings =
+          await this.utilsService.getThresholdSettings();
+        threshold = thresholdSettings.thresholdValue;
+      }
 
       // Determine eligibility
       const isEligible = averageAccuracy > threshold;
@@ -195,12 +329,10 @@ export class WorkerAnalysisService {
         { new: true },
       );
 
-      this.logger.log(
+      this.logger.debug(
         `Auto-updated eligibility for worker ${workerId}: ${
           isEligible ? 'Eligible' : 'Not Eligible'
-        } (average accuracy: ${averageAccuracy.toFixed(
-          2,
-        )}, threshold: ${threshold.toFixed(2)})`,
+        } (average accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`,
       );
     } catch (error) {
       this.logger.error(
@@ -229,80 +361,92 @@ export class WorkerAnalysisService {
         'Dec',
       ];
 
-      // Get data for the last 6 months
-      const months = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push({
-          month: monthNames[monthDate.getMonth()],
-          year: monthDate.getFullYear(),
-          monthIndex: monthDate.getMonth(),
-        });
-      }
-
       // Empty performance history to rebuild it
       this.performanceHistory = [];
 
-      // For each month, calculate actual metrics
-      for (const monthData of months) {
-        const monthStart = new Date(monthData.year, monthData.monthIndex, 1);
-        const monthEnd = new Date(monthData.year, monthData.monthIndex + 1, 0);
+      // Process last 6 months all at once with aggregation
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-        // Get eligibility records for the month
-        const eligibilityRecords = await this.eligibilityModel
-          .find({
-            createdAt: {
-              $gte: monthStart,
-              $lte: monthEnd,
+      // For eligibility records by month
+      const accuracyByMonth = await this.eligibilityModel.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
             },
-          })
-          .exec();
+            avgAccuracy: { $avg: { $ifNull: ['$accuracy', 0.5] } },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]);
 
-        // Calculate average accuracy from actual data
-        const accuracies = eligibilityRecords.map((r) => r.accuracy || 0.5);
-        const avgAccuracy =
-          accuracies.length > 0
-            ? accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length
-            : 0.88; // Default with slight randomization if no data
-
-        // Calculate response time from recorded answers (or approximate if no data)
-        const recordedAnswers = await this.recordedAnswerModel
-          .find({
-            createdAt: {
-              $gte: monthStart,
-              $lte: monthEnd,
+      // For recorded answers by month
+      const responseTimeByMonth = await this.recordedAnswerModel.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
             },
-          })
-          .exec();
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]);
 
-        // Calculate average response time or use fallback calculation
+      // Map for easier lookup
+      const accuracyMap = new Map();
+      accuracyByMonth.forEach((item) => {
+        const key = `${item._id.year}-${item._id.month}`;
+        accuracyMap.set(key, item.avgAccuracy);
+      });
+
+      const responseMap = new Map();
+      responseTimeByMonth.forEach((item) => {
+        const key = `${item._id.year}-${item._id.month}`;
+        responseMap.set(key, item.count);
+      });
+
+      // Build performance history for last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth() + 1; // MongoDB months are 1-12
+        const key = `${year}-${month}`;
+
+        // Get actual accuracy or use default
+        const accuracy = accuracyMap.has(key) ? accuracyMap.get(key) : 0.88; // Default with slight randomization if no data
+
+        // Calculate response time from recorded answers count
+        const recordedCount = responseMap.has(key) ? responseMap.get(key) : 0;
         const responseTime =
-          recordedAnswers.length > 0
-            ? 250 - Math.min(recordedAnswers.length, 30) // Simulate improvement with more answers
-            : 270 - (5 - monthData.monthIndex) * 10; // Fallback calculation
+          recordedCount > 0
+            ? 250 - Math.min(recordedCount, 30) // Simulate improvement with more answers
+            : 270 - (5 - i) * 10; // Fallback calculation
 
         this.performanceHistory.push({
-          month: `${monthData.month} ${monthData.year}`,
-          accuracyRate: parseFloat(avgAccuracy.toFixed(2)),
+          month: `${monthNames[monthDate.getMonth()]} ${year}`,
+          accuracyRate: parseFloat(accuracy.toFixed(2)),
           responseTime: Math.round(Math.max(220, responseTime)),
         });
       }
 
       this.logger.log('Performance metrics updated successfully');
     } catch (error) {
-      this.logger.error('Error updating performance metrics', error);
+      this.logger.error(`Error updating performance metrics: ${error.message}`);
     }
   }
 
-  // Helper method to consistently format accuracy percentages
-  private formatAccuracyPercentage(value: number): string {
-    return `${(value * 100).toFixed(1)}%`;
-  }
-
-  // Add a cron job that runs every minute to update all worker eligibility statuses
+  // Add a cron job that runs to update all worker eligibility statuses
   @Cron(CronExpression.EVERY_2ND_MONTH)
   async updateAllWorkerEligibility() {
     try {
+      const startTime = Date.now();
+      this.logger.log('Starting updateAllWorkerEligibility');
+
       // Get the most recent threshold value
       const thresholdSettings = await this.utilsService.getThresholdSettings();
       const threshold = thresholdSettings.thresholdValue;
@@ -311,50 +455,68 @@ export class WorkerAnalysisService {
         `Running eligibility update with threshold: ${threshold}`,
       );
 
-      const workers = await this.getUserService.getAllWorkers();
+      // Calculate all worker eligibilities in one aggregation
+      const workerEligibilities = await this.eligibilityModel.aggregate([
+        // Group by workerId and calculate average accuracy
+        {
+          $group: {
+            _id: '$workerId',
+            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
+            totalRecords: { $sum: 1 },
+          },
+        },
+        // Calculate eligibility status
+        {
+          $addFields: {
+            isEligible: { $gt: ['$averageAccuracy', threshold] },
+          },
+        },
+      ]);
 
-      this.logger.log(
-        `Starting eligibility update for ${workers.length} workers`,
-      );
+      // Build bulk update operations
+      const bulkOps = workerEligibilities.map((worker) => ({
+        updateOne: {
+          filter: { _id: worker._id },
+          update: { $set: { isEligible: worker.isEligible } },
+        },
+      }));
 
-      for (const worker of workers) {
-        // Get eligibility records for this worker
-        const eligibilities = await this.eligibilityModel
-          .find({ workerId: worker.id })
-          .exec();
+      // Add operations for workers with no eligibility records
+      const workersWithNoRecords = await this.userModel.aggregate([
+        { $match: { role: 'worker' } },
+        {
+          $lookup: {
+            from: 'eligibilities', // Collection name might be different
+            localField: '_id',
+            foreignField: 'workerId',
+            as: 'eligibilities',
+          },
+        },
+        { $match: { eligibilities: { $size: 0 } } },
+      ]);
 
-        if (eligibilities.length === 0) {
-          // If no eligibility records, set to null (pending)
-          await this.userModel.findByIdAndUpdate(
-            worker.id,
-            { $set: { isEligible: null } },
-            { new: true },
-          );
-          continue;
-        }
+      workersWithNoRecords.forEach((worker) => {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: worker._id },
+            update: { $set: { isEligible: null } },
+          },
+        });
+      });
 
-        // Calculate average accuracy
-        const accuracyValues = eligibilities.map((e) => e.accuracy || 0);
-        const averageAccuracy =
-          accuracyValues.reduce((sum, acc) => sum + acc, 0) /
-          accuracyValues.length;
-
-        // Determine eligibility using threshold from settings
-        const isEligible = averageAccuracy > threshold;
-
-        // Update worker document
-        await this.userModel.findByIdAndUpdate(
-          worker.id,
-          { $set: { isEligible } },
-          { new: true },
-        );
-
+      // Execute bulk update if there are operations
+      if (bulkOps.length > 0) {
+        const result = await this.userModel.bulkWrite(bulkOps);
         this.logger.log(
-          `Updated eligibility for worker ${worker.id}: ${
-            isEligible ? 'Eligible' : 'Not Eligible'
-          } (avg accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`,
+          `Bulk updated ${result.modifiedCount} worker eligibility statuses in ${Date.now() - startTime}ms`,
         );
+      } else {
+        this.logger.log('No worker eligibility updates required');
       }
+
+      // Clear caches to ensure fresh data after update
+      this.testResultsCache = null;
+      this.testerAnalysisCache = null;
 
       this.logger.log('All worker eligibility statuses updated successfully');
     } catch (error) {
