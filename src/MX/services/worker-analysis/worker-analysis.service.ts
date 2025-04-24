@@ -320,6 +320,7 @@ export class WorkerAnalysisService {
       }
 
       // Determine eligibility
+      // Determine eligibility
       const isEligible = averageAccuracy > threshold;
 
       // Update worker document
@@ -338,6 +339,93 @@ export class WorkerAnalysisService {
       this.logger.error(
         `Error updating eligibility for worker ${workerId}: ${error.message}`,
       );
+    }
+  }
+
+  // Update all worker eligibility statuses
+  async updateAllWorkerEligibility() {
+    try {
+      const startTime = Date.now();
+      this.logger.log('Starting updateAllWorkerEligibility');
+
+      // Get the most recent threshold value
+      const thresholdSettings = await this.utilsService.getThresholdSettings();
+      const threshold = thresholdSettings.thresholdValue;
+
+      this.logger.log(
+        `Running eligibility update with threshold: ${threshold}`,
+      );
+
+      // Calculate all worker eligibilities in one aggregation
+      const workerEligibilities = await this.eligibilityModel.aggregate([
+        // Group by workerId and calculate average accuracy
+        {
+          $group: {
+            _id: '$workerId',
+            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
+            totalRecords: { $sum: 1 },
+          },
+        },
+        // Calculate eligibility status
+        {
+          $addFields: {
+            isEligible: { $gt: ['$averageAccuracy', threshold] },
+          },
+        },
+      ]);
+
+      // Build bulk update operations
+      const bulkOps = workerEligibilities.map((worker) => ({
+        updateOne: {
+          filter: { _id: worker._id },
+          update: { $set: { isEligible: worker.isEligible } },
+        },
+      }));
+
+      // Add operations for workers with no eligibility records
+      const workersWithNoRecords = await this.userModel.aggregate([
+        { $match: { role: 'worker' } },
+        {
+          $lookup: {
+            from: 'eligibilities', // Collection name might be different
+            localField: '_id',
+            foreignField: 'workerId',
+            as: 'eligibilities',
+          },
+        },
+        { $match: { eligibilities: { $size: 0 } } },
+      ]);
+
+      workersWithNoRecords.forEach((worker) => {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: worker._id },
+            update: { $set: { isEligible: null } },
+          },
+        });
+      });
+
+      // Execute bulk update if there are operations
+      if (bulkOps.length > 0) {
+        const result = await this.userModel.bulkWrite(bulkOps);
+        this.logger.log(
+          `Bulk updated ${result.modifiedCount} worker eligibility statuses in ${Date.now() - startTime}ms`,
+        );
+      } else {
+        this.logger.log('No worker eligibility updates required');
+      }
+
+      // Clear caches to ensure fresh data after update
+      this.testResultsCache = null;
+      this.testerAnalysisCache = null;
+
+      this.logger.log('All worker eligibility statuses updated successfully');
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Error updating all worker eligibility statuses: ${error.message}`,
+      );
+      return false;
     }
   }
 
@@ -437,92 +525,6 @@ export class WorkerAnalysisService {
       this.logger.log('Performance metrics updated successfully');
     } catch (error) {
       this.logger.error(`Error updating performance metrics: ${error.message}`);
-    }
-  }
-
-  // Add a cron job that runs to update all worker eligibility statuses
-  @Cron(CronExpression.EVERY_2ND_MONTH)
-  async updateAllWorkerEligibility() {
-    try {
-      const startTime = Date.now();
-      this.logger.log('Starting updateAllWorkerEligibility');
-
-      // Get the most recent threshold value
-      const thresholdSettings = await this.utilsService.getThresholdSettings();
-      const threshold = thresholdSettings.thresholdValue;
-
-      this.logger.log(
-        `Running eligibility update with threshold: ${threshold}`,
-      );
-
-      // Calculate all worker eligibilities in one aggregation
-      const workerEligibilities = await this.eligibilityModel.aggregate([
-        // Group by workerId and calculate average accuracy
-        {
-          $group: {
-            _id: '$workerId',
-            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
-            totalRecords: { $sum: 1 },
-          },
-        },
-        // Calculate eligibility status
-        {
-          $addFields: {
-            isEligible: { $gt: ['$averageAccuracy', threshold] },
-          },
-        },
-      ]);
-
-      // Build bulk update operations
-      const bulkOps = workerEligibilities.map((worker) => ({
-        updateOne: {
-          filter: { _id: worker._id },
-          update: { $set: { isEligible: worker.isEligible } },
-        },
-      }));
-
-      // Add operations for workers with no eligibility records
-      const workersWithNoRecords = await this.userModel.aggregate([
-        { $match: { role: 'worker' } },
-        {
-          $lookup: {
-            from: 'eligibilities', // Collection name might be different
-            localField: '_id',
-            foreignField: 'workerId',
-            as: 'eligibilities',
-          },
-        },
-        { $match: { eligibilities: { $size: 0 } } },
-      ]);
-
-      workersWithNoRecords.forEach((worker) => {
-        bulkOps.push({
-          updateOne: {
-            filter: { _id: worker._id },
-            update: { $set: { isEligible: null } },
-          },
-        });
-      });
-
-      // Execute bulk update if there are operations
-      if (bulkOps.length > 0) {
-        const result = await this.userModel.bulkWrite(bulkOps);
-        this.logger.log(
-          `Bulk updated ${result.modifiedCount} worker eligibility statuses in ${Date.now() - startTime}ms`,
-        );
-      } else {
-        this.logger.log('No worker eligibility updates required');
-      }
-
-      // Clear caches to ensure fresh data after update
-      this.testResultsCache = null;
-      this.testerAnalysisCache = null;
-
-      this.logger.log('All worker eligibility statuses updated successfully');
-    } catch (error) {
-      this.logger.error(
-        `Error updating all worker eligibility statuses: ${error.message}`,
-      );
     }
   }
 }
