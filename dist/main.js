@@ -943,42 +943,14 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.logger = new common_1.Logger(DashboardService_1.name);
-        this.maxIterations = 3;
-        this.iterationTimes = [
-            new Date('2025-04-15T04:00:00'),
-            new Date('2025-04-15T05:30:00'),
-            new Date('2025-04-15T07:00:00'),
-        ];
-        this.iterationEndTimes = [
-            new Date('2025-04-15T05:29:59'),
-            new Date('2025-04-15T06:59:59'),
-            new Date('2025-04-15T23:59:59'),
-        ];
-        this.workersPerIteration = [3, 6, 9];
-    }
-    getCurrentIteration() {
-        const now = new Date();
-        if (now >= this.iterationTimes[2]) {
-            return 3;
-        }
-        else if (now >= this.iterationTimes[1]) {
-            return 2;
-        }
-        else if (now >= this.iterationTimes[0]) {
-            return 1;
-        }
-        else {
-            return 0;
-        }
     }
     async getDashboardSummary() {
         try {
-            const iterationMetrics = await this.getIterationMetrics();
             const workerEligibility = await this.getWorkerEligibilityDistribution();
             const taskValidation = await this.getTaskValidationDistribution();
             const accuracyDistribution = await this.getAccuracyDistribution();
             return {
-                iterationMetrics,
+                iterationMetrics: [],
                 workerEligibility,
                 taskValidation,
                 accuracyDistribution,
@@ -988,41 +960,6 @@ let DashboardService = DashboardService_1 = class DashboardService {
             this.logger.error(`Error fetching dashboard summary: ${error.message}`);
             throw error;
         }
-    }
-    async getIterationMetrics() {
-        const iterations = [];
-        const currentIteration = this.getCurrentIteration();
-        const totalTasks = await this.taskModel.countDocuments();
-        for (let i = 0; i < Math.min(currentIteration, this.maxIterations); i++) {
-            const iteration = i + 1;
-            const startTime = this.iterationTimes[i];
-            const endTime = this.iterationEndTimes[i];
-            const timeRange = `${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2, '0')} - ${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2, '0')}`;
-            const workerCount = await this.userModel.countDocuments({
-                role: user_enum_1.Role.WORKER,
-                createdAt: {
-                    $gte: startTime,
-                    $lte: endTime,
-                },
-            });
-            iterations.push({
-                iteration: `Iteration ${iteration} (${timeRange})`,
-                workers: workerCount || this.workersPerIteration[i],
-                tasks: totalTasks,
-            });
-        }
-        for (let i = currentIteration; i < this.maxIterations; i++) {
-            const iteration = i + 1;
-            const startTime = this.iterationTimes[i];
-            const endTime = this.iterationEndTimes[i];
-            const timeRange = `${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2, '0')} - ${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2, '0')}`;
-            iterations.push({
-                iteration: `Iteration ${iteration} (${timeRange}) - Upcoming`,
-                workers: this.workersPerIteration[i],
-                tasks: totalTasks,
-            });
-        }
-        return iterations;
     }
     async getWorkerEligibilityDistribution() {
         const eligibleCount = await this.userModel.countDocuments({
@@ -1115,6 +1052,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var CreateEligibilityService_1;
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateEligibilityService = void 0;
@@ -1123,9 +1061,10 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/MX/models/parser.ts");
-let CreateEligibilityService = class CreateEligibilityService {
+let CreateEligibilityService = CreateEligibilityService_1 = class CreateEligibilityService {
     constructor(eligibilityModel) {
         this.eligibilityModel = eligibilityModel;
+        this.logger = new common_1.Logger(CreateEligibilityService_1.name);
     }
     async createEligibility(input) {
         const { taskId, workerId, accuracy } = input;
@@ -1134,6 +1073,10 @@ let CreateEligibilityService = class CreateEligibilityService {
             workerId,
         });
         if (existingEligibility) {
+            this.logger.log('Eligibility remain unchanged for workerId: ' +
+                workerId +
+                ' and taskId: ' +
+                taskId);
             return existingEligibility;
         }
         const newEligibility = await this.eligibilityModel.create({
@@ -1155,7 +1098,7 @@ let CreateEligibilityService = class CreateEligibilityService {
     }
 };
 exports.CreateEligibilityService = CreateEligibilityService;
-exports.CreateEligibilityService = CreateEligibilityService = __decorate([
+exports.CreateEligibilityService = CreateEligibilityService = CreateEligibilityService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
@@ -1332,45 +1275,17 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         this.createEligibilityService = createEligibilityService;
         this.getTaskService = getTaskService;
         this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
-        this.currentIteration = 1;
-        this.maxIterations = 3;
-        this.workersPerIteration = [3, 6, 9];
-        this.iterationTimes = [
-            new Date('2025-04-15T04:00:00'),
-            new Date('2025-04-15T05:30:00'),
-            new Date('2025-04-15T07:00:00'),
-        ];
-        this.iterationEndTimes = [
-            new Date('2025-04-15T05:29:59'),
-            new Date('2025-04-15T06:59:59'),
-            new Date('2025-04-15T23:59:59'),
-        ];
-    }
-    getCurrentIteration() {
-        const now = new Date();
-        if (now >= this.iterationTimes[2]) {
-            return 3;
-        }
-        else if (now >= this.iterationTimes[1]) {
-            return 2;
-        }
-        else if (now >= this.iterationTimes[0]) {
-            return 1;
-        }
-        else {
-            return 0;
-        }
     }
     async calculateAccuracyMX(taskId, workers) {
-        this.logger.log(`Memulai perhitungan akurasi M-X untuk taskId: ${taskId}`);
+        this.logger.log(`Starting M-X accuracy calculation for taskId: ${taskId}`);
         const task = await this.getTaskService.getTaskById(taskId);
         if (!task) {
-            this.logger.error(`Task dengan ID ${taskId} tidak ditemukan`);
-            throw new gqlerr_1.ThrowGQL(`Task dengan ID ${taskId} tidak ditemukan`, gqlerr_1.GQLThrowType.NOT_FOUND);
+            this.logger.error(`Task with ID ${taskId} not found`);
+            throw new gqlerr_1.ThrowGQL(`Task with ID ${taskId} not found`, gqlerr_1.GQLThrowType.NOT_FOUND);
         }
         const N = task.answers.length;
         const M = task.nAnswers || 4;
-        this.logger.log(`Task ditemukan, jumlah soal: ${N}, opsi jawaban: ${M}`);
+        this.logger.log(`Task found, questions: ${N}, answer options: ${M}`);
         const answers = await this.recordedAnswerModel.find({ taskId });
         if (answers.length === 0) {
             this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
@@ -1390,158 +1305,118 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                 answerId: record.answerId,
                 answer: record.answer,
             }));
-            this.logger.debug(`Worker ${workerId} answers: ${JSON.stringify(workerAnswersMap[workerId])}`);
         }
-        const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
-        this.logger.debug(`Processing answer options: ${answerIds.join(', ')}`);
-        const optionsToProcess = answerIds.length > 0 ? answerIds : Array.from({ length: M }, (_, i) => i);
-        for (const answerId of optionsToProcess) {
-            this.logger.debug(`Processing answer option ID: ${answerId}`);
-            const binaryAnswersMap = {};
-            for (const workerId of workers) {
-                const workerAnswers = workerAnswersMap[workerId] || [];
-                binaryAnswersMap[workerId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
-                this.logger.debug(`Worker ${workerId} binary for answer ${answerId}: ${binaryAnswersMap[workerId].join(',')}`);
+        if (workers.length < 3) {
+            this.logger.warn(`Not enough workers (${workers.length}) for proper M-X algorithm calculation. Minimum 3 required.`);
+            return workers.reduce((acc, workerId) => {
+                acc[workerId] = 0.5;
+                return acc;
+            }, {});
+        }
+        const circularWorkers = [...workers];
+        for (let i = 0; i < workers.length; i++) {
+            const currentWorkerId = workers[i];
+            const accuracies = [];
+            for (let j = 0; j < workers.length; j++) {
+                const windowWorkers = [
+                    circularWorkers[(i + j) % workers.length],
+                    circularWorkers[(i + j + 1) % workers.length],
+                    circularWorkers[(i + j + 2) % workers.length],
+                ];
+                const uniqueWorkers = new Set(windowWorkers);
+                if (uniqueWorkers.size < 3)
+                    continue;
+                if (!windowWorkers.includes(currentWorkerId))
+                    continue;
+                const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
+                const optionsToProcess = answerIds.length > 0
+                    ? answerIds
+                    : Array.from({ length: M }, (_, i) => i);
+                const optionAccuracies = [];
+                for (const answerId of optionsToProcess) {
+                    const binaryAnswersMap = {};
+                    for (const wId of windowWorkers) {
+                        const workerAnswers = workerAnswersMap[wId] || [];
+                        binaryAnswersMap[wId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
+                    }
+                    const w1 = windowWorkers[0];
+                    const w2 = windowWorkers[1];
+                    const w3 = windowWorkers[2];
+                    const Q12 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w2]);
+                    const Q13 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w3]);
+                    const Q23 = this.calculateAgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
+                    let workerAccuracy;
+                    if (currentWorkerId === w1) {
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
+                    }
+                    else if (currentWorkerId === w2) {
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
+                    }
+                    else if (currentWorkerId === w3) {
+                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
+                    }
+                    if (workerAccuracy !== undefined) {
+                        optionAccuracies.push(workerAccuracy);
+                    }
+                }
+                if (optionAccuracies.length > 0) {
+                    const avgAccuracy = optionAccuracies.reduce((sum, val) => sum + val, 0) /
+                        optionAccuracies.length;
+                    accuracies.push(avgAccuracy);
+                }
             }
-            const optionAccuracies = await this.calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap);
-            for (const workerId of workers) {
-                const optionAccuracy = Math.max(0.1, optionAccuracies[workerId]);
-                finalAccuracies[workerId] *= optionAccuracy;
-                this.logger.debug(`Worker ${workerId} option ${answerId} accuracy: ${optionAccuracies[workerId]}, cumulative: ${finalAccuracies[workerId]}`);
+            if (accuracies.length > 0) {
+                const avgAccuracy = accuracies.reduce((sum, val) => sum + val, 0) / accuracies.length;
+                const scaledAccuracy = 0.4 + avgAccuracy * 0.6;
+                finalAccuracies[currentWorkerId] = parseFloat(scaledAccuracy.toFixed(2));
+            }
+            else {
+                finalAccuracies[currentWorkerId] = 0.5;
             }
         }
-        for (const workerId of workers) {
-            const normalizedAccuracy = Math.pow(finalAccuracies[workerId], 1 / optionsToProcess.length);
-            const scaledAccuracy = 0.4 + normalizedAccuracy * 0.6;
-            finalAccuracies[workerId] = parseFloat(scaledAccuracy.toFixed(2));
-        }
-        this.logger.log(`Perhitungan selesai. Akurasi M-X akhir: ${JSON.stringify(finalAccuracies)}`);
+        this.logger.log(`M-X calculation completed. Final accuracies: ${JSON.stringify(finalAccuracies)}`);
         return finalAccuracies;
     }
-    async calculateBinaryOptionAccuracy(taskId, workers, binaryAnswersMap) {
-        let accuracies = {};
-        workers.forEach((workerId) => {
-            accuracies[workerId] = 0.5;
-        });
-        const maxIterations = 100;
-        const tolerance = 0.0001;
-        let iterations = 0;
-        let converged = false;
-        while (!converged && iterations < maxIterations) {
-            iterations++;
-            const newAccuracies = {};
-            for (const i of workers) {
-                const estimates = [];
-                for (const j of workers) {
-                    if (i === j)
-                        continue;
-                    let agreementCount = 0;
-                    for (let k = 0; k <
-                        Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length); k++) {
-                        if (binaryAnswersMap[i][k] === binaryAnswersMap[j][k]) {
-                            agreementCount++;
-                        }
-                    }
-                    const effectiveN = Math.min(binaryAnswersMap[i].length, binaryAnswersMap[j].length);
-                    const Qij = effectiveN > 0 ? agreementCount / effectiveN : 0.5;
-                    const Aj = accuracies[j];
-                    const numerator = 2 * Qij - 1 + (1 - Aj);
-                    const denominator = 2 * Aj - 1;
-                    if (Math.abs(denominator) > 0.01) {
-                        const estimate = numerator / denominator;
-                        if (estimate >= 0 && estimate <= 1) {
-                            estimates.push(estimate);
-                        }
-                    }
-                }
-                if (estimates.length > 0) {
-                    const avg = estimates.reduce((sum, val) => sum + val, 0) / estimates.length;
-                    newAccuracies[i] = Math.max(0.1, Math.min(0.95, avg));
-                }
-                else {
-                    const randomAdjustment = Math.random() * 0.1 - 0.05;
-                    newAccuracies[i] = Math.max(0.1, Math.min(0.9, accuracies[i] + randomAdjustment));
-                }
+    calculateAgreementProbability(worker1Answers, worker2Answers) {
+        let agreementCount = 0;
+        const effectiveN = Math.min(worker1Answers.length, worker2Answers.length);
+        for (let i = 0; i < effectiveN; i++) {
+            if (worker1Answers[i] === worker2Answers[i]) {
+                agreementCount++;
             }
-            converged = true;
-            for (const workerId of workers) {
-                if (Math.abs(newAccuracies[workerId] - accuracies[workerId]) > tolerance) {
-                    converged = false;
-                    break;
-                }
+        }
+        return effectiveN > 0 ? agreementCount / effectiveN : 0.5;
+    }
+    calculateWorkerAccuracy(Q12, Q13, Q23, M) {
+        try {
+            const term1 = 1 / M;
+            const term2 = (M - 1) / M;
+            if (M * Q23 - 1 <= 0 || (M * Q12 - 1) * (M * Q13 - 1) < 0) {
+                return 0.5;
             }
-            accuracies = { ...newAccuracies };
+            const sqrtTerm = Math.sqrt(((M * Q12 - 1) * (M * Q13 - 1)) / (M * Q23 - 1));
+            let accuracy = term1 + term2 * sqrtTerm;
+            accuracy = Math.max(0.1, Math.min(0.95, accuracy));
+            return accuracy;
         }
-        const result = {};
-        for (const workerId of workers) {
-            result[workerId] = parseFloat(accuracies[workerId].toFixed(2));
+        catch (error) {
+            this.logger.error(`Error calculating worker accuracy: ${error.message}`);
+            return 0.5;
         }
-        return result;
-    }
-    async getWorkersForCurrentIteration() {
-        const currentIteration = this.getCurrentIteration();
-        if (currentIteration === 0) {
-            return [];
-        }
-        const startTime = this.iterationTimes[currentIteration - 1];
-        const endTime = this.iterationEndTimes[currentIteration - 1];
-        this.logger.log(`Getting workers for iteration ${currentIteration} (${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`);
-        const workers = await this.userModel
-            .find({
-            role: 'worker',
-            createdAt: {
-                $gte: startTime,
-                $lte: endTime,
-            },
-        })
-            .sort({ createdAt: 1 })
-            .limit(this.workersPerIteration[currentIteration - 1])
-            .exec();
-        const workerIds = workers.map((worker) => worker._id.toString());
-        this.logger.log(`Found ${workerIds.length} workers for iteration ${currentIteration}`);
-        return workerIds;
-    }
-    async getAllWorkersUpToCurrentIteration() {
-        const currentIteration = this.getCurrentIteration();
-        if (currentIteration === 0) {
-            return [];
-        }
-        const earliestStartTime = this.iterationTimes[0];
-        const latestEndTime = this.iterationEndTimes[currentIteration - 1];
-        let totalWorkerLimit = 0;
-        for (let i = 0; i < currentIteration; i++) {
-            totalWorkerLimit += this.workersPerIteration[i];
-        }
-        this.logger.log(`Getting all workers from iteration 1 through ${currentIteration} (${earliestStartTime.toLocaleTimeString()} - ${latestEndTime.toLocaleTimeString()})`);
-        const workers = await this.userModel
-            .find({
-            role: 'worker',
-            createdAt: {
-                $gte: earliestStartTime,
-                $lte: latestEndTime,
-            },
-        })
-            .sort({ createdAt: 1 })
-            .limit(totalWorkerLimit)
-            .exec();
-        const workerIds = workers.map((worker) => worker._id.toString());
-        this.logger.log(`Found ${workerIds.length} total workers across all iterations up to ${currentIteration}`);
-        return workerIds;
     }
     async calculateEligibility() {
         try {
-            const currentIteration = this.getCurrentIteration();
-            this.logger.log(`Running eligibility calculation for iteration ${currentIteration}`);
-            if (currentIteration === 0) {
-                this.logger.log('No iterations have started yet. Skipping eligibility calculations.');
-                return;
-            }
-            const allWorkerIds = await this.getAllWorkersUpToCurrentIteration();
+            this.logger.log('Running eligibility calculation');
+            const allWorkerIds = await this.userModel
+                .find({ role: 'worker' })
+                .distinct('_id')
+                .exec();
             if (allWorkerIds.length === 0) {
-                this.logger.warn('No workers available up to current iteration');
+                this.logger.warn('No workers available for eligibility calculation');
                 return;
             }
-            this.logger.log(`Processing ${allWorkerIds.length} workers across iterations 1-${currentIteration}`);
+            const workerIds = allWorkerIds.map((id) => id.toString());
+            this.logger.log(`Processing ${workerIds.length} workers`);
             const tasks = await this.getTaskService.getValidatedTasks();
             if (!tasks || tasks.length === 0) {
                 this.logger.warn('No validated tasks found');
@@ -1550,15 +1425,15 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
             for (const task of tasks) {
                 const recordedAnswers = await this.recordedAnswerModel.find({
                     taskId: task.id,
-                    workerId: { $in: allWorkerIds },
+                    workerId: { $in: workerIds },
                 });
-                const workerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
-                if (workerIds.length < 3) {
-                    this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${workerIds.length})`);
+                const taskWorkerIds = Array.from(new Set(recordedAnswers.map((answer) => answer.workerId.toString())));
+                if (taskWorkerIds.length < 3) {
+                    this.logger.debug(`Skipping task ${task.id} - needs at least 3 workers (only has ${taskWorkerIds.length})`);
                     continue;
                 }
-                const accuracies = await this.calculateAccuracyMX(task.id, workerIds);
-                for (const workerId of workerIds) {
+                const accuracies = await this.calculateAccuracyMX(task.id, taskWorkerIds);
+                for (const workerId of taskWorkerIds) {
                     const accuracy = accuracies[workerId];
                     const eligibilityInput = {
                         taskId: task.id,
@@ -1566,7 +1441,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                         accuracy: accuracy,
                     };
                     await this.createEligibilityService.createEligibility(eligibilityInput);
-                    this.logger.debug(`Created eligibility for worker ${workerId} in iteration ${currentIteration}: ${accuracy}`);
+                    this.logger.debug(`Created eligibility record for worker ${workerId}: ${accuracy}`);
                 }
             }
         }
@@ -1577,7 +1452,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
 __decorate([
-    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_2ND_MONTH),
+    (0, schedule_1.Cron)(cron_enum_1.CronExpression.EVERY_5_MINUTES),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -2212,6 +2087,70 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             this.logger.error(`Error updating eligibility for worker ${workerId}: ${error.message}`);
         }
     }
+    async updateAllWorkerEligibility() {
+        try {
+            const startTime = Date.now();
+            this.logger.log('Starting updateAllWorkerEligibility');
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const threshold = thresholdSettings.thresholdValue;
+            this.logger.log(`Running eligibility update with threshold: ${threshold}`);
+            const workerEligibilities = await this.eligibilityModel.aggregate([
+                {
+                    $group: {
+                        _id: '$workerId',
+                        averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
+                        totalRecords: { $sum: 1 },
+                    },
+                },
+                {
+                    $addFields: {
+                        isEligible: { $gt: ['$averageAccuracy', threshold] },
+                    },
+                },
+            ]);
+            const bulkOps = workerEligibilities.map((worker) => ({
+                updateOne: {
+                    filter: { _id: worker._id },
+                    update: { $set: { isEligible: worker.isEligible } },
+                },
+            }));
+            const workersWithNoRecords = await this.userModel.aggregate([
+                { $match: { role: 'worker' } },
+                {
+                    $lookup: {
+                        from: 'eligibilities',
+                        localField: '_id',
+                        foreignField: 'workerId',
+                        as: 'eligibilities',
+                    },
+                },
+                { $match: { eligibilities: { $size: 0 } } },
+            ]);
+            workersWithNoRecords.forEach((worker) => {
+                bulkOps.push({
+                    updateOne: {
+                        filter: { _id: worker._id },
+                        update: { $set: { isEligible: null } },
+                    },
+                });
+            });
+            if (bulkOps.length > 0) {
+                const result = await this.userModel.bulkWrite(bulkOps);
+                this.logger.log(`Bulk updated ${result.modifiedCount} worker eligibility statuses in ${Date.now() - startTime}ms`);
+            }
+            else {
+                this.logger.log('No worker eligibility updates required');
+            }
+            this.testResultsCache = null;
+            this.testerAnalysisCache = null;
+            this.logger.log('All worker eligibility statuses updated successfully');
+            return true;
+        }
+        catch (error) {
+            this.logger.error(`Error updating all worker eligibility statuses: ${error.message}`);
+            return false;
+        }
+    }
     async updatePerformanceMetrics() {
         try {
             const now = new Date();
@@ -2289,68 +2228,6 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             this.logger.error(`Error updating performance metrics: ${error.message}`);
         }
     }
-    async updateAllWorkerEligibility() {
-        try {
-            const startTime = Date.now();
-            this.logger.log('Starting updateAllWorkerEligibility');
-            const thresholdSettings = await this.utilsService.getThresholdSettings();
-            const threshold = thresholdSettings.thresholdValue;
-            this.logger.log(`Running eligibility update with threshold: ${threshold}`);
-            const workerEligibilities = await this.eligibilityModel.aggregate([
-                {
-                    $group: {
-                        _id: '$workerId',
-                        averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
-                        totalRecords: { $sum: 1 },
-                    },
-                },
-                {
-                    $addFields: {
-                        isEligible: { $gt: ['$averageAccuracy', threshold] },
-                    },
-                },
-            ]);
-            const bulkOps = workerEligibilities.map((worker) => ({
-                updateOne: {
-                    filter: { _id: worker._id },
-                    update: { $set: { isEligible: worker.isEligible } },
-                },
-            }));
-            const workersWithNoRecords = await this.userModel.aggregate([
-                { $match: { role: 'worker' } },
-                {
-                    $lookup: {
-                        from: 'eligibilities',
-                        localField: '_id',
-                        foreignField: 'workerId',
-                        as: 'eligibilities',
-                    },
-                },
-                { $match: { eligibilities: { $size: 0 } } },
-            ]);
-            workersWithNoRecords.forEach((worker) => {
-                bulkOps.push({
-                    updateOne: {
-                        filter: { _id: worker._id },
-                        update: { $set: { isEligible: null } },
-                    },
-                });
-            });
-            if (bulkOps.length > 0) {
-                const result = await this.userModel.bulkWrite(bulkOps);
-                this.logger.log(`Bulk updated ${result.modifiedCount} worker eligibility statuses in ${Date.now() - startTime}ms`);
-            }
-            else {
-                this.logger.log('No worker eligibility updates required');
-            }
-            this.testResultsCache = null;
-            this.testerAnalysisCache = null;
-            this.logger.log('All worker eligibility statuses updated successfully');
-        }
-        catch (error) {
-            this.logger.error(`Error updating all worker eligibility statuses: ${error.message}`);
-        }
-    }
 };
 exports.WorkerAnalysisService = WorkerAnalysisService;
 __decorate([
@@ -2359,12 +2236,6 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], WorkerAnalysisService.prototype, "updatePerformanceMetrics", null);
-__decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], WorkerAnalysisService.prototype, "updateAllWorkerEligibility", null);
 exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
@@ -4775,17 +4646,6 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
         this.utilsService = utilsService;
-        this.iterationTimes = [
-            new Date('2025-04-15T04:00:00'),
-            new Date('2025-04-15T05:30:00'),
-            new Date('2025-04-15T07:00:00'),
-        ];
-        this.iterationEndTimes = [
-            new Date('2025-04-15T05:29:59'),
-            new Date('2025-04-15T06:59:59'),
-            new Date('2025-04-15T23:59:59'),
-        ];
-        this.workersPerIteration = [3, 6, 9];
         this.logger = new common_1.Logger(UpdateUserService_1.name);
     }
     async updateUser(input) {
@@ -4818,68 +4678,6 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
         catch (error) {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
-    }
-    getCurrentIteration() {
-        const now = new Date();
-        if (now >= this.iterationTimes[2]) {
-            return 3;
-        }
-        else if (now >= this.iterationTimes[1]) {
-            return 2;
-        }
-        else if (now >= this.iterationTimes[0]) {
-            return 1;
-        }
-        else {
-            return 0;
-        }
-    }
-    async getWorkersForCurrentIteration() {
-        const currentIteration = this.getCurrentIteration();
-        if (currentIteration === 0) {
-            return [];
-        }
-        const startTime = this.iterationTimes[currentIteration - 1];
-        const endTime = this.iterationEndTimes[currentIteration - 1];
-        this.logger.log(`Getting workers for iteration ${currentIteration} (${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`);
-        const workersForIteration = await this.userModel
-            .find({
-            role: 'worker',
-            createdAt: {
-                $gte: startTime,
-                $lte: endTime,
-            },
-        })
-            .limit(this.workersPerIteration[currentIteration - 1])
-            .exec();
-        this.logger.log(`Found ${workersForIteration.length} workers for iteration ${currentIteration}`);
-        return workersForIteration;
-    }
-    async getWorkersForAllCompletedIterations() {
-        const currentIteration = this.getCurrentIteration();
-        if (currentIteration === 0) {
-            return [];
-        }
-        const earliestStartTime = this.iterationTimes[0];
-        const endTime = this.iterationEndTimes[currentIteration - 1];
-        this.logger.log(`Getting all workers from iteration 1 through ${currentIteration} (${earliestStartTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`);
-        let totalWorkerCount = 0;
-        for (let i = 0; i < currentIteration; i++) {
-            totalWorkerCount += this.workersPerIteration[i];
-        }
-        const allWorkers = await this.userModel
-            .find({
-            role: 'worker',
-            createdAt: {
-                $gte: earliestStartTime,
-                $lte: endTime,
-            },
-        })
-            .limit(totalWorkerCount)
-            .sort({ createdAt: 1 })
-            .exec();
-        this.logger.log(`Found ${allWorkers.length} total workers for all iterations up to ${currentIteration}`);
-        return allWorkers;
     }
     async requalifyAllUsers() {
         try {
@@ -4935,7 +4733,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_MINUTES),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

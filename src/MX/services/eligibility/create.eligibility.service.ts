@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Eligibility, EligibilityDocument } from '../../models/eligibility';
 import { Model } from 'mongoose';
@@ -8,6 +8,8 @@ import { parseToViewEligibility } from '../../models/parser';
 
 @Injectable()
 export class CreateEligibilityService {
+  private readonly logger = new Logger(CreateEligibilityService.name);
+
   constructor(
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<EligibilityDocument>,
@@ -24,6 +26,12 @@ export class CreateEligibilityService {
 
     // If it exists, return it without modification
     if (existingEligibility) {
+      this.logger.log(
+        'Eligibility remain unchanged for workerId: ' +
+          workerId +
+          ' and taskId: ' +
+          taskId,
+      );
       return existingEligibility;
     }
 
