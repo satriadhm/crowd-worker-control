@@ -268,7 +268,7 @@ export class AccuracyCalculationServiceMX {
   /**
    * Calculate eligibility for all workers based on their accuracy
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   async calculateEligibility() {
     try {
       this.logger.log('Running eligibility calculation');
