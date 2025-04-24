@@ -83,7 +83,26 @@ export class UpdateUserService {
 
       const workerAccuracies: Map<string, number> = new Map();
       const allAccuracyValues: number[] = [];
-      for (const user of allWorkers) {
+
+      // First, filter workers who have more than 10 completed tasks
+      const eligibleForRequalification = allWorkers.filter(
+        (worker) => worker.completedTasks && worker.completedTasks.length > 10,
+      );
+
+      this.logger.log(
+        `Requalify process: ${eligibleForRequalification.length} workers have more than 10 completed tasks.`,
+      );
+
+      // If no workers meet the criteria, exit early
+      if (eligibleForRequalification.length === 0) {
+        this.logger.log(
+          'No workers with more than 10 completed tasks found. Exiting requalification process.',
+        );
+        return;
+      }
+
+      // Process only workers with more than 10 completed tasks
+      for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
 
         const eligibilities =
@@ -102,11 +121,11 @@ export class UpdateUserService {
         allAccuracyValues.push(averageAccuracy);
 
         this.logger.debug(
-          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)}`,
+          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)} (${user.completedTasks.length} tasks completed)`,
         );
       }
 
-      // Calculate the threshold using the UtilsService instead of fixed median calculation
+      // Calculate the threshold using the UtilsService
       const threshold =
         await this.utilsService.calculateThreshold(allAccuracyValues);
       const thresholdRounded = Number(threshold.toFixed(3));
@@ -115,19 +134,18 @@ export class UpdateUserService {
         `Threshold value (rounded) for worker eligibility: ${thresholdRounded.toFixed(3)}`,
       );
 
-      // Update eligibility for each worker that has average accuracy
-      for (const user of allWorkers) {
+      // Update eligibility for each eligible worker
+      for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
+
         // If worker has no eligibility records but has completed tasks, set default to false
         if (!workerAccuracies.has(userIdStr)) {
-          if (user.completedTasks && user.completedTasks.length > 0) {
-            await this.userModel.findByIdAndUpdate(userIdStr, {
-              $set: { isEligible: false },
-            });
-            this.logger.log(
-              `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to non-eligible (default, no eligibility records).`,
-            );
-          }
+          await this.userModel.findByIdAndUpdate(userIdStr, {
+            $set: { isEligible: false },
+          });
+          this.logger.log(
+            `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to non-eligible (default, no eligibility records). Tasks completed: ${user.completedTasks.length}`,
+          );
           continue;
         }
 
@@ -137,11 +155,13 @@ export class UpdateUserService {
 
         // Determine eligibility based on calculated threshold
         const isEligible = averageAccuracyRounded > thresholdRounded;
-        console.log(
+
+        this.logger.log(
           `Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(
             3,
-          )}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}`,
+          )}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}, Tasks completed: ${user.completedTasks.length}`,
         );
+
         await this.userModel.findByIdAndUpdate(userIdStr, {
           $set: { isEligible: isEligible },
         });
@@ -152,7 +172,7 @@ export class UpdateUserService {
       }
 
       this.logger.log(
-        `Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}`,
+        `Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}, ${eligibleForRequalification.length} workers processed.`,
       );
     } catch (error) {
       this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
