@@ -71,7 +71,7 @@ export class UpdateUserService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_HOUR)
   async requalifyAllUsers() {
     try {
       const allWorkers = await this.userModel
@@ -81,10 +81,9 @@ export class UpdateUserService {
 
       this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
 
-      const workerAccuracies: Map<string, number> = new Map();
-      const allAccuracyValues: number[] = [];
+      const workerAccuracies = new Map();
+      const allAccuracyValues = [];
 
-      // First, filter workers who have more than 10 completed tasks
       const eligibleForRequalification = allWorkers.filter(
         (worker) => worker.completedTasks && worker.completedTasks.length > 10,
       );
@@ -93,7 +92,6 @@ export class UpdateUserService {
         `Requalify process: ${eligibleForRequalification.length} workers have more than 10 completed tasks.`,
       );
 
-      // If no workers meet the criteria, exit early
       if (eligibleForRequalification.length === 0) {
         this.logger.log(
           'No workers with more than 10 completed tasks found. Exiting requalification process.',
@@ -101,15 +99,12 @@ export class UpdateUserService {
         return;
       }
 
-      // Process only workers with more than 10 completed tasks
       for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
 
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-        if (eligibilities.length === 0) {
-          continue; // Skip if worker has no eligibility records
-        }
+        if (eligibilities.length === 0) continue;
 
         const totalAccuracy = eligibilities.reduce(
           (sum, e) => sum + (e.accuracy || 0),
@@ -125,7 +120,6 @@ export class UpdateUserService {
         );
       }
 
-      // Calculate the threshold using the UtilsService
       const threshold =
         await this.utilsService.calculateThreshold(allAccuracyValues);
       const thresholdRounded = Number(threshold.toFixed(3));
@@ -134,11 +128,16 @@ export class UpdateUserService {
         `Threshold value (rounded) for worker eligibility: ${thresholdRounded.toFixed(3)}`,
       );
 
-      // Update eligibility for each eligible worker
       for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
 
-        // If worker has no eligibility records but has completed tasks, set default to false
+        if (user.isEligible !== null && user.isEligible !== undefined) {
+          this.logger.log(
+            `Skipping update for worker ${userIdStr} (${user.firstName} ${user.lastName}) as isEligible is already set.`,
+          );
+          continue;
+        }
+
         if (!workerAccuracies.has(userIdStr)) {
           await this.userModel.findByIdAndUpdate(userIdStr, {
             $set: { isEligible: false },
@@ -149,21 +148,16 @@ export class UpdateUserService {
           continue;
         }
 
-        // Get average accuracy and round it
         const averageAccuracy = workerAccuracies.get(userIdStr);
         const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
-
-        // Determine eligibility based on calculated threshold
         const isEligible = averageAccuracyRounded > thresholdRounded;
 
         this.logger.log(
-          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(
-            3,
-          )}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}, Tasks completed: ${user.completedTasks.length}`,
+          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(3)}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}, Tasks completed: ${user.completedTasks.length}`,
         );
 
         await this.userModel.findByIdAndUpdate(userIdStr, {
-          $set: { isEligible: isEligible },
+          $set: { isEligible },
         });
 
         this.logger.log(
