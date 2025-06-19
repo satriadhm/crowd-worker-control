@@ -1754,7 +1754,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var UpdateUserService_1;
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserService = void 0;
 const common_1 = __webpack_require__(3);
@@ -1767,11 +1767,13 @@ const schedule_1 = __webpack_require__(20);
 const get_eligibility_service_1 = __webpack_require__(38);
 const eligibility_1 = __webpack_require__(39);
 const utils_service_1 = __webpack_require__(41);
+const get_task_service_1 = __webpack_require__(19);
 let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
-    constructor(userModel, eligibilityModel, getEligibilityService, utilsService) {
+    constructor(userModel, eligibilityModel, getEligibilityService, GetTaskService, utilsService) {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
+        this.GetTaskService = GetTaskService;
         this.utilsService = utilsService;
         this.logger = new common_1.Logger(UpdateUserService_1.name);
     }
@@ -1806,7 +1808,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
-    async requalifyAllUsers() {
+    async qualifyAllUsers() {
         try {
             const allWorkers = await this.userModel
                 .find({ role: 'worker' })
@@ -1815,7 +1817,9 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
             const workerAccuracies = new Map();
             const allAccuracyValues = [];
-            const eligibleForRequalification = allWorkers.filter((worker) => worker.completedTasks && worker.completedTasks.length > 10);
+            const eligibleForRequalification = allWorkers.filter(async (worker) => worker.completedTasks &&
+                worker.completedTasks.length ===
+                    (await this.GetTaskService.getTotalTasks()));
             this.logger.log(`Requalify process: ${eligibleForRequalification.length} workers have more than 10 completed tasks.`);
             if (eligibleForRequalification.length === 0) {
                 this.logger.log('No workers with more than 10 completed tasks found. Exiting requalification process.');
@@ -1860,23 +1864,23 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             this.logger.log(`Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}, ${eligibleForRequalification.length} workers processed.`);
         }
         catch (error) {
-            this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
+            this.logger.error(`Error in qualifyAllUsers: ${error.message}`);
             throw new gqlerr_1.ThrowGQL(error.message, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_HOUR),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_MINUTES),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], UpdateUserService.prototype, "requalifyAllUsers", null);
+], UpdateUserService.prototype, "qualifyAllUsers", null);
 exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
     __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _d : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
 ], UpdateUserService);
 
 
@@ -4005,24 +4009,17 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         this.logger.log(`Starting M-X accuracy calculation for taskId: ${taskId}`);
         const task = await this.getTaskService.getTaskById(taskId);
         if (!task) {
-            this.logger.error(`Task with ID ${taskId} not found`);
             throw new gqlerr_1.ThrowGQL(`Task with ID ${taskId} not found`, gqlerr_1.GQLThrowType.NOT_FOUND);
         }
-        const N = task.answers.length;
         const M = task.nAnswers || 4;
-        this.logger.log(`Task found, questions: ${N}, answer options: ${M}`);
         const answers = await this.recordedAnswerModel.find({ taskId });
-        if (answers.length === 0) {
-            this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
+        if (answers.length === 0 || workers.length < 3) {
+            this.logger.warn(`Insufficient data for M-X calculation`);
             return workers.reduce((acc, workerId) => {
-                acc[workerId] = 0.5;
+                acc[workerId] = 1 / M;
                 return acc;
             }, {});
         }
-        const finalAccuracies = {};
-        workers.forEach((workerId) => {
-            finalAccuracies[workerId] = 1.0;
-        });
         const workerAnswersMap = {};
         for (const workerId of workers) {
             const workerRecords = answers.filter((a) => a.workerId.toString() === workerId);
@@ -4031,75 +4028,69 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                 answer: record.answer,
             }));
         }
-        if (workers.length < 3) {
-            this.logger.warn(`Not enough workers (${workers.length}) for proper M-X algorithm calculation. Minimum 3 required.`);
+        const finalAccuracies = {};
+        const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
+        if (answerIds.length === 0) {
+            this.logger.warn('No answer IDs found');
             return workers.reduce((acc, workerId) => {
-                acc[workerId] = 0.5;
+                acc[workerId] = 1 / M;
                 return acc;
             }, {});
         }
-        const circularWorkers = [...workers];
         for (let i = 0; i < workers.length; i++) {
             const currentWorkerId = workers[i];
-            const accuracies = [];
-            for (let j = 0; j < workers.length; j++) {
+            const workerAccuraciesAcrossWindows = [];
+            for (let j = 0; j < workers.length - 2; j++) {
                 const windowWorkers = [
-                    circularWorkers[(i + j) % workers.length],
-                    circularWorkers[(i + j + 1) % workers.length],
-                    circularWorkers[(i + j + 2) % workers.length],
+                    workers[(i + j) % workers.length],
+                    workers[(i + j + 1) % workers.length],
+                    workers[(i + j + 2) % workers.length],
                 ];
                 const uniqueWorkers = new Set(windowWorkers);
-                if (uniqueWorkers.size < 3)
+                if (uniqueWorkers.size < 3 ||
+                    !windowWorkers.includes(currentWorkerId)) {
                     continue;
-                if (!windowWorkers.includes(currentWorkerId))
-                    continue;
-                const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort((a, b) => a - b);
-                const optionsToProcess = answerIds.length > 0
-                    ? answerIds
-                    : Array.from({ length: M }, (_, i) => i);
+                }
                 const optionAccuracies = [];
-                for (const answerId of optionsToProcess) {
+                for (const answerId of answerIds) {
                     const binaryAnswersMap = {};
                     for (const wId of windowWorkers) {
                         const workerAnswers = workerAnswersMap[wId] || [];
                         binaryAnswersMap[wId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
                     }
-                    const w1 = windowWorkers[0];
-                    const w2 = windowWorkers[1];
-                    const w3 = windowWorkers[2];
+                    const [w1, w2, w3] = windowWorkers;
                     const Q12 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w2]);
                     const Q13 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w3]);
                     const Q23 = this.calculateAgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
                     let workerAccuracy;
                     if (currentWorkerId === w1) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, 2);
                     }
                     else if (currentWorkerId === w2) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, 2);
                     }
                     else if (currentWorkerId === w3) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, 2);
                     }
-                    if (workerAccuracy !== undefined) {
+                    if (workerAccuracy !== undefined && !isNaN(workerAccuracy)) {
                         optionAccuracies.push(workerAccuracy);
                     }
                 }
                 if (optionAccuracies.length > 0) {
-                    const avgAccuracy = optionAccuracies.reduce((sum, val) => sum + val, 0) /
-                        optionAccuracies.length;
-                    accuracies.push(avgAccuracy);
+                    const geometricMean = Math.pow(optionAccuracies.reduce((product, val) => product * Math.max(val, 0.01), 1), 1 / optionAccuracies.length);
+                    workerAccuraciesAcrossWindows.push(geometricMean);
                 }
             }
-            if (accuracies.length > 0) {
-                const avgAccuracy = accuracies.reduce((sum, val) => sum + val, 0) / accuracies.length;
-                const scaledAccuracy = 0.4 + avgAccuracy * 0.6;
-                finalAccuracies[currentWorkerId] = parseFloat(scaledAccuracy.toFixed(2));
+            if (workerAccuraciesAcrossWindows.length > 0) {
+                const finalAccuracy = workerAccuraciesAcrossWindows.reduce((sum, val) => sum + val, 0) /
+                    workerAccuraciesAcrossWindows.length;
+                finalAccuracies[currentWorkerId] = Math.max(1 / M, Math.min(0.95, finalAccuracy));
             }
             else {
-                finalAccuracies[currentWorkerId] = 0.5;
+                finalAccuracies[currentWorkerId] = 1 / M;
             }
         }
-        this.logger.log(`M-X calculation completed. Final accuracies: ${JSON.stringify(finalAccuracies)}`);
+        this.logger.log(`M-X calculation completed. Results: ${JSON.stringify(finalAccuracies)}`);
         return finalAccuracies;
     }
     calculateAgreementProbability(worker1Answers, worker2Answers) {
@@ -4114,19 +4105,34 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
     }
     calculateWorkerAccuracy(Q12, Q13, Q23, M) {
         try {
+            if ([Q12, Q13, Q23].some((q) => q < 0 || q > 1 || isNaN(q))) {
+                this.logger.debug(`Invalid agreement probabilities: Q12=${Q12}, Q13=${Q13}, Q23=${Q23}`);
+                return 1 / M;
+            }
             const term1 = 1 / M;
             const term2 = (M - 1) / M;
-            if (M * Q23 - 1 <= 0 || (M * Q12 - 1) * (M * Q13 - 1) < 0) {
-                return 0.5;
+            const denominator = M * Q23 - 1;
+            const numeratorProduct = (M * Q12 - 1) * (M * Q13 - 1);
+            if (denominator <= 0) {
+                this.logger.debug(`Invalid denominator: ${denominator}`);
+                return 1 / M;
             }
-            const sqrtTerm = Math.sqrt(((M * Q12 - 1) * (M * Q13 - 1)) / (M * Q23 - 1));
+            if (numeratorProduct < 0) {
+                this.logger.debug(`Invalid numerator product: ${numeratorProduct}`);
+                return 1 / M;
+            }
+            const sqrtTerm = Math.sqrt(numeratorProduct / denominator);
             let accuracy = term1 + term2 * sqrtTerm;
-            accuracy = Math.max(0.1, Math.min(0.95, accuracy));
+            accuracy = Math.max(0.0, Math.min(1.0, accuracy));
+            if (isNaN(accuracy) || !isFinite(accuracy)) {
+                this.logger.debug(`Invalid accuracy result: ${accuracy}`);
+                return 1 / M;
+            }
             return accuracy;
         }
         catch (error) {
-            this.logger.error(`Error calculating worker accuracy: ${error.message}`);
-            return 0.5;
+            this.logger.error(`Error in calculateWorkerAccuracy: ${error.message}`);
+            return 1 / M;
         }
     }
     async calculateEligibility() {

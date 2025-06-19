@@ -11,6 +11,7 @@ import { GetEligibilityService } from '../../MX/services/eligibility/get.eligibi
 import { CreateRecordedAnswerInput } from 'src/MX/dto/recorded/create.recorded.input';
 import { Eligibility } from 'src/MX/models/eligibility';
 import { UtilsService } from 'src/MX/services/utils/utils.service';
+import { GetTaskService } from '../../tasks/services/get.task.service';
 
 @Injectable()
 export class UpdateUserService {
@@ -22,7 +23,8 @@ export class UpdateUserService {
     @InjectModel(Eligibility.name)
     private eligibilityModel: Model<Eligibility>,
     private readonly getEligibilityService: GetEligibilityService,
-    private readonly utilsService: UtilsService, // Inject the UtilsService
+    private readonly GetTaskService: GetTaskService,
+    private readonly utilsService: UtilsService,
   ) {}
 
   async updateUser(input: UpdateUserInput): Promise<UserView> {
@@ -69,8 +71,8 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  async requalifyAllUsers() {
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async qualifyAllUsers() {
     try {
       const allWorkers = await this.userModel
         .find({ role: 'worker' })
@@ -83,7 +85,10 @@ export class UpdateUserService {
       const allAccuracyValues = [];
 
       const eligibleForRequalification = allWorkers.filter(
-        (worker) => worker.completedTasks && worker.completedTasks.length > 10,
+        async (worker) =>
+          worker.completedTasks &&
+          worker.completedTasks.length ===
+            (await this.GetTaskService.getTotalTasks()),
       );
 
       this.logger.log(
@@ -167,7 +172,7 @@ export class UpdateUserService {
         `Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}, ${eligibleForRequalification.length} workers processed.`,
       );
     } catch (error) {
-      this.logger.error(`Error in requalifyAllUsers: ${error.message}`);
+      this.logger.error(`Error in qualifyAllUsers: ${error.message}`);
       throw new ThrowGQL(error.message, GQLThrowType.UNPROCESSABLE);
     }
   }
