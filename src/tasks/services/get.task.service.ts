@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Task } from '../models/task';
 import { TaskView } from '../dto/views/task.view.input';
@@ -14,6 +14,7 @@ export class GetTaskService {
   constructor(
     @InjectModel(Task.name)
     private taskModel: Model<Task>,
+    @Inject(forwardRef(() => GetRecordedAnswerService))
     private getRecordedAnswerService: GetRecordedAnswerService,
   ) {}
 
@@ -64,22 +65,27 @@ export class GetTaskService {
 
   @Cron('*/10 * * * *')
   async countAnswerStat(): Promise<void> {
-    const tasks = await this.taskModel.find();
-    if (!tasks.length) throw new Error('No tasks found');
+    try {
+      const tasks = await this.taskModel.find();
+      if (!tasks.length) throw new Error('No tasks found');
 
-    for (const task of tasks) {
-      const recordedAnswers =
-        await this.getRecordedAnswerService.getRecordedAnswer(task._id);
-      const totalAnswers = recordedAnswers.length;
+      for (const task of tasks) {
+        const recordedAnswers =
+          await this.getRecordedAnswerService.getRecordedAnswer(task._id);
+        const totalAnswers = recordedAnswers.length;
 
-      task.answers.forEach((answer) => {
-        const count = recordedAnswers.filter(
-          (recordedAnswer) => recordedAnswer.answer === answer.answer,
-        ).length;
-        answer.stats = count / totalAnswers;
-      });
+        task.answers.forEach((answer) => {
+          const count = recordedAnswers.filter(
+            (recordedAnswer) => recordedAnswer.answer === answer.answer,
+          ).length;
+          answer.stats = count / totalAnswers;
+        });
 
-      await task.save();
+        await task.save();
+      }
+    } catch (error) {
+      // Log error but don't throw to prevent cron job from failing
+      console.error('Error in countAnswerStat:', error);
     }
   }
 }

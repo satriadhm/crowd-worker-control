@@ -780,17 +780,22 @@ let GetTaskService = class GetTaskService {
         }
     }
     async countAnswerStat() {
-        const tasks = await this.taskModel.find();
-        if (!tasks.length)
-            throw new Error('No tasks found');
-        for (const task of tasks) {
-            const recordedAnswers = await this.getRecordedAnswerService.getRecordedAnswer(task._id);
-            const totalAnswers = recordedAnswers.length;
-            task.answers.forEach((answer) => {
-                const count = recordedAnswers.filter((recordedAnswer) => recordedAnswer.answer === answer.answer).length;
-                answer.stats = count / totalAnswers;
-            });
-            await task.save();
+        try {
+            const tasks = await this.taskModel.find();
+            if (!tasks.length)
+                throw new Error('No tasks found');
+            for (const task of tasks) {
+                const recordedAnswers = await this.getRecordedAnswerService.getRecordedAnswer(task._id);
+                const totalAnswers = recordedAnswers.length;
+                task.answers.forEach((answer) => {
+                    const count = recordedAnswers.filter((recordedAnswer) => recordedAnswer.answer === answer.answer).length;
+                    answer.stats = count / totalAnswers;
+                });
+                await task.save();
+            }
+        }
+        catch (error) {
+            console.error('Error in countAnswerStat:', error);
         }
     }
 };
@@ -804,6 +809,7 @@ __decorate([
 exports.GetTaskService = GetTaskService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_2.InjectModel)(task_1.Task.name)),
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_recorded_service_1.GetRecordedAnswerService))),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_1.Model !== "undefined" && mongoose_1.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
 ], GetTaskService);
 
@@ -1279,6 +1285,7 @@ const update_user_service_1 = __webpack_require__(37);
 const delete_user_service_1 = __webpack_require__(34);
 const mx_module_1 = __webpack_require__(52);
 const eligibility_1 = __webpack_require__(39);
+const tasks_module_1 = __webpack_require__(10);
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
@@ -1286,6 +1293,7 @@ exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [
             (0, common_1.forwardRef)(() => mx_module_1.M1Module),
+            (0, common_1.forwardRef)(() => tasks_module_1.TasksModule),
             mongoose_1.MongooseModule.forFeature([
                 { name: user_1.Users.name, schema: user_1.UsersSchema },
                 { name: eligibility_1.Eligibility.name, schema: eligibility_1.EligibilitySchema },
@@ -1769,11 +1777,11 @@ const eligibility_1 = __webpack_require__(39);
 const utils_service_1 = __webpack_require__(41);
 const get_task_service_1 = __webpack_require__(19);
 let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
-    constructor(userModel, eligibilityModel, getEligibilityService, GetTaskService, utilsService) {
+    constructor(userModel, eligibilityModel, getEligibilityService, getTaskService, utilsService) {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
-        this.GetTaskService = GetTaskService;
+        this.getTaskService = getTaskService;
         this.utilsService = utilsService;
         this.logger = new common_1.Logger(UpdateUserService_1.name);
     }
@@ -1819,7 +1827,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             const allAccuracyValues = [];
             const eligibleForRequalification = allWorkers.filter(async (worker) => worker.completedTasks &&
                 worker.completedTasks.length ===
-                    (await this.GetTaskService.getTotalTasks()));
+                    (await this.getTaskService.getTotalTasks()));
             this.logger.log(`Requalify process: ${eligibleForRequalification.length} workers have more than 10 completed tasks.`);
             if (eligibleForRequalification.length === 0) {
                 this.logger.log('No workers with more than 10 completed tasks found. Exiting requalification process.');
@@ -1880,6 +1888,7 @@ exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
     __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_task_service_1.GetTaskService))),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
 ], UpdateUserService);
 
@@ -3040,6 +3049,8 @@ exports.CreateRecordedService = CreateRecordedService;
 exports.CreateRecordedService = CreateRecordedService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_task_service_1.GetTaskService))),
+    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => worker_analysis_service_1.WorkerAnalysisService))),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof worker_analysis_service_1.WorkerAnalysisService !== "undefined" && worker_analysis_service_1.WorkerAnalysisService) === "function" ? _c : Object])
 ], CreateRecordedService);
 

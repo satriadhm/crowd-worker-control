@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users } from '../models/user';
@@ -23,7 +23,8 @@ export class UpdateUserService {
     @InjectModel(Eligibility.name)
     private eligibilityModel: Model<Eligibility>,
     private readonly getEligibilityService: GetEligibilityService,
-    private readonly GetTaskService: GetTaskService,
+    @Inject(forwardRef(() => GetTaskService))
+    private readonly getTaskService: GetTaskService,
     private readonly utilsService: UtilsService,
   ) {}
 
@@ -88,7 +89,7 @@ export class UpdateUserService {
         async (worker) =>
           worker.completedTasks &&
           worker.completedTasks.length ===
-            (await this.GetTaskService.getTotalTasks()),
+            (await this.getTaskService.getTotalTasks()),
       );
 
       this.logger.log(

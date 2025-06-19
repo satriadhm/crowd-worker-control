@@ -8,10 +8,12 @@ import { UpdateUserService } from './services/update.user.service';
 import { DeleteUserService } from './services/delete.user.service';
 import { M1Module } from '../MX/mx.module';
 import { Eligibility, EligibilitySchema } from '../MX/models/eligibility';
+import { TasksModule } from 'src/tasks/tasks.module';
 
 @Module({
   imports: [
     forwardRef(() => M1Module),
+    forwardRef(() => TasksModule),
     MongooseModule.forFeature([
       { name: Users.name, schema: UsersSchema },
       { name: Eligibility.name, schema: EligibilitySchema },

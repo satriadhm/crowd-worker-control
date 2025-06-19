@@ -1,5 +1,5 @@
 import { ThrowGQL } from '@app/gqlerr';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { RecordedAnswer } from 'src/MX/models/recorded';
@@ -12,7 +12,9 @@ export class CreateRecordedService {
   constructor(
     @InjectModel(RecordedAnswer.name)
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
+    @Inject(forwardRef(() => GetTaskService))
     private readonly getTaskService: GetTaskService,
+    @Inject(forwardRef(() => WorkerAnalysisService))
     private readonly workerAnalysisService: WorkerAnalysisService,
   ) {}
 
