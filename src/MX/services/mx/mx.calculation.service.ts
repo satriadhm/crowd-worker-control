@@ -49,12 +49,11 @@ export class AccuracyCalculationServiceMX {
     if (answers.length === 0 || workers.length < 3) {
       this.logger.warn(`Insufficient data for M-X calculation`);
       return workers.reduce((acc, workerId) => {
-        acc[workerId] = 1 / M; // Theoretical minimum accuracy
+        acc[workerId] = 1 / M;
         return acc;
       }, {});
     }
 
-    // Map worker answers
     const workerAnswersMap: Record<string, WorkerAnswer[]> = {};
     for (const workerId of workers) {
       const workerRecords = answers.filter(
@@ -81,12 +80,10 @@ export class AccuracyCalculationServiceMX {
       }, {});
     }
 
-    // For each worker, calculate accuracy using sliding windows
     for (let i = 0; i < workers.length; i++) {
       const currentWorkerId = workers[i];
       const workerAccuraciesAcrossWindows: number[] = [];
 
-      // Sliding window approach - generate all possible 3-worker combinations
       for (let j = 0; j < workers.length - 2; j++) {
         const windowWorkers = [
           workers[(i + j) % workers.length],
@@ -94,7 +91,6 @@ export class AccuracyCalculationServiceMX {
           workers[(i + j + 2) % workers.length],
         ];
 
-        // Ensure unique workers and current worker is in window
         const uniqueWorkers = new Set(windowWorkers);
         if (
           uniqueWorkers.size < 3 ||
@@ -103,11 +99,9 @@ export class AccuracyCalculationServiceMX {
           continue;
         }
 
-        // Calculate accuracy for each option dimension (M-X extension for multiple choice)
         const optionAccuracies: number[] = [];
 
         for (const answerId of answerIds) {
-          // Create binary vectors for this answer option
           const binaryAnswersMap: Record<string, number[]> = {};
 
           for (const wId of windowWorkers) {
@@ -119,7 +113,6 @@ export class AccuracyCalculationServiceMX {
 
           const [w1, w2, w3] = windowWorkers;
 
-          // Calculate pairwise agreement probabilities
           const Q12 = this.calculateAgreementProbability(
             binaryAnswersMap[w1],
             binaryAnswersMap[w2],

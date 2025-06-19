@@ -88,10 +88,9 @@ export class WorkerAnalysisService {
             isEligible: { $gt: ['$averageAccuracy', thresholdValue] },
           },
         },
-        // Lookup worker details
         {
           $lookup: {
-            from: 'users', // Collection name might be different in your setup
+            from: 'users',
             localField: '_id',
             foreignField: '_id',
             as: 'workerDetails',
