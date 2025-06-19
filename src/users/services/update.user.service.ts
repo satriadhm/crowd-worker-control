@@ -71,7 +71,7 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async qualifyAllUsers() {
     try {
       const allWorkers = await this.userModel
