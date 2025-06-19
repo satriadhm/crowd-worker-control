@@ -23,7 +23,7 @@ export const parseRequest = (input: any): any => {
   return {
     title: input.title,
     description: input.description,
-    isValidQuestion: false, // default untuk request baru
+    isValidQuestion: false,
     question: {
       scenario: input.question?.scenario || '',
       given: input.question?.given || '',

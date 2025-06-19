@@ -14,7 +14,7 @@ import { Eligibility, EligibilitySchema } from '../MX/models/eligibility';
     forwardRef(() => M1Module),
     MongooseModule.forFeature([
       { name: Users.name, schema: UsersSchema },
-      { name: Eligibility.name, schema: EligibilitySchema }, // Add the Eligibility model here
+      { name: Eligibility.name, schema: EligibilitySchema },
     ]),
   ],
   providers: [

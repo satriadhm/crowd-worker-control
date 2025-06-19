@@ -16,7 +16,6 @@ async function bootstrap() {
   await app.listen(config.get('PORT') || configService.getPort());
 }
 
-// Check if the environment is Vercel
 if (process.env.VERCEL_ENV) {
   module.exports = bootstrap();
 } else {

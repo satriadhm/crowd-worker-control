@@ -22,7 +22,7 @@ export class CreateUserService {
       const user = await new this.userModel({
         _id: new ObjectId(),
         ...createUserInput,
-        isEligible, // Gunakan nilai yang sudah ditentukan
+        isEligible,
       }).save();
       return parseToView(user);
     } catch (error) {

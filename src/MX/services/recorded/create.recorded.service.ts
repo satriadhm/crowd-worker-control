@@ -30,10 +30,9 @@ export class CreateRecordedService {
         taskId,
         workerId,
         answerId,
-        answer: answerText, // Store the text for reference
+        answer: answerText,
       });
 
-      // Trigger eligibility update after recording the answer
       await this.workerAnalysisService.updateWorkerEligibility(workerId);
 
       return recordedAnswer;

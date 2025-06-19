@@ -1,4 +1,3 @@
-// src/MX/mx.resolver.ts
 import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Role } from 'src/lib/user.enum';

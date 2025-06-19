@@ -65,7 +65,6 @@ export class Users {
   @Prop({ required: false })
   address2: string;
 
-  // Perbaikan pada field isEligible
   @Field(() => Boolean, { nullable: true })
   @Prop({
     type: Boolean,
@@ -94,13 +93,10 @@ export class Users {
 export type UserDocument = HydratedDocument<Users>;
 export const UsersSchema = SchemaFactory.createForClass(Users);
 
-// Perbaikan hook untuk TypeScript
 UsersSchema.pre('findOneAndUpdate', function () {
-  // Gunakan any untuk mengatasi masalah TypeScript dengan Mongoose update object
   const update = this.getUpdate() as any;
 
   if (update && update.$set && update.$set.isEligible !== undefined) {
-    // Jika nilai bukan null, pastikan itu boolean yang sesungguhnya
     if (update.$set.isEligible !== null) {
       update.$set.isEligible = Boolean(update.$set.isEligible);
     }

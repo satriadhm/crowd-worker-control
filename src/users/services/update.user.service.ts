@@ -54,9 +54,7 @@ export class UpdateUserService {
         throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
       }
 
-      // Check if the task is already in completedTasks
       if (!user.completedTasks.some((t) => t.taskId === taskId)) {
-        // Use findByIdAndUpdate with $push to add to completedTasks array
         const updatedUser = await this.userModel.findByIdAndUpdate(
           userId,
           { $push: { completedTasks: { taskId, answer } } },
