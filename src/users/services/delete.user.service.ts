@@ -29,4 +29,20 @@ export class DeleteUserService {
       throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
     }
   }
+
+  async resetHasDoneTask(id: string): Promise<UserView> {
+    try {
+      const updatedUser = await this.userModel.findByIdAndUpdate(
+        id,
+        { $set: { completedTasks: [] } },
+        { new: true },
+      );
+      if (!updatedUser) {
+        throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
+      }
+      return parseToView(updatedUser);
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
 }
