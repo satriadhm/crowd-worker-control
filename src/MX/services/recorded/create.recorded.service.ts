@@ -1,4 +1,3 @@
-// src/MX/services/recorded/create.recorded.service.ts
 import { ThrowGQL } from '@app/gqlerr';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -23,7 +22,6 @@ export class CreateRecordedService {
     answerId: number,
   ): Promise<RecordedAnswer> {
     try {
-      // Optionally fetch the task to get the text answer for reference
       const task = await this.getTaskService.getTaskById(taskId);
       const answerText =
         task?.answers.find((a) => a.answerId === answerId)?.answer || '';

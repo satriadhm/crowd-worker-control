@@ -27,17 +27,14 @@ export class DashboardService {
 
   async getDashboardSummary(): Promise<DashboardSummary> {
     try {
-      // Get worker eligibility distribution
       const workerEligibility = await this.getWorkerEligibilityDistribution();
 
-      // Get task validation distribution
       const taskValidation = await this.getTaskValidationDistribution();
 
-      // Get accuracy distribution
       const accuracyDistribution = await this.getAccuracyDistribution();
 
       return {
-        iterationMetrics: [], // Empty array as we no longer use iterations
+        iterationMetrics: [],
         workerEligibility,
         taskValidation,
         accuracyDistribution,
@@ -51,7 +48,6 @@ export class DashboardService {
   private async getWorkerEligibilityDistribution(): Promise<
     StatusDistribution[]
   > {
-    // Count workers by eligibility status
     const eligibleCount = await this.userModel.countDocuments({
       role: Role.WORKER,
       isEligible: true,
@@ -79,7 +75,6 @@ export class DashboardService {
   }
 
   private async getTaskValidationDistribution(): Promise<StatusDistribution[]> {
-    // Count validated and non-validated tasks
     const validatedCount = await this.taskModel.countDocuments({
       isValidQuestion: true,
     });
@@ -93,10 +88,8 @@ export class DashboardService {
   }
 
   private async getAccuracyDistribution(): Promise<AccuracyDistribution[]> {
-    // Get all workers with eligibility records
     const eligibilityRecords = await this.eligibilityModel.find().exec();
 
-    // Group workers by their accuracy ranges
     const accuracyBrackets = {
       '90-100%': 0,
       '80-89%': 0,
@@ -104,7 +97,6 @@ export class DashboardService {
       'Below 70%': 0,
     };
 
-    // Process each eligibility record
     for (const record of eligibilityRecords) {
       const accuracy = record.accuracy || 0;
 
@@ -119,10 +111,9 @@ export class DashboardService {
       }
     }
 
-    // Convert to array format
     return Object.entries(accuracyBrackets).map(([name, value]) => ({
       name,
-      value: value || 0, // Ensure no null values
+      value: value || 0,
     }));
   }
 }

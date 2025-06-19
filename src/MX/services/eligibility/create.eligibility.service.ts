@@ -18,13 +18,11 @@ export class CreateEligibilityService {
   async createEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
     const { taskId, workerId, accuracy } = input;
 
-    // Check if eligibility already exists
     const existingEligibility = await this.eligibilityModel.findOne({
       taskId,
       workerId,
     });
 
-    // If it exists, return it without modification
     if (existingEligibility) {
       this.logger.log(
         'Eligibility remain unchanged for workerId: ' +
@@ -35,7 +33,6 @@ export class CreateEligibilityService {
       return existingEligibility;
     }
 
-    // If it doesn't exist, create a new record
     const newEligibility = await this.eligibilityModel.create({
       taskId,
       workerId,
@@ -45,7 +42,6 @@ export class CreateEligibilityService {
     return newEligibility;
   }
 
-  // New method to get all eligibility records for a specific task
   async getEligibilityByTaskId(taskId: string): Promise<EligibilityView[]> {
     try {
       const eligibilityRecords = await this.eligibilityModel.find({ taskId });

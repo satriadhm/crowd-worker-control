@@ -28,129 +28,98 @@ export class AccuracyCalculationServiceMX {
     private readonly getTaskService: GetTaskService,
   ) {}
 
-  /**
-   * Calculate accuracy for each worker using the M-X algorithm with sliding window approach
-   */
   async calculateAccuracyMX(
     taskId: string,
     workers: string[],
   ): Promise<Record<string, number>> {
     this.logger.log(`Starting M-X accuracy calculation for taskId: ${taskId}`);
 
-    // Step 1: Get task data
     const task = await this.getTaskService.getTaskById(taskId);
     if (!task) {
-      this.logger.error(`Task with ID ${taskId} not found`);
       throw new ThrowGQL(
         `Task with ID ${taskId} not found`,
         GQLThrowType.NOT_FOUND,
       );
     }
 
-    const N = task.answers.length; // Number of questions
     const M = task.nAnswers || 4; // Number of answer options per question
 
-    this.logger.log(`Task found, questions: ${N}, answer options: ${M}`);
-
-    // Get recorded answers for the task
     const answers = await this.recordedAnswerModel.find({ taskId });
 
-    if (answers.length === 0) {
-      this.logger.warn(`No recorded answers found for taskId: ${taskId}`);
+    if (answers.length === 0 || workers.length < 3) {
+      this.logger.warn(`Insufficient data for M-X calculation`);
       return workers.reduce((acc, workerId) => {
-        acc[workerId] = 0.5; // Default accuracy when no data available
+        acc[workerId] = 1 / M; // Theoretical minimum accuracy
         return acc;
       }, {});
     }
 
-    // Final accuracies for each worker
-    const finalAccuracies: Record<string, number> = {};
-    workers.forEach((workerId) => {
-      finalAccuracies[workerId] = 1.0; // Initial value for product
-    });
-
-    // Map to store worker answers with answerId and answer text
+    // Map worker answers
     const workerAnswersMap: Record<string, WorkerAnswer[]> = {};
-
     for (const workerId of workers) {
       const workerRecords = answers.filter(
         (a) => a.workerId.toString() === workerId,
       );
-
-      // Store both answerId and answer text
       workerAnswersMap[workerId] = workerRecords.map((record) => ({
         answerId: record.answerId,
         answer: record.answer,
       }));
     }
 
-    // If we have less than 3 workers, we can't apply the M-X algorithm properly
-    if (workers.length < 3) {
-      this.logger.warn(
-        `Not enough workers (${workers.length}) for proper M-X algorithm calculation. Minimum 3 required.`,
-      );
+    const finalAccuracies: Record<string, number> = {};
+
+    // Get all unique answer IDs for decomposition
+    const answerIds = Array.from(new Set(answers.map((a) => a.answerId))).sort(
+      (a, b) => a - b,
+    );
+
+    if (answerIds.length === 0) {
+      this.logger.warn('No answer IDs found');
       return workers.reduce((acc, workerId) => {
-        acc[workerId] = 0.5; // Default when not enough workers
+        acc[workerId] = 1 / M;
         return acc;
       }, {});
     }
 
-    // Implement sliding window approach as described in the M-X algorithm
-    // Arrange workers in a circular pattern for sliding window
-    const circularWorkers = [...workers];
-
-    // For each worker, calculate accuracy using sliding windows of 3 workers
+    // For each worker, calculate accuracy using sliding windows
     for (let i = 0; i < workers.length; i++) {
       const currentWorkerId = workers[i];
-      const accuracies = [];
+      const workerAccuraciesAcrossWindows: number[] = [];
 
-      // Use sliding window of 3 workers
-      for (let j = 0; j < workers.length; j++) {
-        // Get the three workers in current sliding window
+      // Sliding window approach - generate all possible 3-worker combinations
+      for (let j = 0; j < workers.length - 2; j++) {
         const windowWorkers = [
-          circularWorkers[(i + j) % workers.length],
-          circularWorkers[(i + j + 1) % workers.length],
-          circularWorkers[(i + j + 2) % workers.length],
+          workers[(i + j) % workers.length],
+          workers[(i + j + 1) % workers.length],
+          workers[(i + j + 2) % workers.length],
         ];
 
-        // Check if workers are unique in this window (avoid duplicate workers)
+        // Ensure unique workers and current worker is in window
         const uniqueWorkers = new Set(windowWorkers);
-        if (uniqueWorkers.size < 3) continue;
+        if (
+          uniqueWorkers.size < 3 ||
+          !windowWorkers.includes(currentWorkerId)
+        ) {
+          continue;
+        }
 
-        // Skip if the current worker isn't in this window
-        if (!windowWorkers.includes(currentWorkerId)) continue;
+        // Calculate accuracy for each option dimension (M-X extension for multiple choice)
+        const optionAccuracies: number[] = [];
 
-        // Process each answer option as a separate binary problem
-        const answerIds = Array.from(
-          new Set(answers.map((a) => a.answerId)),
-        ).sort((a, b) => a - b);
-
-        const optionsToProcess =
-          answerIds.length > 0
-            ? answerIds
-            : Array.from({ length: M }, (_, i) => i);
-
-        // For each option, calculate worker accuracies
-        const optionAccuracies = [];
-
-        for (const answerId of optionsToProcess) {
-          // Create binary vectors for each worker based on this answer option
+        for (const answerId of answerIds) {
+          // Create binary vectors for this answer option
           const binaryAnswersMap: Record<string, number[]> = {};
 
           for (const wId of windowWorkers) {
             const workerAnswers = workerAnswersMap[wId] || [];
-
             binaryAnswersMap[wId] = workerAnswers.map((wa) =>
               wa.answerId === answerId ? 1 : 0,
             );
           }
 
-          // Extract the three workers in this window
-          const w1 = windowWorkers[0];
-          const w2 = windowWorkers[1];
-          const w3 = windowWorkers[2];
+          const [w1, w2, w3] = windowWorkers;
 
-          // Calculate agreement probabilities between worker pairs
+          // Calculate pairwise agreement probabilities
           const Q12 = this.calculateAgreementProbability(
             binaryAnswersMap[w1],
             binaryAnswersMap[w2],
@@ -164,49 +133,55 @@ export class AccuracyCalculationServiceMX {
             binaryAnswersMap[w3],
           );
 
-          // Calculate accuracy for the current worker based on their position in the window
-          let workerAccuracy;
+          // Calculate accuracy for current worker based on position in window
+          let workerAccuracy: number | undefined;
 
           if (currentWorkerId === w1) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
+            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, 2); // Binary M=2
           } else if (currentWorkerId === w2) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
+            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, 2);
           } else if (currentWorkerId === w3) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
+            workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, 2);
           }
 
-          if (workerAccuracy !== undefined) {
+          if (workerAccuracy !== undefined && !isNaN(workerAccuracy)) {
             optionAccuracies.push(workerAccuracy);
           }
         }
 
-        // Calculate average accuracy across all options for this window
+        // For multiple-choice problems, combine option accuracies
+        // According to paper: A_i = ∏(j=1 to M) A_ij
         if (optionAccuracies.length > 0) {
-          const avgAccuracy =
-            optionAccuracies.reduce((sum, val) => sum + val, 0) /
-            optionAccuracies.length;
-          accuracies.push(avgAccuracy);
+          // Use geometric mean instead of product to avoid extremely small values
+          const geometricMean = Math.pow(
+            optionAccuracies.reduce(
+              (product, val) => product * Math.max(val, 0.01),
+              1,
+            ),
+            1 / optionAccuracies.length,
+          );
+          workerAccuraciesAcrossWindows.push(geometricMean);
         }
       }
 
-      // Calculate final accuracy as average across all windows
-      if (accuracies.length > 0) {
-        const avgAccuracy =
-          accuracies.reduce((sum, val) => sum + val, 0) / accuracies.length;
+      // Final accuracy: average across all windows
+      if (workerAccuraciesAcrossWindows.length > 0) {
+        const finalAccuracy =
+          workerAccuraciesAcrossWindows.reduce((sum, val) => sum + val, 0) /
+          workerAccuraciesAcrossWindows.length;
 
-        // Apply scaling to better differentiate worker performance
-        const scaledAccuracy = 0.4 + avgAccuracy * 0.6;
-
-        finalAccuracies[currentWorkerId] = parseFloat(
-          scaledAccuracy.toFixed(2),
+        // Ensure reasonable bounds without arbitrary scaling
+        finalAccuracies[currentWorkerId] = Math.max(
+          1 / M, // Theoretical minimum (random guessing)
+          Math.min(0.95, finalAccuracy), // Practical maximum
         );
       } else {
-        finalAccuracies[currentWorkerId] = 0.5; // Default when not enough data
+        finalAccuracies[currentWorkerId] = 1 / M; // Default to random guessing probability
       }
     }
 
     this.logger.log(
-      `M-X calculation completed. Final accuracies: ${JSON.stringify(finalAccuracies)}`,
+      `M-X calculation completed. Results: ${JSON.stringify(finalAccuracies)}`,
     );
     return finalAccuracies;
   }
@@ -231,7 +206,7 @@ export class AccuracyCalculationServiceMX {
   }
 
   /**
-   * Calculate worker accuracy using the M-X algorithm formula (Equation 3 in the paper)
+   * Calculate worker accuracy using the M-X algorithm formula
    */
   private calculateWorkerAccuracy(
     Q12: number,
@@ -240,34 +215,49 @@ export class AccuracyCalculationServiceMX {
     M: number,
   ): number {
     try {
-      // Implementation of Equation 3 from the paper
+      // Validate input ranges
+      if ([Q12, Q13, Q23].some((q) => q < 0 || q > 1 || isNaN(q))) {
+        this.logger.debug(
+          `Invalid agreement probabilities: Q12=${Q12}, Q13=${Q13}, Q23=${Q23}`,
+        );
+        return 1 / M;
+      }
+
+      // M-X Algorithm formula implementation
       const term1 = 1 / M;
       const term2 = (M - 1) / M;
 
-      // Avoid division by zero or negative square roots
-      if (M * Q23 - 1 <= 0 || (M * Q12 - 1) * (M * Q13 - 1) < 0) {
-        return 0.5; // Default value for invalid calculations
+      // Check mathematical validity before square root
+      const denominator = M * Q23 - 1;
+      const numeratorProduct = (M * Q12 - 1) * (M * Q13 - 1);
+
+      if (denominator <= 0) {
+        this.logger.debug(`Invalid denominator: ${denominator}`);
+        return 1 / M;
       }
 
-      const sqrtTerm = Math.sqrt(
-        ((M * Q12 - 1) * (M * Q13 - 1)) / (M * Q23 - 1),
-      );
+      if (numeratorProduct < 0) {
+        this.logger.debug(`Invalid numerator product: ${numeratorProduct}`);
+        return 1 / M;
+      }
 
+      const sqrtTerm = Math.sqrt(numeratorProduct / denominator);
       let accuracy = term1 + term2 * sqrtTerm;
 
-      // Bound accuracy to reasonable values
-      accuracy = Math.max(0.1, Math.min(0.95, accuracy));
+      accuracy = Math.max(0.0, Math.min(1.0, accuracy));
+
+      if (isNaN(accuracy) || !isFinite(accuracy)) {
+        this.logger.debug(`Invalid accuracy result: ${accuracy}`);
+        return 1 / M;
+      }
 
       return accuracy;
     } catch (error) {
-      this.logger.error(`Error calculating worker accuracy: ${error.message}`);
-      return 0.5; // Default on error
+      this.logger.error(`Error in calculateWorkerAccuracy: ${error.message}`);
+      return 1 / M;
     }
   }
 
-  /**
-   * Calculate eligibility for all workers based on their accuracy
-   */
   @Cron(CronExpression.EVERY_HOUR)
   async calculateEligibility() {
     try {

@@ -1,4 +1,3 @@
-// src/MX/services/utils/utils.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -16,7 +15,6 @@ export class UtilsService {
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<Eligibility>,
   ) {
-    // Ensure we have at least one utils document
     this.initializeUtils();
   }
 
@@ -24,7 +22,6 @@ export class UtilsService {
     try {
       const count = await this.utilsModel.countDocuments().exec();
       if (count === 0) {
-        // Create default configuration if none exists
         await this.utilsModel.create({
           thresholdType: ThresholdType.MEDIAN,
           thresholdValue: 0.7,
@@ -39,10 +36,8 @@ export class UtilsService {
 
   async getThresholdSettings(): Promise<Utils> {
     try {
-      // Get first document (should be the only one)
       let utils = await this.utilsModel.findOne().exec();
 
-      // If no document exists, create one with defaults
       if (!utils) {
         utils = await this.utilsModel.create({
           thresholdType: ThresholdType.MEDIAN,
@@ -66,7 +61,6 @@ export class UtilsService {
     thresholdValue?: number,
   ): Promise<Utils> {
     try {
-      // Validate custom threshold value
       if (thresholdType === ThresholdType.CUSTOM) {
         if (thresholdValue === undefined) {
           throw new ThrowGQL(
@@ -83,13 +77,11 @@ export class UtilsService {
         }
       }
 
-      // Prepare update data
       const updateData: Partial<Utils> = {
         thresholdType,
         lastUpdated: new Date(),
       };
 
-      // If threshold type is MEDIAN or MEAN, calculate it
       if (
         thresholdType === ThresholdType.MEDIAN ||
         thresholdType === ThresholdType.MEAN
@@ -102,11 +94,9 @@ export class UtilsService {
 
         updateData.thresholdValue = calculatedThreshold;
       } else if (thresholdValue !== undefined) {
-        // For CUSTOM type, use the provided value
         updateData.thresholdValue = thresholdValue;
       }
 
-      // Update the document
       const utils = await this.utilsModel.findOneAndUpdate(
         {},
         { $set: updateData },
@@ -119,7 +109,6 @@ export class UtilsService {
 
       return utils;
     } catch (error) {
-      // If it's already a ThrowGQL, rethrow it
       if (error instanceof ThrowGQL) {
         throw error;
       }
@@ -132,17 +121,14 @@ export class UtilsService {
     }
   }
 
-  // Get all worker accuracies for threshold calculation
   private async getAllWorkerAccuracies(): Promise<number[]> {
     try {
-      // Get all eligibility records
       const eligibilityRecords = await this.eligibilityModel.find().exec();
 
       if (eligibilityRecords.length === 0) {
-        return [0.7]; // Default value if no records
+        return [0.7];
       }
 
-      // Group by workerId and calculate average accuracy per worker
       const workerAccuracies = new Map<string, number[]>();
 
       for (const record of eligibilityRecords) {
@@ -156,7 +142,6 @@ export class UtilsService {
         workerAccuracies.get(workerId)?.push(accuracy);
       }
 
-      // Calculate average accuracy for each worker
       const averageAccuracies: number[] = [];
 
       for (const accuracies of workerAccuracies.values()) {
@@ -177,7 +162,7 @@ export class UtilsService {
   async calculateThreshold(accuracyValues: number[]): Promise<number> {
     try {
       if (!accuracyValues || accuracyValues.length === 0) {
-        return 0.7; // Default if no values provided
+        return 0.7;
       }
 
       const settings = await this.getThresholdSettings();
@@ -192,41 +177,32 @@ export class UtilsService {
         }
 
         case ThresholdType.CUSTOM: {
-          // Return the custom value
           return settings.thresholdValue;
         }
 
         default:
-          // Fallback to median if threshold type is not recognized
           return this.calculateMedian(accuracyValues);
       }
     } catch (error) {
       this.logger.error('Failed to calculate threshold', error);
-      // Default to 0.7 on error
       return 0.7;
     }
   }
 
-  // Helper method to calculate median
   private calculateMedian(values: number[]): number {
     if (values.length === 0) return 0.7;
 
-    // Sort the array
     const sorted = [...values].sort((a, b) => a - b);
 
-    // Find the middle
     const middle = Math.floor(sorted.length / 2);
 
-    // If odd length, return the middle value
     if (sorted.length % 2 === 1) {
       return sorted[middle];
     }
 
-    // If even length, return the average of the two middle values
     return (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
-  // Helper method to calculate mean
   private calculateMean(values: number[]): number {
     if (values.length === 0) return 0.7;
     return values.reduce((sum, val) => sum + val, 0) / values.length;
