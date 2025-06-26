@@ -1,7 +1,9 @@
+// src/MX/services/worker-analysis/worker-analysis.service.ts
+
 import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
   AlgorithmPerformanceData,
@@ -24,7 +26,7 @@ export class WorkerAnalysisService {
     results: TesterAnalysisView[];
     timestamp: number;
   } = null;
-  private readonly CACHE_TTL = 5 * 60 * 1000;
+  private readonly CACHE_TTL = 1 * 60 * 1000; // Reduced to 1 minute for testing
 
   constructor(
     @InjectModel(Eligibility.name)
@@ -56,12 +58,13 @@ export class WorkerAnalysisService {
 
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
-      if (
-        this.testerAnalysisCache &&
-        Date.now() - this.testerAnalysisCache.timestamp < this.CACHE_TTL
-      ) {
-        return this.testerAnalysisCache.results;
-      }
+      // Force refresh cache for testing - remove cache check temporarily
+      // if (
+      //   this.testerAnalysisCache &&
+      //   Date.now() - this.testerAnalysisCache.timestamp < this.CACHE_TTL
+      // ) {
+      //   return this.testerAnalysisCache.results;
+      // }
 
       const startTime = Date.now();
       this.logger.log('Starting getTesterAnalysis');
@@ -70,6 +73,7 @@ export class WorkerAnalysisService {
       const thresholdValue = thresholdSettings.thresholdValue;
       this.logger.log(`Current threshold value: ${thresholdValue}`);
 
+      // Get all workers with their eligibility data
       const workerAccuracies = await this.eligibilityModel.aggregate([
         {
           $group: {
@@ -91,8 +95,10 @@ export class WorkerAnalysisService {
         {
           $lookup: {
             from: 'users',
-            localField: '_id',
-            foreignField: '_id',
+            let: { workerObjectId: { $toObjectId: '$_id' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
+            ],
             as: 'workerDetails',
           },
         },
@@ -108,13 +114,13 @@ export class WorkerAnalysisService {
             workerId: { $toString: '$_id' },
             testerName: {
               $concat: [
-                { $ifNull: ['$workerDetails.firstName', ''] },
+                { $ifNull: ['$workerDetails.firstName', 'Unknown'] },
                 ' ',
-                { $ifNull: ['$workerDetails.lastName', ''] },
+                { $ifNull: ['$workerDetails.lastName', 'User'] },
               ],
             },
-            averageScore: { $round: ['$averageAccuracy', 2] },
-            accuracy: { $round: ['$averageAccuracy', 2] },
+            averageScore: { $round: ['$averageAccuracy', 3] },
+            accuracy: { $round: ['$averageAccuracy', 3] },
             isEligible: 1,
           },
         },
@@ -123,16 +129,52 @@ export class WorkerAnalysisService {
         },
       ]);
 
+      // Also include workers with pending status (null eligibility)
+      const pendingWorkers = await this.userModel.aggregate([
+        {
+          $match: {
+            role: 'worker',
+            isEligible: null,
+          },
+        },
+        {
+          $lookup: {
+            from: 'eligibilities',
+            localField: '_id',
+            foreignField: 'workerId',
+            as: 'eligibilities',
+          },
+        },
+        {
+          $match: {
+            eligibilities: { $size: 0 }, // No eligibility records
+          },
+        },
+        {
+          $project: {
+            workerId: { $toString: '$_id' },
+            testerName: {
+              $concat: ['$firstName', ' ', '$lastName'],
+            },
+            averageScore: 0,
+            accuracy: 0,
+            isEligible: null, // Pending status
+          },
+        },
+      ]);
+
+      const allResults = [...workerAccuracies, ...pendingWorkers];
+
       this.logger.log(
-        `getTesterAnalysis executed in ${Date.now() - startTime}ms`,
+        `getTesterAnalysis executed in ${Date.now() - startTime}ms. Found ${allResults.length} workers.`,
       );
 
       this.testerAnalysisCache = {
-        results: workerAccuracies,
+        results: allResults,
         timestamp: Date.now(),
       };
 
-      return workerAccuracies;
+      return allResults;
     } catch (error) {
       this.logger.error(`Error getting tester analysis data: ${error.message}`);
       throw new ThrowGQL(
@@ -144,12 +186,13 @@ export class WorkerAnalysisService {
 
   async getTestResults(page = 1, limit = 288): Promise<TestResultView[]> {
     try {
-      if (
-        this.testResultsCache &&
-        Date.now() - this.testResultsCache.timestamp < this.CACHE_TTL
-      ) {
-        return this.testResultsCache.results;
-      }
+      // Force refresh for testing
+      // if (
+      //   this.testResultsCache &&
+      //   Date.now() - this.testResultsCache.timestamp < this.CACHE_TTL
+      // ) {
+      //   return this.testResultsCache.results;
+      // }
 
       const startTime = Date.now();
       this.logger.log('Starting getTestResults');
@@ -174,7 +217,7 @@ export class WorkerAnalysisService {
             },
             formattedDate: {
               $dateToString: {
-                format: '%Y-%m-%d',
+                format: '%Y-%m-%d %H:%M',
                 date: { $ifNull: ['$createdAt', new Date()] },
               },
             },
@@ -183,8 +226,10 @@ export class WorkerAnalysisService {
         {
           $lookup: {
             from: 'users',
-            localField: 'workerId',
-            foreignField: '_id',
+            let: { workerObjectId: { $toObjectId: '$workerId' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
+            ],
             as: 'workerDetails',
           },
         },
@@ -199,16 +244,18 @@ export class WorkerAnalysisService {
             id: { $toString: '$_id' },
             workerId: { $toString: '$workerId' },
             testId: { $toString: '$taskId' },
-            score: { $ifNull: ['$accuracy', 0.5] },
+            score: { $round: [{ $ifNull: ['$accuracy', 0.5] }, 3] },
             eligibilityStatus: 1,
             feedback: {
               $concat: [
-                'Automatically evaluated by M-X algorithm. Worker: ',
-                { $ifNull: ['$workerDetails.firstName', ''] },
+                'M-X Algorithm Analysis - Worker: ',
+                { $ifNull: ['$workerDetails.firstName', 'Unknown'] },
                 ' ',
-                { $ifNull: ['$workerDetails.lastName', ''] },
-                ' Task ID: ',
+                { $ifNull: ['$workerDetails.lastName', 'User'] },
+                ' | Task: ',
                 { $toString: '$taskId' },
+                ' | Accuracy: ',
+                { $toString: { $round: [{ $ifNull: ['$accuracy', 0] }, 3] } },
               ],
             },
             createdAt: '$createdAt',
@@ -217,12 +264,8 @@ export class WorkerAnalysisService {
         },
       ]);
 
-      this.logger.log(`getTestResults executed in ${Date.now() - startTime}ms`);
-
-      this.updateEligibilityForResults(results).catch((err) =>
-        this.logger.error(
-          `Background eligibility update failed: ${err.message}`,
-        ),
+      this.logger.log(
+        `getTestResults executed in ${Date.now() - startTime}ms. Found ${results.length} results.`,
       );
 
       // Update cache
@@ -241,19 +284,9 @@ export class WorkerAnalysisService {
     }
   }
 
-  private async updateEligibilityForResults(
-    results: TestResultView[],
-  ): Promise<void> {
-    const workerIds = [...new Set(results.map((r) => r.workerId))];
-
-    const thresholdSettings = await this.utilsService.getThresholdSettings();
-    const threshold = thresholdSettings.thresholdValue;
-
-    for (const workerId of workerIds) {
-      await this.updateWorkerEligibility(workerId, threshold);
-    }
-  }
-
+  /**
+   * Update worker eligibility based on their average accuracy across all tasks
+   */
   async updateWorkerEligibility(
     workerId: string,
     threshold?: number,
@@ -270,7 +303,12 @@ export class WorkerAnalysisService {
         },
       ]);
 
-      if (!result.length || result[0].count === 0) return;
+      if (!result.length || result[0].count === 0) {
+        this.logger.debug(
+          `No eligibility records found for worker ${workerId}`,
+        );
+        return;
+      }
 
       const averageAccuracy = result[0].averageAccuracy;
 
@@ -288,11 +326,15 @@ export class WorkerAnalysisService {
         { new: true },
       );
 
-      this.logger.debug(
-        `Auto-updated eligibility for worker ${workerId}: ${
+      this.logger.log(
+        `Updated eligibility for worker ${workerId}: ${
           isEligible ? 'Eligible' : 'Not Eligible'
-        } (average accuracy: ${averageAccuracy.toFixed(2)}, threshold: ${threshold.toFixed(2)})`,
+        } (avg accuracy: ${averageAccuracy.toFixed(3)}, threshold: ${threshold.toFixed(3)})`,
       );
+
+      // Clear cache when eligibility is updated
+      this.testResultsCache = null;
+      this.testerAnalysisCache = null;
     } catch (error) {
       this.logger.error(
         `Error updating eligibility for worker ${workerId}: ${error.message}`,
@@ -312,6 +354,7 @@ export class WorkerAnalysisService {
         `Running eligibility update with threshold: ${threshold}`,
       );
 
+      // Get all workers with eligibility records
       const workerEligibilities = await this.eligibilityModel.aggregate([
         {
           $group: {
@@ -327,6 +370,7 @@ export class WorkerAnalysisService {
         },
       ]);
 
+      // Prepare bulk operations
       const bulkOps = workerEligibilities.map((worker) => ({
         updateOne: {
           filter: { _id: worker._id },
@@ -334,6 +378,7 @@ export class WorkerAnalysisService {
         },
       }));
 
+      // Find workers with no eligibility records (should remain pending/null)
       const workersWithNoRecords = await this.userModel.aggregate([
         { $match: { role: 'worker' } },
         {
@@ -347,6 +392,7 @@ export class WorkerAnalysisService {
         { $match: { eligibilities: { $size: 0 } } },
       ]);
 
+      // Keep workers with no records as pending (null)
       workersWithNoRecords.forEach((worker) => {
         bulkOps.push({
           updateOne: {
@@ -365,6 +411,7 @@ export class WorkerAnalysisService {
         this.logger.log('No worker eligibility updates required');
       }
 
+      // Clear all caches
       this.testResultsCache = null;
       this.testerAnalysisCache = null;
 
@@ -447,8 +494,7 @@ export class WorkerAnalysisService {
         const month = monthDate.getMonth() + 1;
         const key = `${year}-${month}`;
 
-        const accuracy = accuracyMap.has(key) ? accuracyMap.get(key) : 0.88;
-
+        const accuracy = accuracyMap.has(key) ? accuracyMap.get(key) : 0.75;
         const recordedCount = responseMap.has(key) ? responseMap.get(key) : 0;
         const responseTime =
           recordedCount > 0

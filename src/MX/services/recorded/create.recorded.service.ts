@@ -1,3 +1,5 @@
+// src/MX/services/recorded/create.recorded.service.ts
+
 import { ThrowGQL } from '@app/gqlerr';
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -5,7 +7,7 @@ import { Model } from 'mongoose';
 import { RecordedAnswer } from 'src/MX/models/recorded';
 import { GetTaskService } from 'src/tasks/services/get.task.service';
 import { CreateRecordedAnswerInput } from '../../dto/recorded/create.recorded.input';
-import { WorkerAnalysisService } from '../worker-analysis/worker-analysis.service';
+import { AccuracyCalculationServiceMX } from '../mx/mx.calculation.service';
 
 @Injectable()
 export class CreateRecordedService {
@@ -14,8 +16,8 @@ export class CreateRecordedService {
     private readonly recordedAnswerModel: Model<RecordedAnswer>,
     @Inject(forwardRef(() => GetTaskService))
     private readonly getTaskService: GetTaskService,
-    @Inject(forwardRef(() => WorkerAnalysisService))
-    private readonly workerAnalysisService: WorkerAnalysisService,
+    @Inject(forwardRef(() => AccuracyCalculationServiceMX))
+    private readonly accuracyCalculationService: AccuracyCalculationServiceMX,
   ) {}
 
   async createRecordedAnswer(
@@ -35,7 +37,11 @@ export class CreateRecordedService {
         answer: answerText,
       });
 
-      await this.workerAnalysisService.updateWorkerEligibility(workerId);
+      // TRIGGER M-X ALGORITHM PROCESSING - Event-based instead of cron
+      await this.accuracyCalculationService.processWorkerSubmission(
+        taskId,
+        workerId,
+      );
 
       return recordedAnswer;
     } catch (error) {

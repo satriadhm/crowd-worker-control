@@ -1,3 +1,5 @@
+// src/MX/mx.resolver.ts
+
 import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Role } from 'src/lib/user.enum';
@@ -20,6 +22,7 @@ import { DashboardService } from './services/dashboard/dashboard.service';
 import { ThresholdType, Utils } from './models/utils';
 import { UtilsService } from './services/utils/utils.service';
 import { ThresholdSettingsInput } from './dto/utils/create.utils.input';
+import { AccuracyCalculationServiceMX } from './services/mx/mx.calculation.service';
 
 @Resolver()
 @UseGuards(RolesGuard, JwtAuthGuard)
@@ -31,6 +34,7 @@ export class M1Resolver {
     private readonly workerAnalysisService: WorkerAnalysisService,
     private readonly dashboardService: DashboardService,
     private readonly utilsService: UtilsService,
+    private readonly accuracyCalculationService: AccuracyCalculationServiceMX,
   ) {}
 
   @Mutation(() => Boolean)
@@ -41,7 +45,7 @@ export class M1Resolver {
   ): Promise<boolean> {
     const workerId = context.req.user.id;
 
-    // Record answer and automatically update eligibility
+    // Record answer and automatically trigger M-X processing
     await this.createRecordedService.recordAnswer(input, workerId);
 
     // Update user task completion history
@@ -105,6 +109,42 @@ export class M1Resolver {
   async triggerEligibilityUpdate(): Promise<boolean> {
     try {
       await this.workerAnalysisService.updateAllWorkerEligibility();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // DEBUGGING ENDPOINTS - Remove in production
+  @Query(() => String)
+  @Roles(Role.ADMIN)
+  async getBatchStatus(@Args('taskId') taskId: string): Promise<string> {
+    const status = this.accuracyCalculationService.getBatchStatus(taskId);
+    return JSON.stringify(status, null, 2);
+  }
+
+  @Mutation(() => Boolean)
+  @Roles(Role.ADMIN)
+  async resetBatchTracker(@Args('taskId') taskId: string): Promise<boolean> {
+    try {
+      this.accuracyCalculationService.resetBatchTracker(taskId);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  @Mutation(() => Boolean)
+  @Roles(Role.ADMIN)
+  async triggerBatchProcessing(
+    @Args('taskId') taskId: string,
+    @Args('workerId') workerId: string,
+  ): Promise<boolean> {
+    try {
+      await this.accuracyCalculationService.processWorkerSubmission(
+        taskId,
+        workerId,
+      );
       return true;
     } catch (error) {
       return false;
