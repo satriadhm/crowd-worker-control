@@ -1326,6 +1326,8 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
     }
     async processWorkerSubmission(taskId, workerId) {
         this.logger.log(`Processing worker submission: taskId=${taskId}, workerId=${workerId}`);
+        const completedWorkers = await this.getCompletedWorkers();
+        this.logger.log(`Total workers who completed all tasks: ${completedWorkers.length}`);
         if (!this.batchTrackers.has(taskId)) {
             this.batchTrackers.set(taskId, {
                 taskId,
@@ -1335,32 +1337,86 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
             });
         }
         const tracker = this.batchTrackers.get(taskId);
+        const user = await this.userModel.findById(workerId);
+        const totalTasks = await this.getTaskService.getTotalTasks();
+        if (!user || (user.completedTasks?.length || 0) < totalTasks) {
+            this.logger.warn(`Worker ${workerId} has not completed all tasks. Skipping processing.`);
+            return;
+        }
         if (tracker.processedWorkers.has(workerId)) {
             this.logger.debug(`Worker ${workerId} already processed for task ${taskId}`);
             return;
         }
-        tracker.pendingWorkers.push(workerId);
-        this.logger.log(`Added worker ${workerId} to pending batch. Pending count: ${tracker.pendingWorkers.length}`);
-        if (tracker.pendingWorkers.length >= 3) {
-            await this.processBatch(taskId, tracker);
+        if (!tracker.pendingWorkers.includes(workerId)) {
+            tracker.pendingWorkers.push(workerId);
+        }
+        const unprocessedCompletedWorkers = completedWorkers.filter((id) => !tracker.processedWorkers.has(id));
+        this.logger.log(`Unprocessed completed workers for task ${taskId}: ${unprocessedCompletedWorkers.length}`);
+        if (unprocessedCompletedWorkers.length >= 3) {
+            this.logger.log(`Processing batch for task ${taskId} with ${unprocessedCompletedWorkers.length} completed workers`);
+            await this.processBatch(taskId, tracker, unprocessedCompletedWorkers);
         }
         else {
-            await this.setPendingStatus(tracker.pendingWorkers);
-            this.logger.log(`Workers in task ${taskId} are pending (need ${3 - tracker.pendingWorkers.length} more workers)`);
+            await this.setPendingStatusForAll(unprocessedCompletedWorkers);
+            this.logger.log(`Workers in task ${taskId} are pending (need ${3 - unprocessedCompletedWorkers.length} more completed workers)`);
         }
     }
-    async processBatch(taskId, tracker) {
-        this.logger.log(`Processing batch for task ${taskId} with ${tracker.pendingWorkers.length} workers`);
+    async getCompletedWorkers() {
+        try {
+            const totalTasks = await this.getTaskService.getTotalTasks();
+            const completedWorkers = await this.userModel.aggregate([
+                { $match: { role: 'worker' } },
+                {
+                    $addFields: {
+                        completedTasksCount: {
+                            $size: { $ifNull: ['$completedTasks', []] },
+                        },
+                    },
+                },
+                { $match: { completedTasksCount: { $gte: totalTasks } } },
+                { $project: { _id: 1 } },
+            ]);
+            const workerIds = completedWorkers.map((w) => w._id.toString());
+            this.logger.debug(`Found ${workerIds.length} workers who completed all ${totalTasks} tasks`);
+            return workerIds;
+        }
+        catch (error) {
+            this.logger.error('Error getting completed workers:', error);
+            return [];
+        }
+    }
+    async setPendingStatusForAll(workerIds) {
+        if (workerIds.length === 0)
+            return;
+        try {
+            await this.userModel.updateMany({ _id: { $in: workerIds } }, { $set: { isEligible: null } });
+            this.logger.debug(`Set ${workerIds.length} workers to pending status: ${workerIds.join(', ')}`);
+        }
+        catch (error) {
+            this.logger.error('Error setting pending status:', error);
+        }
+    }
+    async processBatch(taskId, tracker, completedWorkerIds) {
+        this.logger.log(`Processing batch for task ${taskId} with ${completedWorkerIds.length} completed workers`);
         const task = await this.getTaskService.getTaskById(taskId);
         if (!task) {
             throw new gqlerr_1.ThrowGQL(`Task with ID ${taskId} not found`, gqlerr_1.GQLThrowType.NOT_FOUND);
         }
-        const allAnswers = await this.recordedAnswerModel.find({ taskId });
-        const allWorkerIds = Array.from(new Set(allAnswers.map((a) => a.workerId.toString())));
-        if (allWorkerIds.length < 3) {
-            this.logger.warn(`Insufficient total workers (${allWorkerIds.length}) for M-X calculation`);
+        const allAnswers = await this.recordedAnswerModel.find({
+            taskId,
+            workerId: { $in: completedWorkerIds },
+        });
+        if (allAnswers.length === 0) {
+            this.logger.warn(`No answers found for task ${taskId} from completed workers`);
             return;
         }
+        const allWorkerIds = Array.from(new Set(allAnswers.map((a) => a.workerId.toString())));
+        if (allWorkerIds.length < 3) {
+            this.logger.warn(`Insufficient completed workers with answers (${allWorkerIds.length}) for M-X calculation`);
+            await this.setPendingStatusForAll(allWorkerIds);
+            return;
+        }
+        this.logger.log(`Calculating M-X accuracy for ${allWorkerIds.length} completed workers`);
         const accuracies = await this.calculateAccuracyMX(taskId, allWorkerIds);
         for (const workerId of allWorkerIds) {
             const accuracy = accuracies[workerId];
@@ -1373,17 +1429,9 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
             this.logger.debug(`Created/updated eligibility for worker ${workerId}: accuracy=${accuracy.toFixed(3)}`);
         }
         allWorkerIds.forEach((id) => tracker.processedWorkers.add(id));
-        tracker.pendingWorkers = [];
+        tracker.pendingWorkers = tracker.pendingWorkers.filter((id) => !allWorkerIds.includes(id));
         tracker.lastProcessedBatch = Date.now();
         this.logger.log(`Batch processing completed for task ${taskId}. Total processed workers: ${tracker.processedWorkers.size}`);
-    }
-    async setPendingStatus(workerIds) {
-        for (const workerId of workerIds) {
-            await this.userModel.findByIdAndUpdate(workerId, {
-                $set: { isEligible: null },
-            });
-            this.logger.debug(`Set worker ${workerId} to pending status`);
-        }
     }
     async calculateAccuracyMX(taskId, workers) {
         this.logger.log(`Starting M-X accuracy calculation for taskId: ${taskId}`);
@@ -1446,13 +1494,13 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     const Q23 = this.calculateAgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
                     let workerAccuracy;
                     if (currentWorkerId === w1) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, 2);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
                     }
                     else if (currentWorkerId === w2) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, 2);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
                     }
                     else if (currentWorkerId === w3) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, 2);
+                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
                     }
                     if (workerAccuracy !== undefined && !isNaN(workerAccuracy)) {
                         optionAccuracies.push(workerAccuracy);
@@ -1565,7 +1613,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c;
+var CreateRecordedService_1;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateRecordedService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1575,11 +1624,14 @@ const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/models/recorded.ts");
 const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 const mx_calculation_service_1 = __webpack_require__(/*! ../mx/mx.calculation.service */ "./src/MX/services/mx/mx.calculation.service.ts");
-let CreateRecordedService = class CreateRecordedService {
-    constructor(recordedAnswerModel, getTaskService, accuracyCalculationService) {
+const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
+let CreateRecordedService = CreateRecordedService_1 = class CreateRecordedService {
+    constructor(recordedAnswerModel, userModel, getTaskService, accuracyCalculationService) {
         this.recordedAnswerModel = recordedAnswerModel;
+        this.userModel = userModel;
         this.getTaskService = getTaskService;
         this.accuracyCalculationService = accuracyCalculationService;
+        this.logger = new common_1.Logger(CreateRecordedService_1.name);
     }
     async createRecordedAnswer(taskId, workerId, answerId) {
         try {
@@ -1591,7 +1643,7 @@ let CreateRecordedService = class CreateRecordedService {
                 answerId,
                 answer: answerText,
             });
-            await this.accuracyCalculationService.processWorkerSubmission(taskId, workerId);
+            this.logger.log(`Answer recorded for worker ${workerId} on task ${taskId}`);
             return recordedAnswer;
         }
         catch (error) {
@@ -1602,15 +1654,30 @@ let CreateRecordedService = class CreateRecordedService {
         const answerId = input.answerId;
         const taskId = input.taskId;
         await this.createRecordedAnswer(taskId, workerId, answerId);
+        const user = await this.userModel.findById(workerId);
+        if (!user) {
+            throw new gqlerr_1.ThrowGQL('User not found', gqlerr_1.GQLThrowType.NOT_FOUND);
+        }
+        const totalTasks = await this.getTaskService.getTotalTasks();
+        const completedTasksCount = user.completedTasks?.length || 0;
+        this.logger.log(`Worker ${workerId}: completed ${completedTasksCount}/${totalTasks} tasks`);
+        if (completedTasksCount >= totalTasks) {
+            this.logger.log(`Worker ${workerId} has completed all tasks. Triggering M-X algorithm...`);
+            await this.accuracyCalculationService.processWorkerSubmission(taskId, workerId);
+        }
+        else {
+            this.logger.log(`Worker ${workerId} still has ${totalTasks - completedTasksCount} tasks remaining. Skipping M-X algorithm.`);
+        }
     }
 };
 exports.CreateRecordedService = CreateRecordedService;
-exports.CreateRecordedService = CreateRecordedService = __decorate([
+exports.CreateRecordedService = CreateRecordedService = CreateRecordedService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
-    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_task_service_1.GetTaskService))),
-    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => mx_calculation_service_1.AccuracyCalculationServiceMX))),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _b : Object, typeof (_c = typeof mx_calculation_service_1.AccuracyCalculationServiceMX !== "undefined" && mx_calculation_service_1.AccuracyCalculationServiceMX) === "function" ? _c : Object])
+    __param(1, (0, mongoose_1.InjectModel)(user_1.Users.name)),
+    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_task_service_1.GetTaskService))),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => mx_calculation_service_1.AccuracyCalculationServiceMX))),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _c : Object, typeof (_d = typeof mx_calculation_service_1.AccuracyCalculationServiceMX !== "undefined" && mx_calculation_service_1.AccuracyCalculationServiceMX) === "function" ? _d : Object])
 ], CreateRecordedService);
 
 
@@ -1938,7 +2005,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var WorkerAnalysisService_1;
-var _a, _b, _c, _d, _e;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WorkerAnalysisService = void 0;
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
@@ -1951,13 +2018,15 @@ const recorded_1 = __webpack_require__(/*! src/MX/models/recorded */ "./src/MX/m
 const get_user_service_1 = __webpack_require__(/*! src/users/services/get.user.service */ "./src/users/services/get.user.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 const utils_service_1 = __webpack_require__(/*! ../utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
+const get_task_service_1 = __webpack_require__(/*! src/tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
 let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisService {
-    constructor(eligibilityModel, recordedAnswerModel, userModel, getUserService, utilsService) {
+    constructor(eligibilityModel, recordedAnswerModel, userModel, getUserService, utilsService, getTaskService) {
         this.eligibilityModel = eligibilityModel;
         this.recordedAnswerModel = recordedAnswerModel;
         this.userModel = userModel;
         this.getUserService = getUserService;
         this.utilsService = utilsService;
+        this.getTaskService = getTaskService;
         this.logger = new common_1.Logger(WorkerAnalysisService_1.name);
         this.performanceHistory = [];
         this.testResultsCache = null;
@@ -1983,66 +2052,21 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             this.logger.log('Starting getTesterAnalysis');
             const thresholdSettings = await this.utilsService.getThresholdSettings();
             const thresholdValue = thresholdSettings.thresholdValue;
-            this.logger.log(`Current threshold value: ${thresholdValue}`);
-            const workerAccuracies = await this.eligibilityModel.aggregate([
-                {
-                    $group: {
-                        _id: '$workerId',
-                        averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
-                        totalRecords: { $sum: 1 },
-                    },
-                },
-                {
-                    $match: {
-                        totalRecords: { $gt: 0 },
-                    },
-                },
+            const totalTasks = await this.getTaskService.getTotalTasks();
+            this.logger.log(`Current threshold value: ${thresholdValue}, Total tasks: ${totalTasks}`);
+            const workerAnalysis = await this.userModel.aggregate([
+                { $match: { role: 'worker' } },
                 {
                     $addFields: {
-                        isEligible: { $gt: ['$averageAccuracy', thresholdValue] },
-                    },
-                },
-                {
-                    $lookup: {
-                        from: 'users',
-                        let: { workerObjectId: { $toObjectId: '$_id' } },
-                        pipeline: [
-                            { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
-                        ],
-                        as: 'workerDetails',
-                    },
-                },
-                {
-                    $unwind: {
-                        path: '$workerDetails',
-                        preserveNullAndEmptyArrays: true,
-                    },
-                },
-                {
-                    $project: {
-                        _id: 0,
-                        workerId: { $toString: '$_id' },
-                        testerName: {
-                            $concat: [
-                                { $ifNull: ['$workerDetails.firstName', 'Unknown'] },
-                                ' ',
-                                { $ifNull: ['$workerDetails.lastName', 'User'] },
+                        completedTasksCount: {
+                            $size: { $ifNull: ['$completedTasks', []] },
+                        },
+                        hasCompletedAllTasks: {
+                            $gte: [
+                                { $size: { $ifNull: ['$completedTasks', []] } },
+                                totalTasks,
                             ],
                         },
-                        averageScore: { $round: ['$averageAccuracy', 3] },
-                        accuracy: { $round: ['$averageAccuracy', 3] },
-                        isEligible: 1,
-                    },
-                },
-                {
-                    $sort: { accuracy: -1 },
-                },
-            ]);
-            const pendingWorkers = await this.userModel.aggregate([
-                {
-                    $match: {
-                        role: 'worker',
-                        isEligible: null,
                     },
                 },
                 {
@@ -2050,33 +2074,97 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                         from: 'eligibilities',
                         localField: '_id',
                         foreignField: 'workerId',
-                        as: 'eligibilities',
+                        as: 'eligibilityRecords',
                     },
                 },
                 {
-                    $match: {
-                        eligibilities: { $size: 0 },
+                    $addFields: {
+                        averageAccuracy: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$eligibilityRecords' }, 0] },
+                                then: { $avg: '$eligibilityRecords.accuracy' },
+                                else: 0,
+                            },
+                        },
+                        eligibilityRecordsCount: { $size: '$eligibilityRecords' },
+                    },
+                },
+                {
+                    $addFields: {
+                        calculatedEligibility: {
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $eq: ['$hasCompletedAllTasks', true] },
+                                        { $gt: ['$eligibilityRecordsCount', 0] },
+                                        { $gt: ['$averageAccuracy', thresholdValue] },
+                                    ],
+                                },
+                                then: true,
+                                else: {
+                                    $cond: {
+                                        if: {
+                                            $and: [
+                                                { $eq: ['$hasCompletedAllTasks', true] },
+                                                { $gt: ['$eligibilityRecordsCount', 0] },
+                                            ],
+                                        },
+                                        then: false,
+                                        else: null,
+                                    },
+                                },
+                            },
+                        },
+                        status: {
+                            $cond: {
+                                if: { $eq: ['$hasCompletedAllTasks', true] },
+                                then: {
+                                    $cond: {
+                                        if: { $gt: ['$eligibilityRecordsCount', 0] },
+                                        then: 'completed_with_eligibility',
+                                        else: 'completed_pending_eligibility',
+                                    },
+                                },
+                                else: 'in_progress',
+                            },
+                        },
                     },
                 },
                 {
                     $project: {
                         workerId: { $toString: '$_id' },
                         testerName: {
-                            $concat: ['$firstName', ' ', '$lastName'],
+                            $concat: [
+                                { $ifNull: ['$firstName', 'Unknown'] },
+                                ' ',
+                                { $ifNull: ['$lastName', 'User'] },
+                            ],
                         },
-                        averageScore: 0,
-                        accuracy: 0,
-                        isEligible: null,
+                        averageScore: { $round: ['$averageAccuracy', 3] },
+                        accuracy: { $round: ['$averageAccuracy', 3] },
+                        isEligible: '$calculatedEligibility',
+                        completedTasksCount: 1,
+                        totalTasks: { $literal: totalTasks },
+                        hasCompletedAllTasks: 1,
+                        eligibilityRecordsCount: 1,
+                        status: 1,
                     },
                 },
+                {
+                    $sort: { accuracy: -1, completedTasksCount: -1 },
+                },
             ]);
-            const allResults = [...workerAccuracies, ...pendingWorkers];
-            this.logger.log(`getTesterAnalysis executed in ${Date.now() - startTime}ms. Found ${allResults.length} workers.`);
+            this.logger.log(`getTesterAnalysis executed in ${Date.now() - startTime}ms. Found ${workerAnalysis.length} workers.`);
+            const statusSummary = workerAnalysis.reduce((acc, worker) => {
+                acc[worker.status] = (acc[worker.status] || 0) + 1;
+                return acc;
+            }, {});
+            this.logger.log(`Worker status summary:`, statusSummary);
             this.testerAnalysisCache = {
-                results: allResults,
+                results: workerAnalysis,
                 timestamp: Date.now(),
             };
-            return allResults;
+            return workerAnalysis;
         }
         catch (error) {
             this.logger.error(`Error getting tester analysis data: ${error.message}`);
@@ -2200,7 +2288,8 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
             this.logger.log('Starting updateAllWorkerEligibility');
             const thresholdSettings = await this.utilsService.getThresholdSettings();
             const threshold = thresholdSettings.thresholdValue;
-            this.logger.log(`Running eligibility update with threshold: ${threshold}`);
+            const totalTasks = await this.getTaskService.getTotalTasks();
+            this.logger.log(`Running eligibility update with threshold: ${threshold}, total tasks: ${totalTasks}`);
             const workerEligibilities = await this.eligibilityModel.aggregate([
                 {
                     $group: {
@@ -2208,6 +2297,35 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                         averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
                         totalRecords: { $sum: 1 },
                     },
+                },
+                {
+                    $lookup: {
+                        from: 'users',
+                        let: { workerObjectId: { $toObjectId: '$_id' } },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
+                        ],
+                        as: 'workerDetails',
+                    },
+                },
+                {
+                    $unwind: { path: '$workerDetails', preserveNullAndEmptyArrays: true },
+                },
+                {
+                    $addFields: {
+                        completedTasksCount: {
+                            $size: { $ifNull: ['$workerDetails.completedTasks', []] },
+                        },
+                        hasCompletedAllTasks: {
+                            $gte: [
+                                { $size: { $ifNull: ['$workerDetails.completedTasks', []] } },
+                                totalTasks,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $match: { hasCompletedAllTasks: true },
                 },
                 {
                     $addFields: {
@@ -2221,8 +2339,24 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                     update: { $set: { isEligible: worker.isEligible } },
                 },
             }));
-            const workersWithNoRecords = await this.userModel.aggregate([
+            const workersCompletedNoPending = await this.userModel.aggregate([
                 { $match: { role: 'worker' } },
+                {
+                    $addFields: {
+                        completedTasksCount: {
+                            $size: { $ifNull: ['$completedTasks', []] },
+                        },
+                        hasCompletedAllTasks: {
+                            $gte: [
+                                { $size: { $ifNull: ['$completedTasks', []] } },
+                                totalTasks,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $match: { hasCompletedAllTasks: true },
+                },
                 {
                     $lookup: {
                         from: 'eligibilities',
@@ -2233,7 +2367,34 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
                 },
                 { $match: { eligibilities: { $size: 0 } } },
             ]);
-            workersWithNoRecords.forEach((worker) => {
+            workersCompletedNoPending.forEach((worker) => {
+                bulkOps.push({
+                    updateOne: {
+                        filter: { _id: worker._id },
+                        update: { $set: { isEligible: null } },
+                    },
+                });
+            });
+            const workersNotCompleted = await this.userModel.aggregate([
+                { $match: { role: 'worker' } },
+                {
+                    $addFields: {
+                        completedTasksCount: {
+                            $size: { $ifNull: ['$completedTasks', []] },
+                        },
+                        hasCompletedAllTasks: {
+                            $gte: [
+                                { $size: { $ifNull: ['$completedTasks', []] } },
+                                totalTasks,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $match: { hasCompletedAllTasks: false },
+                },
+            ]);
+            workersNotCompleted.forEach((worker) => {
                 bulkOps.push({
                     updateOne: {
                         filter: { _id: worker._id },
@@ -2348,7 +2509,7 @@ exports.WorkerAnalysisService = WorkerAnalysisService = WorkerAnalysisService_1 
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __param(1, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
     __param(2, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof get_user_service_1.GetUserService !== "undefined" && get_user_service_1.GetUserService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object, typeof (_f = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _f : Object])
 ], WorkerAnalysisService);
 
 
@@ -4699,6 +4860,12 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             }
             if (!user.completedTasks.some((t) => t.taskId === taskId)) {
                 const updatedUser = await this.userModel.findByIdAndUpdate(userId, { $push: { completedTasks: { taskId, answer } } }, { new: true });
+                const totalTasks = await this.getTaskService.getTotalTasks();
+                const completedCount = updatedUser.completedTasks?.length || 0;
+                this.logger.log(`User ${userId} completed task ${taskId}. Progress: ${completedCount}/${totalTasks} tasks completed.`);
+                if (completedCount >= totalTasks) {
+                    this.logger.log(`User ${userId} has completed ALL ${totalTasks} tasks! Ready for M-X algorithm processing.`);
+                }
                 return (0, parser_1.parseToView)(updatedUser);
             }
             return (0, parser_1.parseToView)(user);
@@ -4709,58 +4876,84 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
     }
     async qualifyAllUsers() {
         try {
+            this.logger.log('Starting qualifyAllUsers cron job...');
+            const totalTasks = await this.getTaskService.getTotalTasks();
+            this.logger.log(`Total tasks in system: ${totalTasks}`);
             const allWorkers = await this.userModel
                 .find({ role: 'worker' })
                 .sort({ createdAt: 1 })
                 .exec();
-            this.logger.log(`Requalify process: Found ${allWorkers.length} workers.`);
-            const workerAccuracies = new Map();
-            const allAccuracyValues = [];
-            const eligibleForRequalification = allWorkers.filter(async (worker) => worker.completedTasks &&
-                worker.completedTasks.length ===
-                    (await this.getTaskService.getTotalTasks()));
-            this.logger.log(`Requalify process: ${eligibleForRequalification.length} workers have more than 10 completed tasks.`);
+            this.logger.log(`Total workers found: ${allWorkers.length}`);
+            const eligibleForRequalification = allWorkers.filter((worker) => worker.completedTasks && worker.completedTasks.length >= totalTasks);
+            this.logger.log(`Workers who completed all ${totalTasks} tasks: ${eligibleForRequalification.length}`);
             if (eligibleForRequalification.length === 0) {
-                this.logger.log('No workers with more than 10 completed tasks found. Exiting requalification process.');
+                this.logger.log('No workers have completed all tasks yet. Exiting requalification process.');
                 return;
             }
+            const thresholdSettings = await this.utilsService.getThresholdSettings();
+            const threshold = thresholdSettings.thresholdValue;
+            this.logger.log(`Using threshold: ${threshold.toFixed(3)} (${thresholdSettings.thresholdType})`);
+            const workerAccuracies = new Map();
+            const allAccuracyValues = [];
             for (const user of eligibleForRequalification) {
                 const userIdStr = user._id.toString();
                 const eligibilities = await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
-                if (eligibilities.length === 0)
+                if (eligibilities.length === 0) {
+                    this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) has no eligibility records yet - pending M-X processing`);
                     continue;
+                }
                 const totalAccuracy = eligibilities.reduce((sum, e) => sum + (e.accuracy || 0), 0);
                 const averageAccuracy = totalAccuracy / eligibilities.length;
                 workerAccuracies.set(userIdStr, averageAccuracy);
                 allAccuracyValues.push(averageAccuracy);
-                this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)} (${user.completedTasks.length} tasks completed)`);
+                this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)} (${eligibilities.length} eligibility records, ${user.completedTasks.length} tasks completed)`);
             }
-            const threshold = await this.utilsService.calculateThreshold(allAccuracyValues);
-            const thresholdRounded = Number(threshold.toFixed(3));
-            this.logger.log(`Threshold value (rounded) for worker eligibility: ${thresholdRounded.toFixed(3)}`);
+            if (allAccuracyValues.length === 0) {
+                this.logger.log('No workers have eligibility records yet. Waiting for M-X algorithm processing...');
+                return;
+            }
+            const calculatedThreshold = await this.utilsService.calculateThreshold(allAccuracyValues);
+            const thresholdRounded = Number(calculatedThreshold.toFixed(3));
+            this.logger.log(`Calculated threshold for worker eligibility: ${thresholdRounded.toFixed(3)}`);
+            let updatedCount = 0;
+            let eligibleCount = 0;
+            let notEligibleCount = 0;
+            let pendingCount = 0;
             for (const user of eligibleForRequalification) {
                 const userIdStr = user._id.toString();
                 if (user.isEligible !== null && user.isEligible !== undefined) {
-                    this.logger.log(`Skipping update for worker ${userIdStr} (${user.firstName} ${user.lastName}) as isEligible is already set.`);
+                    if (user.isEligible) {
+                        eligibleCount++;
+                    }
+                    else {
+                        notEligibleCount++;
+                    }
                     continue;
                 }
                 if (!workerAccuracies.has(userIdStr)) {
                     await this.userModel.findByIdAndUpdate(userIdStr, {
-                        $set: { isEligible: false },
+                        $set: { isEligible: null },
                     });
-                    this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to non-eligible (default, no eligibility records). Tasks completed: ${user.completedTasks.length}`);
+                    pendingCount++;
+                    this.logger.debug(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to pending (no eligibility records yet). Tasks completed: ${user.completedTasks.length}`);
                     continue;
                 }
                 const averageAccuracy = workerAccuracies.get(userIdStr);
                 const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
                 const isEligible = averageAccuracyRounded > thresholdRounded;
-                this.logger.log(`Worker ${userIdStr} (${user.firstName} ${user.lastName}) - Average Accuracy: ${averageAccuracyRounded.toFixed(3)}, Threshold: ${thresholdRounded.toFixed(3)}, Eligible: ${isEligible}, Tasks completed: ${user.completedTasks.length}`);
                 await this.userModel.findByIdAndUpdate(userIdStr, {
                     $set: { isEligible },
                 });
-                this.logger.log(`Updated eligibility for worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'Eligible' : 'Not Eligible'} (rounded accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)})`);
+                updatedCount++;
+                if (isEligible) {
+                    eligibleCount++;
+                }
+                else {
+                    notEligibleCount++;
+                }
+                this.logger.log(`Updated worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'} (accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)}, tasks: ${user.completedTasks.length})`);
             }
-            this.logger.log(`Requalify process completed. Threshold value (rounded): ${thresholdRounded.toFixed(3)}, ${eligibleForRequalification.length} workers processed.`);
+            this.logger.log(`Requalification completed. Updated: ${updatedCount}, Eligible: ${eligibleCount}, Not Eligible: ${notEligibleCount}, Pending: ${pendingCount}. Threshold: ${thresholdRounded.toFixed(3)}`);
         }
         catch (error) {
             this.logger.error(`Error in qualifyAllUsers: ${error.message}`);
