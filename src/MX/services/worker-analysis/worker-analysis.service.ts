@@ -15,6 +15,7 @@ import { RecordedAnswer } from 'src/MX/models/recorded';
 import { GetUserService } from 'src/users/services/get.user.service';
 import { Users } from 'src/users/models/user';
 import { UtilsService } from '../utils/utils.service';
+import { GetTaskService } from 'src/tasks/services/get.task.service';
 
 @Injectable()
 export class WorkerAnalysisService {
@@ -26,7 +27,7 @@ export class WorkerAnalysisService {
     results: TesterAnalysisView[];
     timestamp: number;
   } = null;
-  private readonly CACHE_TTL = 1 * 60 * 1000; // Reduced to 1 minute for testing
+  private readonly CACHE_TTL = 1 * 60 * 1000; // 1 minute cache
 
   constructor(
     @InjectModel(Eligibility.name)
@@ -37,6 +38,7 @@ export class WorkerAnalysisService {
     private readonly userModel: Model<Users>,
     private readonly getUserService: GetUserService,
     private readonly utilsService: UtilsService,
+    private readonly getTaskService: GetTaskService,
   ) {
     this.updatePerformanceMetrics();
   }
@@ -58,83 +60,31 @@ export class WorkerAnalysisService {
 
   async getTesterAnalysis(): Promise<TesterAnalysisView[]> {
     try {
-      // Force refresh cache for testing - remove cache check temporarily
-      // if (
-      //   this.testerAnalysisCache &&
-      //   Date.now() - this.testerAnalysisCache.timestamp < this.CACHE_TTL
-      // ) {
-      //   return this.testerAnalysisCache.results;
-      // }
-
       const startTime = Date.now();
       this.logger.log('Starting getTesterAnalysis');
 
       const thresholdSettings = await this.utilsService.getThresholdSettings();
       const thresholdValue = thresholdSettings.thresholdValue;
-      this.logger.log(`Current threshold value: ${thresholdValue}`);
+      const totalTasks = await this.getTaskService.getTotalTasks();
 
-      // Get all workers with their eligibility data
-      const workerAccuracies = await this.eligibilityModel.aggregate([
-        {
-          $group: {
-            _id: '$workerId',
-            averageAccuracy: { $avg: { $ifNull: ['$accuracy', 0] } },
-            totalRecords: { $sum: 1 },
-          },
-        },
-        {
-          $match: {
-            totalRecords: { $gt: 0 },
-          },
-        },
+      this.logger.log(
+        `Current threshold value: ${thresholdValue}, Total tasks: ${totalTasks}`,
+      );
+
+      // Get comprehensive worker data including completion status
+      const workerAnalysis = await this.userModel.aggregate([
+        { $match: { role: 'worker' } },
         {
           $addFields: {
-            isEligible: { $gt: ['$averageAccuracy', thresholdValue] },
-          },
-        },
-        {
-          $lookup: {
-            from: 'users',
-            let: { workerObjectId: { $toObjectId: '$_id' } },
-            pipeline: [
-              { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
-            ],
-            as: 'workerDetails',
-          },
-        },
-        {
-          $unwind: {
-            path: '$workerDetails',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            workerId: { $toString: '$_id' },
-            testerName: {
-              $concat: [
-                { $ifNull: ['$workerDetails.firstName', 'Unknown'] },
-                ' ',
-                { $ifNull: ['$workerDetails.lastName', 'User'] },
+            completedTasksCount: {
+              $size: { $ifNull: ['$completedTasks', []] },
+            },
+            hasCompletedAllTasks: {
+              $gte: [
+                { $size: { $ifNull: ['$completedTasks', []] } },
+                totalTasks,
               ],
             },
-            averageScore: { $round: ['$averageAccuracy', 3] },
-            accuracy: { $round: ['$averageAccuracy', 3] },
-            isEligible: 1,
-          },
-        },
-        {
-          $sort: { accuracy: -1 },
-        },
-      ]);
-
-      // Also include workers with pending status (null eligibility)
-      const pendingWorkers = await this.userModel.aggregate([
-        {
-          $match: {
-            role: 'worker',
-            isEligible: null,
           },
         },
         {
@@ -142,39 +92,105 @@ export class WorkerAnalysisService {
             from: 'eligibilities',
             localField: '_id',
             foreignField: 'workerId',
-            as: 'eligibilities',
+            as: 'eligibilityRecords',
           },
         },
         {
-          $match: {
-            eligibilities: { $size: 0 }, // No eligibility records
+          $addFields: {
+            averageAccuracy: {
+              $cond: {
+                if: { $gt: [{ $size: '$eligibilityRecords' }, 0] },
+                then: { $avg: '$eligibilityRecords.accuracy' },
+                else: 0,
+              },
+            },
+            eligibilityRecordsCount: { $size: '$eligibilityRecords' },
+          },
+        },
+        {
+          $addFields: {
+            calculatedEligibility: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $eq: ['$hasCompletedAllTasks', true] },
+                    { $gt: ['$eligibilityRecordsCount', 0] },
+                    { $gt: ['$averageAccuracy', thresholdValue] },
+                  ],
+                },
+                then: true,
+                else: {
+                  $cond: {
+                    if: {
+                      $and: [
+                        { $eq: ['$hasCompletedAllTasks', true] },
+                        { $gt: ['$eligibilityRecordsCount', 0] },
+                      ],
+                    },
+                    then: false,
+                    else: null, // Pending - either not completed all tasks or no eligibility records
+                  },
+                },
+              },
+            },
+            status: {
+              $cond: {
+                if: { $eq: ['$hasCompletedAllTasks', true] },
+                then: {
+                  $cond: {
+                    if: { $gt: ['$eligibilityRecordsCount', 0] },
+                    then: 'completed_with_eligibility',
+                    else: 'completed_pending_eligibility',
+                  },
+                },
+                else: 'in_progress',
+              },
+            },
           },
         },
         {
           $project: {
             workerId: { $toString: '$_id' },
             testerName: {
-              $concat: ['$firstName', ' ', '$lastName'],
+              $concat: [
+                { $ifNull: ['$firstName', 'Unknown'] },
+                ' ',
+                { $ifNull: ['$lastName', 'User'] },
+              ],
             },
-            averageScore: 0,
-            accuracy: 0,
-            isEligible: null, // Pending status
+            averageScore: { $round: ['$averageAccuracy', 3] },
+            accuracy: { $round: ['$averageAccuracy', 3] },
+            isEligible: '$calculatedEligibility',
+            completedTasksCount: 1,
+            totalTasks: { $literal: totalTasks },
+            hasCompletedAllTasks: 1,
+            eligibilityRecordsCount: 1,
+            status: 1,
           },
+        },
+        {
+          $sort: { accuracy: -1, completedTasksCount: -1 },
         },
       ]);
 
-      const allResults = [...workerAccuracies, ...pendingWorkers];
-
       this.logger.log(
-        `getTesterAnalysis executed in ${Date.now() - startTime}ms. Found ${allResults.length} workers.`,
+        `getTesterAnalysis executed in ${Date.now() - startTime}ms. Found ${workerAnalysis.length} workers.`,
       );
 
+      // Log summary for debugging
+      const statusSummary = workerAnalysis.reduce((acc, worker) => {
+        acc[worker.status] = (acc[worker.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      this.logger.log(`Worker status summary:`, statusSummary);
+
       this.testerAnalysisCache = {
-        results: allResults,
+        results: workerAnalysis,
         timestamp: Date.now(),
       };
 
-      return allResults;
+      return workerAnalysis;
     } catch (error) {
       this.logger.error(`Error getting tester analysis data: ${error.message}`);
       throw new ThrowGQL(
@@ -186,14 +202,6 @@ export class WorkerAnalysisService {
 
   async getTestResults(page = 1, limit = 288): Promise<TestResultView[]> {
     try {
-      // Force refresh for testing
-      // if (
-      //   this.testResultsCache &&
-      //   Date.now() - this.testResultsCache.timestamp < this.CACHE_TTL
-      // ) {
-      //   return this.testResultsCache.results;
-      // }
-
       const startTime = Date.now();
       this.logger.log('Starting getTestResults');
 
@@ -268,7 +276,6 @@ export class WorkerAnalysisService {
         `getTestResults executed in ${Date.now() - startTime}ms. Found ${results.length} results.`,
       );
 
-      // Update cache
       this.testResultsCache = {
         results,
         timestamp: Date.now(),
@@ -284,9 +291,6 @@ export class WorkerAnalysisService {
     }
   }
 
-  /**
-   * Update worker eligibility based on their average accuracy across all tasks
-   */
   async updateWorkerEligibility(
     workerId: string,
     threshold?: number,
@@ -349,12 +353,13 @@ export class WorkerAnalysisService {
 
       const thresholdSettings = await this.utilsService.getThresholdSettings();
       const threshold = thresholdSettings.thresholdValue;
+      const totalTasks = await this.getTaskService.getTotalTasks();
 
       this.logger.log(
-        `Running eligibility update with threshold: ${threshold}`,
+        `Running eligibility update with threshold: ${threshold}, total tasks: ${totalTasks}`,
       );
 
-      // Get all workers with eligibility records
+      // Get workers who have completed all tasks and have eligibility records
       const workerEligibilities = await this.eligibilityModel.aggregate([
         {
           $group: {
@@ -364,13 +369,42 @@ export class WorkerAnalysisService {
           },
         },
         {
+          $lookup: {
+            from: 'users',
+            let: { workerObjectId: { $toObjectId: '$_id' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$workerObjectId'] } } },
+            ],
+            as: 'workerDetails',
+          },
+        },
+        {
+          $unwind: { path: '$workerDetails', preserveNullAndEmptyArrays: true },
+        },
+        {
+          $addFields: {
+            completedTasksCount: {
+              $size: { $ifNull: ['$workerDetails.completedTasks', []] },
+            },
+            hasCompletedAllTasks: {
+              $gte: [
+                { $size: { $ifNull: ['$workerDetails.completedTasks', []] } },
+                totalTasks,
+              ],
+            },
+          },
+        },
+        {
+          $match: { hasCompletedAllTasks: true }, // Only update workers who completed all tasks
+        },
+        {
           $addFields: {
             isEligible: { $gt: ['$averageAccuracy', threshold] },
           },
         },
       ]);
 
-      // Prepare bulk operations
+      // Prepare bulk operations for workers with eligibility records
       const bulkOps = workerEligibilities.map((worker) => ({
         updateOne: {
           filter: { _id: worker._id },
@@ -378,9 +412,25 @@ export class WorkerAnalysisService {
         },
       }));
 
-      // Find workers with no eligibility records (should remain pending/null)
-      const workersWithNoRecords = await this.userModel.aggregate([
+      // Find workers who completed all tasks but have no eligibility records (should remain pending)
+      const workersCompletedNoPending = await this.userModel.aggregate([
         { $match: { role: 'worker' } },
+        {
+          $addFields: {
+            completedTasksCount: {
+              $size: { $ifNull: ['$completedTasks', []] },
+            },
+            hasCompletedAllTasks: {
+              $gte: [
+                { $size: { $ifNull: ['$completedTasks', []] } },
+                totalTasks,
+              ],
+            },
+          },
+        },
+        {
+          $match: { hasCompletedAllTasks: true },
+        },
         {
           $lookup: {
             from: 'eligibilities',
@@ -389,11 +439,42 @@ export class WorkerAnalysisService {
             as: 'eligibilities',
           },
         },
-        { $match: { eligibilities: { $size: 0 } } },
+        { $match: { eligibilities: { $size: 0 } } }, // No eligibility records
       ]);
 
-      // Keep workers with no records as pending (null)
-      workersWithNoRecords.forEach((worker) => {
+      // Set workers who completed all tasks but have no eligibility as pending
+      workersCompletedNoPending.forEach((worker) => {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: worker._id },
+            update: { $set: { isEligible: null } },
+          },
+        });
+      });
+
+      // Find workers who haven't completed all tasks (should remain null/pending)
+      const workersNotCompleted = await this.userModel.aggregate([
+        { $match: { role: 'worker' } },
+        {
+          $addFields: {
+            completedTasksCount: {
+              $size: { $ifNull: ['$completedTasks', []] },
+            },
+            hasCompletedAllTasks: {
+              $gte: [
+                { $size: { $ifNull: ['$completedTasks', []] } },
+                totalTasks,
+              ],
+            },
+          },
+        },
+        {
+          $match: { hasCompletedAllTasks: false },
+        },
+      ]);
+
+      // Set workers who haven't completed all tasks as pending
+      workersNotCompleted.forEach((worker) => {
         bulkOps.push({
           updateOne: {
             filter: { _id: worker._id },

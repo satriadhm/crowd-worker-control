@@ -1,3 +1,5 @@
+// src/MX/services/mx/mx.calculation.service.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import { GetTaskService } from '../../../tasks/services/get.task.service';
 import { InjectModel } from '@nestjs/mongoose';
@@ -42,6 +44,12 @@ export class AccuracyCalculationServiceMX {
       `Processing worker submission: taskId=${taskId}, workerId=${workerId}`,
     );
 
+    // Get all workers who have completed ALL tasks
+    const completedWorkers = await this.getCompletedWorkers();
+    this.logger.log(
+      `Total workers who completed all tasks: ${completedWorkers.length}`,
+    );
+
     if (!this.batchTrackers.has(taskId)) {
       this.batchTrackers.set(taskId, {
         taskId,
@@ -53,6 +61,17 @@ export class AccuracyCalculationServiceMX {
 
     const tracker = this.batchTrackers.get(taskId);
 
+    // Double-check if this worker has completed all tasks
+    const user = await this.userModel.findById(workerId);
+    const totalTasks = await this.getTaskService.getTotalTasks();
+
+    if (!user || (user.completedTasks?.length || 0) < totalTasks) {
+      this.logger.warn(
+        `Worker ${workerId} has not completed all tasks. Skipping processing.`,
+      );
+      return;
+    }
+
     if (tracker.processedWorkers.has(workerId)) {
       this.logger.debug(
         `Worker ${workerId} already processed for task ${taskId}`,
@@ -60,27 +79,88 @@ export class AccuracyCalculationServiceMX {
       return;
     }
 
-    tracker.pendingWorkers.push(workerId);
-    this.logger.log(
-      `Added worker ${workerId} to pending batch. Pending count: ${tracker.pendingWorkers.length}`,
+    // Add to pending workers (only those who completed all tasks)
+    if (!tracker.pendingWorkers.includes(workerId)) {
+      tracker.pendingWorkers.push(workerId);
+    }
+
+    // Get all unprocessed workers who have completed all tasks
+    const unprocessedCompletedWorkers = completedWorkers.filter(
+      (id) => !tracker.processedWorkers.has(id),
     );
 
-    if (tracker.pendingWorkers.length >= 3) {
-      await this.processBatch(taskId, tracker);
-    } else {
-      await this.setPendingStatus(tracker.pendingWorkers);
+    this.logger.log(
+      `Unprocessed completed workers for task ${taskId}: ${unprocessedCompletedWorkers.length}`,
+    );
+
+    // Process batch if we have at least 3 workers who completed all tasks
+    if (unprocessedCompletedWorkers.length >= 3) {
       this.logger.log(
-        `Workers in task ${taskId} are pending (need ${3 - tracker.pendingWorkers.length} more workers)`,
+        `Processing batch for task ${taskId} with ${unprocessedCompletedWorkers.length} completed workers`,
       );
+      await this.processBatch(taskId, tracker, unprocessedCompletedWorkers);
+    } else {
+      // Set all unprocessed completed workers as pending
+      await this.setPendingStatusForAll(unprocessedCompletedWorkers);
+      this.logger.log(
+        `Workers in task ${taskId} are pending (need ${3 - unprocessedCompletedWorkers.length} more completed workers)`,
+      );
+    }
+  }
+
+  private async getCompletedWorkers(): Promise<string[]> {
+    try {
+      const totalTasks = await this.getTaskService.getTotalTasks();
+
+      const completedWorkers = await this.userModel.aggregate([
+        { $match: { role: 'worker' } },
+        {
+          $addFields: {
+            completedTasksCount: {
+              $size: { $ifNull: ['$completedTasks', []] },
+            },
+          },
+        },
+        { $match: { completedTasksCount: { $gte: totalTasks } } },
+        { $project: { _id: 1 } },
+      ]);
+
+      const workerIds = completedWorkers.map((w) => w._id.toString());
+      this.logger.debug(
+        `Found ${workerIds.length} workers who completed all ${totalTasks} tasks`,
+      );
+
+      return workerIds;
+    } catch (error) {
+      this.logger.error('Error getting completed workers:', error);
+      return [];
+    }
+  }
+
+  private async setPendingStatusForAll(workerIds: string[]): Promise<void> {
+    if (workerIds.length === 0) return;
+
+    try {
+      await this.userModel.updateMany(
+        { _id: { $in: workerIds } },
+        { $set: { isEligible: null } },
+      );
+
+      this.logger.debug(
+        `Set ${workerIds.length} workers to pending status: ${workerIds.join(', ')}`,
+      );
+    } catch (error) {
+      this.logger.error('Error setting pending status:', error);
     }
   }
 
   private async processBatch(
     taskId: string,
     tracker: BatchTracker,
+    completedWorkerIds: string[],
   ): Promise<void> {
     this.logger.log(
-      `Processing batch for task ${taskId} with ${tracker.pendingWorkers.length} workers`,
+      `Processing batch for task ${taskId} with ${completedWorkerIds.length} completed workers`,
     );
 
     const task = await this.getTaskService.getTaskById(taskId);
@@ -91,20 +171,39 @@ export class AccuracyCalculationServiceMX {
       );
     }
 
-    const allAnswers = await this.recordedAnswerModel.find({ taskId });
+    // Get all answers for this task from completed workers only
+    const allAnswers = await this.recordedAnswerModel.find({
+      taskId,
+      workerId: { $in: completedWorkerIds },
+    });
+
+    if (allAnswers.length === 0) {
+      this.logger.warn(
+        `No answers found for task ${taskId} from completed workers`,
+      );
+      return;
+    }
+
+    // Get unique worker IDs from answers (should all be completed workers)
     const allWorkerIds = Array.from(
       new Set(allAnswers.map((a) => a.workerId.toString())),
     );
 
     if (allWorkerIds.length < 3) {
       this.logger.warn(
-        `Insufficient total workers (${allWorkerIds.length}) for M-X calculation`,
+        `Insufficient completed workers with answers (${allWorkerIds.length}) for M-X calculation`,
       );
+      // Set remaining workers as pending
+      await this.setPendingStatusForAll(allWorkerIds);
       return;
     }
 
+    this.logger.log(
+      `Calculating M-X accuracy for ${allWorkerIds.length} completed workers`,
+    );
     const accuracies = await this.calculateAccuracyMX(taskId, allWorkerIds);
 
+    // Create eligibility records for all workers
     for (const workerId of allWorkerIds) {
       const accuracy = accuracies[workerId];
       const eligibilityInput: CreateEligibilityInput = {
@@ -119,22 +218,16 @@ export class AccuracyCalculationServiceMX {
       );
     }
 
+    // Mark all workers as processed
     allWorkerIds.forEach((id) => tracker.processedWorkers.add(id));
-    tracker.pendingWorkers = [];
+    tracker.pendingWorkers = tracker.pendingWorkers.filter(
+      (id) => !allWorkerIds.includes(id),
+    );
     tracker.lastProcessedBatch = Date.now();
 
     this.logger.log(
       `Batch processing completed for task ${taskId}. Total processed workers: ${tracker.processedWorkers.size}`,
     );
-  }
-
-  private async setPendingStatus(workerIds: string[]): Promise<void> {
-    for (const workerId of workerIds) {
-      await this.userModel.findByIdAndUpdate(workerId, {
-        $set: { isEligible: null },
-      });
-      this.logger.debug(`Set worker ${workerId} to pending status`);
-    }
   }
 
   async calculateAccuracyMX(
@@ -188,6 +281,7 @@ export class AccuracyCalculationServiceMX {
       }, {});
     }
 
+    // Circular sliding windows implementation
     for (let i = 0; i < workers.length; i++) {
       const currentWorkerId = workers[i];
       const workerAccuraciesAcrossWindows: number[] = [];
@@ -243,11 +337,11 @@ export class AccuracyCalculationServiceMX {
           let workerAccuracy: number | undefined;
 
           if (currentWorkerId === w1) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, 2);
+            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
           } else if (currentWorkerId === w2) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, 2);
+            workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
           } else if (currentWorkerId === w3) {
-            workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, 2);
+            workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
           }
 
           if (workerAccuracy !== undefined && !isNaN(workerAccuracy)) {
