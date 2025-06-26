@@ -50,6 +50,18 @@ export class AccuracyCalculationServiceMX {
       `Total workers who completed all tasks: ${completedWorkers.length}`,
     );
 
+    // Check if the submitting worker has completed all tasks
+    const user = await this.userModel.findById(workerId);
+    const totalTasks = await this.getTaskService.getTotalTasks();
+
+    if (!user || (user.completedTasks?.length || 0) < totalTasks) {
+      this.logger.debug(
+        `Worker ${workerId} has not completed all tasks yet. Skipping M-X processing.`,
+      );
+      return;
+    }
+
+    // Initialize tracker if needed
     if (!this.batchTrackers.has(taskId)) {
       this.batchTrackers.set(taskId, {
         taskId,
@@ -61,17 +73,7 @@ export class AccuracyCalculationServiceMX {
 
     const tracker = this.batchTrackers.get(taskId);
 
-    // Double-check if this worker has completed all tasks
-    const user = await this.userModel.findById(workerId);
-    const totalTasks = await this.getTaskService.getTotalTasks();
-
-    if (!user || (user.completedTasks?.length || 0) < totalTasks) {
-      this.logger.warn(
-        `Worker ${workerId} has not completed all tasks. Skipping processing.`,
-      );
-      return;
-    }
-
+    // Skip if worker already processed for this task
     if (tracker.processedWorkers.has(workerId)) {
       this.logger.debug(
         `Worker ${workerId} already processed for task ${taskId}`,
@@ -79,31 +81,40 @@ export class AccuracyCalculationServiceMX {
       return;
     }
 
-    // Add to pending workers (only those who completed all tasks)
-    if (!tracker.pendingWorkers.includes(workerId)) {
-      tracker.pendingWorkers.push(workerId);
-    }
+    // Get all completed workers who have answers for this task
+    const workersWithAnswers = await this.recordedAnswerModel.distinct(
+      'workerId',
+      {
+        taskId,
+        workerId: { $in: completedWorkers },
+      },
+    );
 
-    // Get all unprocessed workers who have completed all tasks
-    const unprocessedCompletedWorkers = completedWorkers.filter(
-      (id) => !tracker.processedWorkers.has(id),
+    const eligibleForProcessing = workersWithAnswers.filter(
+      (id) => !tracker.processedWorkers.has(id.toString()),
     );
 
     this.logger.log(
-      `Unprocessed completed workers for task ${taskId}: ${unprocessedCompletedWorkers.length}`,
+      `Task ${taskId}: ${eligibleForProcessing.length} completed workers with answers eligible for processing`,
     );
 
-    // Process batch if we have at least 3 workers who completed all tasks
-    if (unprocessedCompletedWorkers.length >= 3) {
+    // Process batch if we have enough completed workers with answers
+    if (eligibleForProcessing.length >= 3) {
       this.logger.log(
-        `Processing batch for task ${taskId} with ${unprocessedCompletedWorkers.length} completed workers`,
+        `Processing M-X batch for task ${taskId} with ${eligibleForProcessing.length} completed workers`,
       );
-      await this.processBatch(taskId, tracker, unprocessedCompletedWorkers);
+      await this.processBatch(
+        taskId,
+        tracker,
+        eligibleForProcessing.map((id) => id.toString()),
+      );
     } else {
-      // Set all unprocessed completed workers as pending
-      await this.setPendingStatusForAll(unprocessedCompletedWorkers);
+      // Set eligible workers as pending (not enough for batch processing yet)
+      await this.setPendingStatusForAll(
+        eligibleForProcessing.map((id) => id.toString()),
+      );
       this.logger.log(
-        `Workers in task ${taskId} are pending (need ${3 - unprocessedCompletedWorkers.length} more completed workers)`,
+        `Task ${taskId}: Setting ${eligibleForProcessing.length} workers as pending (need ${3 - eligibleForProcessing.length} more for batch processing)`,
       );
     }
   }
@@ -203,7 +214,7 @@ export class AccuracyCalculationServiceMX {
     );
     const accuracies = await this.calculateAccuracyMX(taskId, allWorkerIds);
 
-    // Create eligibility records for all workers
+    // Create or update eligibility records for all workers
     for (const workerId of allWorkerIds) {
       const accuracy = accuracies[workerId];
       const eligibilityInput: CreateEligibilityInput = {

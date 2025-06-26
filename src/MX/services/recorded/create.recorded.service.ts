@@ -1,4 +1,4 @@
-import { ThrowGQL, GQLThrowType } from '@app/gqlerr';
+import { ThrowGQL } from '@app/gqlerr';
 import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -59,34 +59,25 @@ export class CreateRecordedService {
     // First, record the answer
     await this.createRecordedAnswer(taskId, workerId, answerId);
 
-    // Check if user has completed ALL tasks before triggering M-X algorithm
-    const user = await this.userModel.findById(workerId);
-    if (!user) {
-      throw new ThrowGQL('User not found', GQLThrowType.NOT_FOUND);
-    }
-
-    const totalTasks = await this.getTaskService.getTotalTasks();
-    const completedTasksCount = user.completedTasks?.length || 0;
-
     this.logger.log(
-      `Worker ${workerId}: completed ${completedTasksCount}/${totalTasks} tasks`,
+      `Answer recorded for worker ${workerId} on task ${taskId} with answerId ${answerId}`,
     );
 
-    // Only trigger M-X algorithm if user has completed ALL tasks
-    if (completedTasksCount >= totalTasks) {
-      this.logger.log(
-        `Worker ${workerId} has completed all tasks. Triggering M-X algorithm...`,
-      );
-
-      // Now trigger M-X processing since this worker completed all tasks
+    // Always trigger M-X processing after recording answer
+    // The M-X service will handle checking if enough workers have completed all tasks
+    try {
       await this.accuracyCalculationService.processWorkerSubmission(
         taskId,
         workerId,
       );
-    } else {
       this.logger.log(
-        `Worker ${workerId} still has ${totalTasks - completedTasksCount} tasks remaining. Skipping M-X algorithm.`,
+        `M-X processing triggered for worker ${workerId} on task ${taskId}`,
       );
+    } catch (error) {
+      this.logger.error(
+        `Error triggering M-X processing for worker ${workerId} on task ${taskId}: ${error.message}`,
+      );
+      // Don't throw error here to avoid breaking the answer recording
     }
   }
 }

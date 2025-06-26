@@ -90,15 +90,15 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async qualifyAllUsers() {
     try {
-      this.logger.log('Starting qualifyAllUsers cron job...');
+      this.logger.log('Starting worker requalification process...');
 
       const totalTasks = await this.getTaskService.getTotalTasks();
       this.logger.log(`Total tasks in system: ${totalTasks}`);
 
-      // Get all workers, sorted by creation date
+      // Get all workers who have completed ALL tasks
       const allWorkers = await this.userModel
         .find({ role: 'worker' })
         .sort({ createdAt: 1 })
@@ -118,22 +118,14 @@ export class UpdateUserService {
 
       if (eligibleForRequalification.length === 0) {
         this.logger.log(
-          'No workers have completed all tasks yet. Exiting requalification process.',
+          'No workers have completed all tasks yet. Skipping requalification.',
         );
         return;
       }
 
-      // Get threshold settings
-      const thresholdSettings = await this.utilsService.getThresholdSettings();
-      const threshold = thresholdSettings.thresholdValue;
-
-      this.logger.log(
-        `Using threshold: ${threshold.toFixed(3)} (${thresholdSettings.thresholdType})`,
-      );
-
-      // Collect accuracy data for workers who completed all tasks
-      const workerAccuracies = new Map<string, number>();
-      const allAccuracyValues: number[] = [];
+      // Get workers who have eligibility records (M-X algorithm has processed them)
+      const workersWithEligibility: Map<string, number> = new Map();
+      let processedWorkersCount = 0;
 
       for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
@@ -141,41 +133,40 @@ export class UpdateUserService {
         const eligibilities =
           await this.getEligibilityService.getEligibilityWorkerId(userIdStr);
 
-        if (eligibilities.length === 0) {
-          this.logger.debug(
-            `Worker ${userIdStr} (${user.firstName} ${user.lastName}) has no eligibility records yet - pending M-X processing`,
+        if (eligibilities.length > 0) {
+          const totalAccuracy = eligibilities.reduce(
+            (sum, e) => sum + (e.accuracy || 0),
+            0,
           );
-          continue;
+          const averageAccuracy = totalAccuracy / eligibilities.length;
+          workersWithEligibility.set(userIdStr, averageAccuracy);
+          processedWorkersCount++;
+
+          this.logger.debug(
+            `Worker ${userIdStr} (${user.firstName} ${user.lastName}) has ${eligibilities.length} eligibility records, average accuracy: ${averageAccuracy.toFixed(3)}`,
+          );
         }
-
-        const totalAccuracy = eligibilities.reduce(
-          (sum, e) => sum + (e.accuracy || 0),
-          0,
-        );
-        const averageAccuracy = totalAccuracy / eligibilities.length;
-
-        workerAccuracies.set(userIdStr, averageAccuracy);
-        allAccuracyValues.push(averageAccuracy);
-
-        this.logger.debug(
-          `Worker ${userIdStr} (${user.firstName} ${user.lastName}) average accuracy: ${averageAccuracy.toFixed(3)} (${eligibilities.length} eligibility records, ${user.completedTasks.length} tasks completed)`,
-        );
       }
 
-      if (allAccuracyValues.length === 0) {
+      this.logger.log(
+        `Workers with eligibility records (processed by M-X): ${processedWorkersCount}/${eligibleForRequalification.length}`,
+      );
+
+      if (processedWorkersCount === 0) {
         this.logger.log(
-          'No workers have eligibility records yet. Waiting for M-X algorithm processing...',
+          'No workers have eligibility records yet. M-X algorithm still processing...',
         );
         return;
       }
 
-      // Calculate threshold based on available accuracy data
-      const calculatedThreshold =
+      // Calculate threshold from processed workers
+      const allAccuracyValues = Array.from(workersWithEligibility.values());
+      const threshold =
         await this.utilsService.calculateThreshold(allAccuracyValues);
-      const thresholdRounded = Number(calculatedThreshold.toFixed(3));
+      const thresholdRounded = Number(threshold.toFixed(3));
 
       this.logger.log(
-        `Calculated threshold for worker eligibility: ${thresholdRounded.toFixed(3)}`,
+        `Calculated threshold: ${thresholdRounded.toFixed(3)} (based on ${allAccuracyValues.length} processed workers)`,
       );
 
       let updatedCount = 0;
@@ -183,11 +174,11 @@ export class UpdateUserService {
       let notEligibleCount = 0;
       let pendingCount = 0;
 
-      // Process each worker who completed all tasks
+      // Update eligibility status for all workers who completed all tasks
       for (const user of eligibleForRequalification) {
         const userIdStr = user._id.toString();
 
-        // Skip if already has definitive eligibility status (not null)
+        // Skip if worker already has definitive eligibility status
         if (user.isEligible !== null && user.isEligible !== undefined) {
           if (user.isEligible) {
             eligibleCount++;
@@ -197,24 +188,24 @@ export class UpdateUserService {
           continue;
         }
 
-        // If worker has no eligibility records, keep as pending
-        if (!workerAccuracies.has(userIdStr)) {
+        // If worker doesn't have eligibility records yet, set as pending
+        if (!workersWithEligibility.has(userIdStr)) {
           await this.userModel.findByIdAndUpdate(userIdStr, {
             $set: { isEligible: null },
           });
           pendingCount++;
           this.logger.debug(
-            `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set to pending (no eligibility records yet). Tasks completed: ${user.completedTasks.length}`,
+            `Worker ${userIdStr} (${user.firstName} ${user.lastName}) set as pending (M-X processing not complete)`,
           );
           continue;
         }
 
         // Calculate eligibility based on accuracy vs threshold
-        const averageAccuracy = workerAccuracies.get(userIdStr);
+        const averageAccuracy = workersWithEligibility.get(userIdStr);
         const averageAccuracyRounded = Number(averageAccuracy.toFixed(3));
         const isEligible = averageAccuracyRounded > thresholdRounded;
 
-        // Update worker eligibility
+        // Update worker eligibility status
         await this.userModel.findByIdAndUpdate(userIdStr, {
           $set: { isEligible },
         });
@@ -227,11 +218,11 @@ export class UpdateUserService {
         }
 
         this.logger.log(
-          `Updated worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'} (accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)}, tasks: ${user.completedTasks.length})`,
+          `Updated worker ${userIdStr} (${user.firstName} ${user.lastName}): ${isEligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'} (accuracy: ${averageAccuracyRounded.toFixed(3)}, threshold: ${thresholdRounded.toFixed(3)})`,
         );
       }
 
-      // Log summary
+      // Final summary
       this.logger.log(
         `Requalification completed. Updated: ${updatedCount}, Eligible: ${eligibleCount}, Not Eligible: ${notEligibleCount}, Pending: ${pendingCount}. Threshold: ${thresholdRounded.toFixed(3)}`,
       );
