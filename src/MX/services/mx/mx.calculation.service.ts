@@ -56,6 +56,11 @@ export class AccuracyCalculationServiceMX {
     const user = await this.userModel.findById(workerId);
     const totalTasks = await this.getTaskService.getTotalTasks();
 
+    // Enhanced logging for debugging
+    this.logger.log(
+      `Worker ${workerId} - CompletedTasks: ${user?.completedTasks?.length || 0}/${totalTasks}, TotalValidTasks: ${totalTasks}`,
+    );
+
     if (!user || (user.completedTasks?.length || 0) < totalTasks) {
       this.logger.debug(
         `Worker ${workerId} has not completed all tasks yet. Skipping M-X processing.`,

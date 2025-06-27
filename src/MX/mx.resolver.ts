@@ -150,4 +150,59 @@ export class M1Resolver {
       return false;
     }
   }
+
+  @Query(() => String)
+  @Roles(Role.ADMIN)
+  async debugEligibilityIssue(): Promise<string> {
+    try {
+      // Get basic stats
+      const eligibilityRecords =
+        await this.getEligibilityService.getEligibility();
+      const currentTrackers =
+        this.accuracyCalculationService.getBatchStatus('all');
+
+      const result = {
+        eligibilityRecordsCount: eligibilityRecords.length,
+        eligibilityRecords: eligibilityRecords.slice(0, 10), // Only first 10 records
+        batchTrackersStatus: currentTrackers,
+        message:
+          'If eligibilityRecordsCount is 0, then M-X algorithm has not processed any workers yet',
+      };
+
+      return JSON.stringify(result, null, 2);
+    } catch (error) {
+      return `Error: ${error.message}`;
+    }
+  }
+
+  @Mutation(() => String)
+  @Roles(Role.ADMIN)
+  async triggerManualMXProcessing(): Promise<string> {
+    try {
+      await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
+      return 'M-X processing triggered successfully';
+    } catch (error) {
+      return `Error triggering M-X processing: ${error.message}`;
+    }
+  }
+
+  @Mutation(() => String)
+  @Roles(Role.ADMIN)
+  async fixEligibilityIssue(): Promise<string> {
+    try {
+      const fixedIssues = [];
+
+      // 1. Trigger M-X processing manually
+      await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
+      fixedIssues.push('Triggered M-X processing for all completed workers');
+
+      // 2. Trigger eligibility update
+      await this.triggerEligibilityUpdate();
+      fixedIssues.push('Triggered eligibility status update');
+
+      return `Fixed issues: ${fixedIssues.join(', ')}`;
+    } catch (error) {
+      return `Error fixing eligibility issue: ${error.message}`;
+    }
+  }
 }
