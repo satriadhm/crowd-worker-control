@@ -506,7 +506,7 @@ export class WorkerAnalysisService {
     }
   }
 
-  @Cron(CronExpression.EVERY_2ND_MONTH)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async updatePerformanceMetrics() {
     try {
       const now = new Date();

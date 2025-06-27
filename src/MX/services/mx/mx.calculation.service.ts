@@ -9,6 +9,7 @@ import { GQLThrowType, ThrowGQL } from '@app/gqlerr';
 import { CreateEligibilityService } from '../eligibility/create.eligibility.service';
 import { CreateEligibilityInput } from '../../dto/eligibility/inputs/create.eligibility.input';
 import { Users } from 'src/users/models/user';
+import { UtilsService } from '../utils/utils.service';
 
 interface WorkerAnswer {
   answerId: number;
@@ -34,6 +35,7 @@ export class AccuracyCalculationServiceMX {
     private readonly userModel: Model<Users>,
     private readonly createEligibilityService: CreateEligibilityService,
     private readonly getTaskService: GetTaskService,
+    private readonly utilsService: UtilsService,
   ) {}
 
   async processWorkerSubmission(
@@ -214,19 +216,52 @@ export class AccuracyCalculationServiceMX {
     );
     const accuracies = await this.calculateAccuracyMX(taskId, allWorkerIds);
 
-    // Create or update eligibility records for all workers
-    for (const workerId of allWorkerIds) {
-      const accuracy = accuracies[workerId];
-      const eligibilityInput: CreateEligibilityInput = {
-        taskId: taskId,
-        workerId: workerId,
-        accuracy: accuracy,
-      };
+    // Prepare worker submissions for batch processing
+    const workerSubmissions = allWorkerIds.map((workerId) => ({
+      workerId: workerId,
+      taskId: taskId,
+      accuracy: accuracies[workerId],
+    }));
 
-      await this.createEligibilityService.createEligibility(eligibilityInput);
-      this.logger.debug(
-        `Created/updated eligibility for worker ${workerId}: accuracy=${accuracy.toFixed(3)}`,
+    // Use isolated batch processing from UtilsService
+    try {
+      const batchResult =
+        await this.utilsService.processBatchIsolated(workerSubmissions);
+
+      this.logger.log(
+        `Batch processing completed for task ${taskId}. ` +
+          `Processed: ${batchResult.processedCount}/${workerSubmissions.length} records. ` +
+          `Batch ID: ${batchResult.batchId}, Threshold: ${batchResult.threshold.toFixed(3)}`,
       );
+    } catch (error) {
+      this.logger.error(
+        'Error in batch processing, falling back to individual creation:',
+        error,
+      );
+
+      // Fallback to individual creation if batch processing fails
+      for (const workerId of allWorkerIds) {
+        try {
+          const accuracy = accuracies[workerId];
+          const eligibilityInput: CreateEligibilityInput = {
+            taskId: taskId,
+            workerId: workerId,
+            accuracy: accuracy,
+          };
+
+          await this.createEligibilityService.createEligibility(
+            eligibilityInput,
+          );
+          this.logger.debug(
+            `Created/updated eligibility for worker ${workerId}: accuracy=${accuracy.toFixed(3)}`,
+          );
+        } catch (individualError) {
+          this.logger.error(
+            `Error creating eligibility for worker ${workerId}:`,
+            individualError,
+          );
+        }
+      }
     }
 
     // Mark all workers as processed
@@ -345,6 +380,10 @@ export class AccuracyCalculationServiceMX {
             binaryAnswersMap[w3],
           );
 
+          this.logger.debug(
+            `Agreement probabilities for window ${j}: Q12=${Q12.toFixed(3)}, Q13=${Q13.toFixed(3)}, Q23=${Q23.toFixed(3)}, M=${M}`,
+          );
+
           let workerAccuracy: number | undefined;
 
           if (currentWorkerId === w1) {
@@ -405,7 +444,18 @@ export class AccuracyCalculationServiceMX {
       }
     }
 
-    return effectiveN > 0 ? agreementCount / effectiveN : 0.5;
+    if (effectiveN === 0) {
+      return 0.5; // Default when no data
+    }
+
+    const rawAgreement = agreementCount / effectiveN;
+
+    // Apply minimum threshold to prevent mathematical issues in M-X formula
+    // Ensure Q >= 1/M + small epsilon to avoid negative denominators
+    const minAgreement = 0.35; // Minimum agreement probability
+    const maxAgreement = 0.95; // Maximum to avoid perfect agreement edge cases
+
+    return Math.max(minAgreement, Math.min(maxAgreement, rawAgreement));
   }
 
   private calculateWorkerAccuracy(
@@ -415,6 +465,7 @@ export class AccuracyCalculationServiceMX {
     M: number,
   ): number {
     try {
+      // Validate input probabilities
       if ([Q12, Q13, Q23].some((q) => q < 0 || q > 1 || isNaN(q))) {
         this.logger.debug(
           `Invalid agreement probabilities: Q12=${Q12}, Q13=${Q13}, Q23=${Q23}`,
@@ -422,25 +473,36 @@ export class AccuracyCalculationServiceMX {
         return 1 / M;
       }
 
+      // Ensure minimum values to prevent mathematical issues
+      const minQ = 1 / M + 0.01; // Minimum to ensure positive denominator
+      const safeQ12 = Math.max(minQ, Q12);
+      const safeQ13 = Math.max(minQ, Q13);
+      const safeQ23 = Math.max(minQ, Q23);
+
       const term1 = 1 / M;
       const term2 = (M - 1) / M;
 
-      const denominator = M * Q23 - 1;
-      const numeratorProduct = (M * Q12 - 1) * (M * Q13 - 1);
+      const denominator = M * safeQ23 - 1;
+      const numeratorProduct = (M * safeQ12 - 1) * (M * safeQ13 - 1);
 
       if (denominator <= 0) {
-        this.logger.debug(`Invalid denominator: ${denominator}`);
+        this.logger.debug(
+          `Invalid denominator after safety: ${denominator}, Q23=${safeQ23}, M=${M}`,
+        );
         return 1 / M;
       }
 
       if (numeratorProduct < 0) {
-        this.logger.debug(`Invalid numerator product: ${numeratorProduct}`);
+        this.logger.debug(
+          `Invalid numerator product: ${numeratorProduct}, Q12=${safeQ12}, Q13=${safeQ13}`,
+        );
         return 1 / M;
       }
 
       const sqrtTerm = Math.sqrt(numeratorProduct / denominator);
       let accuracy = term1 + term2 * sqrtTerm;
 
+      // Clamp accuracy to valid range
       accuracy = Math.max(0.0, Math.min(1.0, accuracy));
 
       if (isNaN(accuracy) || !isFinite(accuracy)) {
@@ -473,5 +535,85 @@ export class AccuracyCalculationServiceMX {
       pendingWorkers: tracker.pendingWorkers,
       lastProcessedBatch: new Date(tracker.lastProcessedBatch).toISOString(),
     };
+  }
+
+  async processAllTasksForCompletedWorkers(): Promise<void> {
+    this.logger.log(
+      'Checking if M-X algorithm can be triggered for all tasks...',
+    );
+
+    const completedWorkers = await this.getCompletedWorkers();
+    this.logger.log(
+      `Workers who completed all tasks: ${completedWorkers.length}`,
+    );
+
+    if (completedWorkers.length < 3) {
+      this.logger.log(
+        `Not enough completed workers (${completedWorkers.length}/3 minimum). M-X algorithm cannot run yet.`,
+      );
+      return;
+    }
+
+    // Get all tasks
+    const allTasks = await this.getTaskService.getTasksForMXProcessing();
+    this.logger.log(`Total tasks in system: ${allTasks.length}`);
+
+    let processedTaskCount = 0;
+
+    // Process each task if it has enough completed workers with answers
+    for (const task of allTasks) {
+      const taskId = task._id.toString();
+
+      this.logger.debug(`Checking task ${taskId} for M-X processing...`);
+
+      // Check if workers have answers for this specific task
+      const workersWithAnswersForTask = await this.recordedAnswerModel.distinct(
+        'workerId',
+        {
+          taskId,
+          workerId: { $in: completedWorkers },
+        },
+      );
+
+      this.logger.debug(
+        `Task ${taskId}: ${workersWithAnswersForTask.length} completed workers have answers`,
+      );
+
+      if (workersWithAnswersForTask.length >= 3) {
+        // Initialize tracker if needed
+        if (!this.batchTrackers.has(taskId)) {
+          this.batchTrackers.set(taskId, {
+            taskId,
+            processedWorkers: new Set(),
+            pendingWorkers: [],
+            lastProcessedBatch: 0,
+          });
+        }
+
+        const tracker = this.batchTrackers.get(taskId);
+
+        // Get unprocessed workers for this task
+        const unprocessedWorkers = workersWithAnswersForTask.filter(
+          (id) => !tracker.processedWorkers.has(id.toString()),
+        );
+
+        if (unprocessedWorkers.length >= 3) {
+          this.logger.log(
+            `Processing M-X batch for task ${taskId} with ${unprocessedWorkers.length} completed workers`,
+          );
+
+          await this.processBatch(
+            taskId,
+            tracker,
+            unprocessedWorkers.map((id) => id.toString()),
+          );
+          processedTaskCount++;
+        }
+      }
+    }
+
+    this.logger.log(
+      `M-X processing completed for ${processedTaskCount}/${allTasks.length} tasks`,
+    );
   }
 }

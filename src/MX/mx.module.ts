@@ -11,7 +11,6 @@ import { GetRecordedAnswerService } from './services/recorded/get.recorded.servi
 import { CreateEligibilityService } from './services/eligibility/create.eligibility.service';
 import { CreateRecordedService } from './services/recorded/create.recorded.service';
 import { GetEligibilityService } from './services/eligibility/get.eligibility.service';
-import { UpdateEligibilityService } from './services/eligibility/update.eligibility.service';
 import { UsersModule } from 'src/users/users.module';
 import { Users, UsersSchema } from 'src/users/models/user';
 import { CreateRecordedAnswerInput } from './dto/recorded/create.recorded.input';
@@ -41,7 +40,6 @@ import { Utils, UtilsSchema } from './models/utils';
     CreateEligibilityService,
     GetEligibilityService,
     GetRecordedAnswerService,
-    UpdateEligibilityService,
     AccuracyCalculationServiceMX,
     WorkerAnalysisService,
     UtilsService,
@@ -54,7 +52,6 @@ import { Utils, UtilsSchema } from './models/utils';
     CreateEligibilityService,
     GetEligibilityService,
     GetRecordedAnswerService,
-    UpdateEligibilityService,
     DashboardService,
     UtilsService,
     AccuracyCalculationServiceMX,

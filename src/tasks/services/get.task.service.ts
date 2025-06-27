@@ -63,6 +63,14 @@ export class GetTaskService {
     }
   }
 
+  async getTasksForMXProcessing(): Promise<Task[]> {
+    try {
+      return this.taskModel.find({ isValidQuestion: true });
+    } catch (error) {
+      throw new ThrowGQL(error, GQLThrowType.UNPROCESSABLE);
+    }
+  }
+
   @Cron('*/10 * * * *')
   async countAnswerStat(): Promise<void> {
     try {

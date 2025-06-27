@@ -14,6 +14,7 @@ import { CreateRecordedAnswerInput } from 'src/MX/dto/recorded/create.recorded.i
 import { Eligibility } from 'src/MX/models/eligibility';
 import { UtilsService } from 'src/MX/services/utils/utils.service';
 import { GetTaskService } from '../../tasks/services/get.task.service';
+import { AccuracyCalculationServiceMX } from '../../MX/services/mx/mx.calculation.service';
 
 @Injectable()
 export class UpdateUserService {
@@ -28,6 +29,8 @@ export class UpdateUserService {
     @Inject(forwardRef(() => GetTaskService))
     private readonly getTaskService: GetTaskService,
     private readonly utilsService: UtilsService,
+    @Inject(forwardRef(() => AccuracyCalculationServiceMX))
+    private readonly accuracyCalculationService: AccuracyCalculationServiceMX,
   ) {}
 
   async updateUser(input: UpdateUserInput): Promise<UserView> {
@@ -90,7 +93,7 @@ export class UpdateUserService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async qualifyAllUsers() {
     try {
       this.logger.log('Starting worker requalification process...');
@@ -121,6 +124,20 @@ export class UpdateUserService {
           'No workers have completed all tasks yet. Skipping requalification.',
         );
         return;
+      }
+
+      // Trigger M-X algorithm processing for all tasks if enough workers completed all tasks
+      if (eligibleForRequalification.length >= 3) {
+        this.logger.log(
+          `Triggering M-X algorithm processing with ${eligibleForRequalification.length} completed workers...`,
+        );
+        try {
+          await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
+        } catch (error) {
+          this.logger.error(
+            `Error triggering M-X processing: ${error.message}`,
+          );
+        }
       }
 
       // Get workers who have eligibility records (M-X algorithm has processed them)

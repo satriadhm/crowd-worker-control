@@ -686,7 +686,6 @@ const get_recorded_service_1 = __webpack_require__(/*! ./services/recorded/get.r
 const create_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/create.eligibility.service */ "./src/MX/services/eligibility/create.eligibility.service.ts");
 const create_recorded_service_1 = __webpack_require__(/*! ./services/recorded/create.recorded.service */ "./src/MX/services/recorded/create.recorded.service.ts");
 const get_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/get.eligibility.service */ "./src/MX/services/eligibility/get.eligibility.service.ts");
-const update_eligibility_service_1 = __webpack_require__(/*! ./services/eligibility/update.eligibility.service */ "./src/MX/services/eligibility/update.eligibility.service.ts");
 const users_module_1 = __webpack_require__(/*! src/users/users.module */ "./src/users/users.module.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
 const create_recorded_input_1 = __webpack_require__(/*! ./dto/recorded/create.recorded.input */ "./src/MX/dto/recorded/create.recorded.input.ts");
@@ -719,7 +718,6 @@ exports.M1Module = M1Module = __decorate([
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetEligibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
-            update_eligibility_service_1.UpdateEligibilityService,
             mx_calculation_service_1.AccuracyCalculationServiceMX,
             worker_analysis_service_1.WorkerAnalysisService,
             utils_service_1.UtilsService,
@@ -732,7 +730,6 @@ exports.M1Module = M1Module = __decorate([
             create_eligibility_service_1.CreateEligibilityService,
             get_eligibility_service_1.GetEligibilityService,
             get_recorded_service_1.GetRecordedAnswerService,
-            update_eligibility_service_1.UpdateEligibilityService,
             dashboard_service_1.DashboardService,
             utils_service_1.UtilsService,
             mx_calculation_service_1.AccuracyCalculationServiceMX,
@@ -1102,7 +1099,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var CreateEligibilityService_1;
-var _a;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateEligibilityService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -1110,9 +1107,12 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const parser_1 = __webpack_require__(/*! ../../models/parser */ "./src/MX/models/parser.ts");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
+const utils_service_1 = __webpack_require__(/*! ../utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
 let CreateEligibilityService = CreateEligibilityService_1 = class CreateEligibilityService {
-    constructor(eligibilityModel) {
+    constructor(eligibilityModel, utilsService) {
         this.eligibilityModel = eligibilityModel;
+        this.utilsService = utilsService;
         this.logger = new common_1.Logger(CreateEligibilityService_1.name);
     }
     async createEligibility(input) {
@@ -1145,12 +1145,34 @@ let CreateEligibilityService = CreateEligibilityService_1 = class CreateEligibil
             return [];
         }
     }
+    async performPeriodicRecalibration() {
+        try {
+            const shouldRecalibrate = await this.utilsService.shouldPerformGlobalRecalibration();
+            if (shouldRecalibrate.needed) {
+                this.logger.log(`Starting scheduled recalibration: ${shouldRecalibrate.reason}`);
+                const result = await this.utilsService.performGlobalRecalibration();
+                this.logger.log(`Scheduled recalibration completed: ${result.oldThreshold.toFixed(3)} -> ${result.newThreshold.toFixed(3)}, ${result.affectedWorkers} workers affected`);
+            }
+            else {
+                this.logger.debug(`Recalibration not needed: ${shouldRecalibrate.reason}`);
+            }
+        }
+        catch (error) {
+            this.logger.error('Error during periodic recalibration', error);
+        }
+    }
 };
 exports.CreateEligibilityService = CreateEligibilityService;
+__decorate([
+    (0, schedule_1.Cron)('0 2 * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], CreateEligibilityService.prototype, "performPeriodicRecalibration", null);
 exports.CreateEligibilityService = CreateEligibilityService = CreateEligibilityService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _b : Object])
 ], CreateEligibilityService);
 
 
@@ -1241,49 +1263,6 @@ exports.GetEligibilityService = GetEligibilityService = __decorate([
 
 /***/ }),
 
-/***/ "./src/MX/services/eligibility/update.eligibility.service.ts":
-/*!*******************************************************************!*\
-  !*** ./src/MX/services/eligibility/update.eligibility.service.ts ***!
-  \*******************************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-var _a, _b;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateEligibilityService = void 0;
-const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
-const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const eligibility_1 = __webpack_require__(/*! ../../models/eligibility */ "./src/MX/models/eligibility.ts");
-const get_recorded_service_1 = __webpack_require__(/*! ../recorded/get.recorded.service */ "./src/MX/services/recorded/get.recorded.service.ts");
-let UpdateEligibilityService = class UpdateEligibilityService {
-    constructor(eligibilityModel, getRecordedAnswerService) {
-        this.eligibilityModel = eligibilityModel;
-        this.getRecordedAnswerService = getRecordedAnswerService;
-    }
-};
-exports.UpdateEligibilityService = UpdateEligibilityService;
-exports.UpdateEligibilityService = UpdateEligibilityService = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof get_recorded_service_1.GetRecordedAnswerService !== "undefined" && get_recorded_service_1.GetRecordedAnswerService) === "function" ? _b : Object])
-], UpdateEligibilityService);
-
-
-/***/ }),
-
 /***/ "./src/MX/services/mx/mx.calculation.service.ts":
 /*!******************************************************!*\
   !*** ./src/MX/services/mx/mx.calculation.service.ts ***!
@@ -1304,7 +1283,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var AccuracyCalculationServiceMX_1;
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AccuracyCalculationServiceMX = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -1315,12 +1294,14 @@ const recorded_1 = __webpack_require__(/*! ../../models/recorded */ "./src/MX/mo
 const gqlerr_1 = __webpack_require__(/*! @app/gqlerr */ "./libs/gqlerr/src/index.ts");
 const create_eligibility_service_1 = __webpack_require__(/*! ../eligibility/create.eligibility.service */ "./src/MX/services/eligibility/create.eligibility.service.ts");
 const user_1 = __webpack_require__(/*! src/users/models/user */ "./src/users/models/user.ts");
+const utils_service_1 = __webpack_require__(/*! ../utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
 let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class AccuracyCalculationServiceMX {
-    constructor(recordedAnswerModel, userModel, createEligibilityService, getTaskService) {
+    constructor(recordedAnswerModel, userModel, createEligibilityService, getTaskService, utilsService) {
         this.recordedAnswerModel = recordedAnswerModel;
         this.userModel = userModel;
         this.createEligibilityService = createEligibilityService;
         this.getTaskService = getTaskService;
+        this.utilsService = utilsService;
         this.logger = new common_1.Logger(AccuracyCalculationServiceMX_1.name);
         this.batchTrackers = new Map();
     }
@@ -1419,15 +1400,34 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         }
         this.logger.log(`Calculating M-X accuracy for ${allWorkerIds.length} completed workers`);
         const accuracies = await this.calculateAccuracyMX(taskId, allWorkerIds);
-        for (const workerId of allWorkerIds) {
-            const accuracy = accuracies[workerId];
-            const eligibilityInput = {
-                taskId: taskId,
-                workerId: workerId,
-                accuracy: accuracy,
-            };
-            await this.createEligibilityService.createEligibility(eligibilityInput);
-            this.logger.debug(`Created/updated eligibility for worker ${workerId}: accuracy=${accuracy.toFixed(3)}`);
+        const workerSubmissions = allWorkerIds.map((workerId) => ({
+            workerId: workerId,
+            taskId: taskId,
+            accuracy: accuracies[workerId],
+        }));
+        try {
+            const batchResult = await this.utilsService.processBatchIsolated(workerSubmissions);
+            this.logger.log(`Batch processing completed for task ${taskId}. ` +
+                `Processed: ${batchResult.processedCount}/${workerSubmissions.length} records. ` +
+                `Batch ID: ${batchResult.batchId}, Threshold: ${batchResult.threshold.toFixed(3)}`);
+        }
+        catch (error) {
+            this.logger.error('Error in batch processing, falling back to individual creation:', error);
+            for (const workerId of allWorkerIds) {
+                try {
+                    const accuracy = accuracies[workerId];
+                    const eligibilityInput = {
+                        taskId: taskId,
+                        workerId: workerId,
+                        accuracy: accuracy,
+                    };
+                    await this.createEligibilityService.createEligibility(eligibilityInput);
+                    this.logger.debug(`Created/updated eligibility for worker ${workerId}: accuracy=${accuracy.toFixed(3)}`);
+                }
+                catch (individualError) {
+                    this.logger.error(`Error creating eligibility for worker ${workerId}:`, individualError);
+                }
+            }
         }
         allWorkerIds.forEach((id) => tracker.processedWorkers.add(id));
         tracker.pendingWorkers = tracker.pendingWorkers.filter((id) => !allWorkerIds.includes(id));
@@ -1493,6 +1493,7 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     const Q12 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w2]);
                     const Q13 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w3]);
                     const Q23 = this.calculateAgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
+                    this.logger.debug(`Agreement probabilities for window ${j}: Q12=${Q12.toFixed(3)}, Q13=${Q13.toFixed(3)}, Q23=${Q23.toFixed(3)}, M=${M}`);
                     let workerAccuracy;
                     if (currentWorkerId === w1) {
                         workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
@@ -1532,7 +1533,13 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                 agreementCount++;
             }
         }
-        return effectiveN > 0 ? agreementCount / effectiveN : 0.5;
+        if (effectiveN === 0) {
+            return 0.5;
+        }
+        const rawAgreement = agreementCount / effectiveN;
+        const minAgreement = 0.35;
+        const maxAgreement = 0.95;
+        return Math.max(minAgreement, Math.min(maxAgreement, rawAgreement));
     }
     calculateWorkerAccuracy(Q12, Q13, Q23, M) {
         try {
@@ -1540,16 +1547,20 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                 this.logger.debug(`Invalid agreement probabilities: Q12=${Q12}, Q13=${Q13}, Q23=${Q23}`);
                 return 1 / M;
             }
+            const minQ = 1 / M + 0.01;
+            const safeQ12 = Math.max(minQ, Q12);
+            const safeQ13 = Math.max(minQ, Q13);
+            const safeQ23 = Math.max(minQ, Q23);
             const term1 = 1 / M;
             const term2 = (M - 1) / M;
-            const denominator = M * Q23 - 1;
-            const numeratorProduct = (M * Q12 - 1) * (M * Q13 - 1);
+            const denominator = M * safeQ23 - 1;
+            const numeratorProduct = (M * safeQ12 - 1) * (M * safeQ13 - 1);
             if (denominator <= 0) {
-                this.logger.debug(`Invalid denominator: ${denominator}`);
+                this.logger.debug(`Invalid denominator after safety: ${denominator}, Q23=${safeQ23}, M=${M}`);
                 return 1 / M;
             }
             if (numeratorProduct < 0) {
-                this.logger.debug(`Invalid numerator product: ${numeratorProduct}`);
+                this.logger.debug(`Invalid numerator product: ${numeratorProduct}, Q12=${safeQ12}, Q13=${safeQ13}`);
                 return 1 / M;
             }
             const sqrtTerm = Math.sqrt(numeratorProduct / denominator);
@@ -1583,13 +1594,52 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
             lastProcessedBatch: new Date(tracker.lastProcessedBatch).toISOString(),
         };
     }
+    async processAllTasksForCompletedWorkers() {
+        this.logger.log('Checking if M-X algorithm can be triggered for all tasks...');
+        const completedWorkers = await this.getCompletedWorkers();
+        this.logger.log(`Workers who completed all tasks: ${completedWorkers.length}`);
+        if (completedWorkers.length < 3) {
+            this.logger.log(`Not enough completed workers (${completedWorkers.length}/3 minimum). M-X algorithm cannot run yet.`);
+            return;
+        }
+        const allTasks = await this.getTaskService.getTasksForMXProcessing();
+        this.logger.log(`Total tasks in system: ${allTasks.length}`);
+        let processedTaskCount = 0;
+        for (const task of allTasks) {
+            const taskId = task._id.toString();
+            this.logger.debug(`Checking task ${taskId} for M-X processing...`);
+            const workersWithAnswersForTask = await this.recordedAnswerModel.distinct('workerId', {
+                taskId,
+                workerId: { $in: completedWorkers },
+            });
+            this.logger.debug(`Task ${taskId}: ${workersWithAnswersForTask.length} completed workers have answers`);
+            if (workersWithAnswersForTask.length >= 3) {
+                if (!this.batchTrackers.has(taskId)) {
+                    this.batchTrackers.set(taskId, {
+                        taskId,
+                        processedWorkers: new Set(),
+                        pendingWorkers: [],
+                        lastProcessedBatch: 0,
+                    });
+                }
+                const tracker = this.batchTrackers.get(taskId);
+                const unprocessedWorkers = workersWithAnswersForTask.filter((id) => !tracker.processedWorkers.has(id.toString()));
+                if (unprocessedWorkers.length >= 3) {
+                    this.logger.log(`Processing M-X batch for task ${taskId} with ${unprocessedWorkers.length} completed workers`);
+                    await this.processBatch(taskId, tracker, unprocessedWorkers.map((id) => id.toString()));
+                    processedTaskCount++;
+                }
+            }
+        }
+        this.logger.log(`M-X processing completed for ${processedTaskCount}/${allTasks.length} tasks`);
+    }
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(recorded_1.RecordedAnswer.name)),
     __param(1, (0, mongoose_1.InjectModel)(user_1.Users.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof create_eligibility_service_1.CreateEligibilityService !== "undefined" && create_eligibility_service_1.CreateEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
 ], AccuracyCalculationServiceMX);
 
 
@@ -1899,6 +1949,172 @@ let UtilsService = UtilsService_1 = class UtilsService {
         if (values.length === 0)
             return 0.7;
         return values.reduce((sum, val) => sum + val, 0) / values.length;
+    }
+    async updateGlobalThreshold(newThreshold) {
+        try {
+            const utils = await this.utilsModel.findOneAndUpdate({}, {
+                $set: {
+                    thresholdValue: newThreshold,
+                    lastUpdated: new Date(),
+                },
+            }, { upsert: true, new: true });
+            this.logger.log(`Global threshold updated to: ${newThreshold.toFixed(3)}`);
+            return utils;
+        }
+        catch (error) {
+            this.logger.error('Failed to update global threshold', error);
+            throw new gqlerr_1.ThrowGQL('Failed to update global threshold', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    calculateWeightedThreshold(eligibilityRecords) {
+        if (!eligibilityRecords || eligibilityRecords.length === 0) {
+            return 0.7;
+        }
+        const workerAccuracies = new Map();
+        for (const record of eligibilityRecords) {
+            const workerId = record.workerId.toString();
+            const accuracy = record.accuracy || 0;
+            if (!workerAccuracies.has(workerId)) {
+                workerAccuracies.set(workerId, []);
+            }
+            workerAccuracies.get(workerId)?.push(accuracy);
+        }
+        const workerAverages = [];
+        for (const accuracies of workerAccuracies.values()) {
+            if (accuracies.length > 0) {
+                const avgAccuracy = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+                workerAverages.push(avgAccuracy);
+            }
+        }
+        return this.calculateMedian(workerAverages);
+    }
+    async processBatchIsolated(workerSubmissions) {
+        try {
+            const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const timestamp = new Date();
+            this.logger.log(`Processing isolated batch: ${batchId} with ${workerSubmissions.length} submissions`);
+            const currentThreshold = await this.getCurrentThreshold();
+            let processedCount = 0;
+            for (const submission of workerSubmissions) {
+                try {
+                    const existingRecord = await this.eligibilityModel.findOne({
+                        workerId: submission.workerId,
+                        taskId: submission.taskId,
+                    });
+                    if (!existingRecord) {
+                        await this.eligibilityModel.create({
+                            workerId: submission.workerId,
+                            taskId: submission.taskId,
+                            accuracy: submission.accuracy,
+                        });
+                        processedCount++;
+                        this.logger.debug(`Created eligibility record for worker ${submission.workerId} with accuracy ${submission.accuracy.toFixed(3)}`);
+                    }
+                }
+                catch (error) {
+                    this.logger.error(`Error processing submission for worker ${submission.workerId}:`, error);
+                }
+            }
+            this.logger.log(`Batch ${batchId} processed: ${processedCount}/${workerSubmissions.length} new records created`);
+            return {
+                processedCount,
+                threshold: currentThreshold,
+                batchId,
+                timestamp,
+            };
+        }
+        catch (error) {
+            this.logger.error('Error processing isolated batch', error);
+            throw new gqlerr_1.ThrowGQL('Failed to process isolated batch', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async performGlobalRecalibration() {
+        try {
+            this.logger.log('Starting periodic global recalibration...');
+            const oldSettings = await this.getThresholdSettings();
+            const oldThreshold = oldSettings.thresholdValue;
+            const allRecords = await this.eligibilityModel.find().exec();
+            if (allRecords.length === 0) {
+                this.logger.warn('No eligibility records found for recalibration');
+                return {
+                    oldThreshold,
+                    newThreshold: oldThreshold,
+                    affectedWorkers: 0,
+                    recalibrationReason: 'No data available',
+                    timestamp: new Date(),
+                };
+            }
+            const newThreshold = this.calculateWeightedThreshold(allRecords);
+            await this.updateGlobalThreshold(newThreshold);
+            const uniqueWorkers = new Set(allRecords.map((r) => r.workerId.toString())).size;
+            const recalibrationReason = `Periodic recalibration based on ${allRecords.length} eligibility records`;
+            this.logger.log(`Global recalibration completed: ${oldThreshold.toFixed(3)} -> ${newThreshold.toFixed(3)}, ${uniqueWorkers} workers in system`);
+            return {
+                oldThreshold,
+                newThreshold,
+                affectedWorkers: uniqueWorkers,
+                recalibrationReason,
+                timestamp: new Date(),
+            };
+        }
+        catch (error) {
+            this.logger.error('Error performing global recalibration', error);
+            throw new gqlerr_1.ThrowGQL('Failed to perform global recalibration', gqlerr_1.GQLThrowType.UNEXPECTED);
+        }
+    }
+    async shouldPerformGlobalRecalibration() {
+        try {
+            const settings = await this.getThresholdSettings();
+            const lastUpdated = settings.lastUpdated || new Date(0);
+            const currentTime = new Date();
+            const timeSinceLastUpdate = currentTime.getTime() - lastUpdated.getTime();
+            const RECALIBRATION_INTERVAL = 24 * 60 * 60 * 1000;
+            const NEW_RECORDS_THRESHOLD = 50;
+            if (timeSinceLastUpdate > RECALIBRATION_INTERVAL) {
+                return {
+                    needed: true,
+                    reason: `24 hours have passed since last recalibration (${Math.floor(timeSinceLastUpdate / (60 * 60 * 1000))} hours ago)`,
+                    timeSinceLastUpdate,
+                    newRecordsCount: 0,
+                };
+            }
+            const newRecordsCount = await this.eligibilityModel.countDocuments({
+                createdAt: { $gte: lastUpdated },
+            });
+            if (newRecordsCount >= NEW_RECORDS_THRESHOLD) {
+                return {
+                    needed: true,
+                    reason: `${newRecordsCount} new eligibility records since last recalibration`,
+                    timeSinceLastUpdate,
+                    newRecordsCount,
+                };
+            }
+            return {
+                needed: false,
+                reason: 'Recalibration criteria not met',
+                timeSinceLastUpdate,
+                newRecordsCount,
+            };
+        }
+        catch (error) {
+            this.logger.error('Error checking recalibration status', error);
+            return {
+                needed: false,
+                reason: 'Error checking recalibration status',
+                timeSinceLastUpdate: 0,
+                newRecordsCount: 0,
+            };
+        }
+    }
+    async getCurrentThreshold() {
+        try {
+            const settings = await this.getThresholdSettings();
+            return settings.thresholdValue;
+        }
+        catch (error) {
+            this.logger.error('Error getting current threshold', error);
+            return 0.7;
+        }
     }
 };
 exports.UtilsService = UtilsService;
@@ -2494,7 +2710,7 @@ let WorkerAnalysisService = WorkerAnalysisService_1 = class WorkerAnalysisServic
 };
 exports.WorkerAnalysisService = WorkerAnalysisService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_2ND_MONTH),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_10_SECONDS),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -3861,6 +4077,14 @@ let GetTaskService = class GetTaskService {
             throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
         }
     }
+    async getTasksForMXProcessing() {
+        try {
+            return this.taskModel.find({ isValidQuestion: true });
+        }
+        catch (error) {
+            throw new gqlerr_1.ThrowGQL(error, gqlerr_1.GQLThrowType.UNPROCESSABLE);
+        }
+    }
     async countAnswerStat() {
         try {
             const tasks = await this.taskModel.find();
@@ -4809,7 +5033,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var UpdateUserService_1;
-var _a, _b, _c, _d, _e;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -4823,13 +5047,15 @@ const get_eligibility_service_1 = __webpack_require__(/*! ../../MX/services/elig
 const eligibility_1 = __webpack_require__(/*! src/MX/models/eligibility */ "./src/MX/models/eligibility.ts");
 const utils_service_1 = __webpack_require__(/*! src/MX/services/utils/utils.service */ "./src/MX/services/utils/utils.service.ts");
 const get_task_service_1 = __webpack_require__(/*! ../../tasks/services/get.task.service */ "./src/tasks/services/get.task.service.ts");
+const mx_calculation_service_1 = __webpack_require__(/*! ../../MX/services/mx/mx.calculation.service */ "./src/MX/services/mx/mx.calculation.service.ts");
 let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
-    constructor(userModel, eligibilityModel, getEligibilityService, getTaskService, utilsService) {
+    constructor(userModel, eligibilityModel, getEligibilityService, getTaskService, utilsService, accuracyCalculationService) {
         this.userModel = userModel;
         this.eligibilityModel = eligibilityModel;
         this.getEligibilityService = getEligibilityService;
         this.getTaskService = getTaskService;
         this.utilsService = utilsService;
+        this.accuracyCalculationService = accuracyCalculationService;
         this.logger = new common_1.Logger(UpdateUserService_1.name);
     }
     async updateUser(input) {
@@ -4884,6 +5110,15 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
             if (eligibleForRequalification.length === 0) {
                 this.logger.log('No workers have completed all tasks yet. Skipping requalification.');
                 return;
+            }
+            if (eligibleForRequalification.length >= 3) {
+                this.logger.log(`Triggering M-X algorithm processing with ${eligibleForRequalification.length} completed workers...`);
+                try {
+                    await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
+                }
+                catch (error) {
+                    this.logger.error(`Error triggering M-X processing: ${error.message}`);
+                }
             }
             const workersWithEligibility = new Map();
             let processedWorkersCount = 0;
@@ -4955,7 +5190,7 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
 };
 exports.UpdateUserService = UpdateUserService;
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_10_MINUTES),
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -4965,7 +5200,8 @@ exports.UpdateUserService = UpdateUserService = UpdateUserService_1 = __decorate
     __param(0, (0, mongoose_1.InjectModel)(user_1.Users.name)),
     __param(1, (0, mongoose_1.InjectModel)(eligibility_1.Eligibility.name)),
     __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => get_task_service_1.GetTaskService))),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object])
+    __param(5, (0, common_1.Inject)((0, common_1.forwardRef)(() => mx_calculation_service_1.AccuracyCalculationServiceMX))),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof get_eligibility_service_1.GetEligibilityService !== "undefined" && get_eligibility_service_1.GetEligibilityService) === "function" ? _c : Object, typeof (_d = typeof get_task_service_1.GetTaskService !== "undefined" && get_task_service_1.GetTaskService) === "function" ? _d : Object, typeof (_e = typeof utils_service_1.UtilsService !== "undefined" && utils_service_1.UtilsService) === "function" ? _e : Object, typeof (_f = typeof mx_calculation_service_1.AccuracyCalculationServiceMX !== "undefined" && mx_calculation_service_1.AccuracyCalculationServiceMX) === "function" ? _f : Object])
 ], UpdateUserService);
 
 

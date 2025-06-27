@@ -5,6 +5,8 @@ import { Model } from 'mongoose';
 import { CreateEligibilityInput } from '../../dto/eligibility/inputs/create.eligibility.input';
 import { EligibilityView } from '../../dto/eligibility/views/eligibility.view';
 import { parseToViewEligibility } from '../../models/parser';
+import { Cron } from '@nestjs/schedule';
+import { UtilsService } from '../utils/utils.service';
 
 @Injectable()
 export class CreateEligibilityService {
@@ -13,6 +15,7 @@ export class CreateEligibilityService {
   constructor(
     @InjectModel(Eligibility.name)
     private readonly eligibilityModel: Model<EligibilityDocument>,
+    private readonly utilsService: UtilsService,
   ) {}
 
   async createEligibility(input: CreateEligibilityInput): Promise<Eligibility> {
@@ -52,6 +55,35 @@ export class CreateEligibilityService {
         error,
       );
       return [];
+    }
+  }
+
+  // Periodic global recalibration using UtilsService
+  @Cron('0 2 * * *') // Daily at 2 AM
+  async performPeriodicRecalibration(): Promise<void> {
+    try {
+      // Check if recalibration is needed
+      const shouldRecalibrate =
+        await this.utilsService.shouldPerformGlobalRecalibration();
+
+      if (shouldRecalibrate.needed) {
+        this.logger.log(
+          `Starting scheduled recalibration: ${shouldRecalibrate.reason}`,
+        );
+
+        // Perform global recalibration
+        const result = await this.utilsService.performGlobalRecalibration();
+
+        this.logger.log(
+          `Scheduled recalibration completed: ${result.oldThreshold.toFixed(3)} -> ${result.newThreshold.toFixed(3)}, ${result.affectedWorkers} workers affected`,
+        );
+      } else {
+        this.logger.debug(
+          `Recalibration not needed: ${shouldRecalibrate.reason}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error during periodic recalibration', error);
     }
   }
 }
