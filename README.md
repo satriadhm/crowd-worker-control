@@ -329,13 +329,137 @@ Sistem crowd worker control ini berhasil mengimplementasikan algoritma M-X untuk
 3. **Scalable Architecture**: Arsitektur yang dapat di-scale untuk kebutuhan enterprise
 4. **Real-time Analytics**: Dashboard dan analytics untuk monitoring performa
 
-## 10. Referensi
+## 10. Daftar Queries dan Mutations
 
-1. Whitehill, J., Wu, T. F., Bergsma, J., Movellan, J. R., & Ruvolo, P. L. (2009). Whose vote should count more: Optimal integration of labels from labelers of unknown expertise. Advances in neural information processing systems, 22.
+### 10.1 GraphQL Mutations
 
-2. Raykar, V. C., Yu, S., Zhao, L. H., Valadez, G. H., Florin, C., Bogoni, L., & Moy, L. (2010). Learning from crowds. Journal of machine learning research, 11(4).
+#### Auth & User Management
+```graphql
+# Autentikasi pengguna
+login(input: LoginInput!): AuthView!
 
-3. Dawid, A. P., & Skene, A. M. (1979). Maximum likelihood estimation of observer error‐rates using the EM algorithm. Journal of the Royal Statistical Society: Series C (Applied Statistics), 28(1), 20-28.
+# Registrasi pengguna baru
+register(input: CreateUserInput!): Users!
+
+# Update profil pengguna
+updateUserProfile(input: UpdateUserInput!): Users!
+
+# Qualify semua pengguna (admin only)
+qualifyAllUsers: Boolean!
+```
+
+#### Task Management
+```graphql
+# Membuat tugas baru
+createTask(input: CreateTaskInput!): Task!
+
+# Update tugas yang ada
+updateTask(id: String!, input: UpdateTaskInput!): Task!
+
+# Hapus tugas
+deleteTask(id: String!): Boolean!
+```
+
+#### Worker Submissions & M-X Processing
+```graphql
+# Submit jawaban pekerja
+submitAnswer(input: CreateRecordedAnswerInput!): Boolean!
+
+# Trigger manual processing M-X
+triggerManualMXProcessing: String!
+
+# Reset batch tracker untuk task tertentu
+resetBatchTracker(taskId: String!): Boolean!
+
+# Trigger batch processing untuk worker tertentu
+triggerBatchProcessing(taskId: String!, workerId: String!): Boolean!
+
+# Update eligibility untuk semua worker
+triggerEligibilityUpdate: String!
+
+# Fix masalah eligibility
+fixEligibilityIssue: String!
+```
+
+#### Utilities & Admin
+```graphql
+# Clean/reset utilitas sistem
+cleanUtils: String!
+
+# Debug masalah eligibility
+debugEligibilityIssue: String!
+```
+
+### 10.2 GraphQL Queries
+
+#### User & Worker Data
+```graphql
+# Ambil semua pengguna
+getUsers: [Users!]!
+
+# Ambil pengguna berdasarkan ID
+getUserById(id: String!): Users!
+
+# Ambil pengguna berdasarkan criteria
+getUsersWithArgs(args: GetUserArgs!): [Users!]!
+
+# Ambil profil pengguna yang sedang login
+getProfile: Users!
+```
+
+#### Task Data
+```graphql
+# Ambil semua tugas
+getTasks: [Task!]!
+
+# Ambil tugas berdasarkan ID
+getTaskById(id: String!): Task!
+
+# Ambil tugas berdasarkan criteria
+getTasksWithArgs(args: GetTaskArgs!): [Task!]!
+```
+
+#### Eligibility & Analytics
+```graphql
+# Ambil riwayat eligibility untuk worker
+getEligibilityHistory(workerId: String!): [EligibilityView!]!
+
+# Ambil semua data eligibility (admin)
+getEligibility: [EligibilityView!]!
+
+# Ambil analisis worker performance
+getWorkerAnalysis: WorkerAnalysisView!
+
+# Ambil data analisis worker berdasarkan tipe
+getWorkerAnalysisData(analysisType: String!): [WorkerAnalysisDataPoint!]!
+
+# Ambil performance algoritma
+getAlgorithmPerformance: [AlgorithmPerformanceData!]!
+```
+
+#### Dashboard & Monitoring
+```graphql
+# Ambil summary dashboard
+getDashboardSummary: DashboardSummary!
+
+# Ambil distribusi eligibility worker
+getWorkerEligibilityDistribution: [StatusDistribution!]!
+
+# Ambil distribusi akurasi
+getAccuracyDistribution: [AccuracyDistribution!]!
+```
+
+#### System Status & Debugging
+```graphql
+# Ambil status batch tracker
+getBatchStatus(taskId: String!): String!
+
+# Ambil statistik utilitas sistem
+getUtilsStats: String!
+
+# Health check sistem
+healthCheck: String!
+```
 
 ---
 
