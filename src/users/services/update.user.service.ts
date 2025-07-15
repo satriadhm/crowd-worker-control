@@ -126,20 +126,6 @@ export class UpdateUserService {
         return;
       }
 
-      // Trigger M-X algorithm processing for all tasks if enough workers completed all tasks
-      if (eligibleForRequalification.length >= 3) {
-        this.logger.log(
-          `Triggering M-X algorithm processing with ${eligibleForRequalification.length} completed workers...`,
-        );
-        try {
-          await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
-        } catch (error) {
-          this.logger.error(
-            `Error triggering M-X processing: ${error.message}`,
-          );
-        }
-      }
-
       // Get workers who have eligibility records (M-X algorithm has processed them)
       const workersWithEligibility: Map<string, number> = new Map();
       let processedWorkersCount = 0;

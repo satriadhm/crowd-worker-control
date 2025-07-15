@@ -1871,15 +1871,6 @@ let UpdateUserService = UpdateUserService_1 = class UpdateUserService {
                 this.logger.log('No workers have completed all tasks yet. Skipping requalification.');
                 return;
             }
-            if (eligibleForRequalification.length >= 3) {
-                this.logger.log(`Triggering M-X algorithm processing with ${eligibleForRequalification.length} completed workers...`);
-                try {
-                    await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
-                }
-                catch (error) {
-                    this.logger.error(`Error triggering M-X processing: ${error.message}`);
-                }
-            }
             const workersWithEligibility = new Map();
             let processedWorkersCount = 0;
             for (const user of eligibleForRequalification) {
@@ -2726,7 +2717,8 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         }
         for (let i = 0; i < workers.length; i++) {
             const currentWorkerId = workers[i];
-            const workerAccuraciesAcrossWindows = [];
+            let workerAccuracy = 0;
+            let validWindowCount = 0;
             const numWindows = Math.min(workers.length - 2, workers.length);
             for (let j = 0; j < numWindows; j++) {
                 const windowWorkers = [
@@ -2740,41 +2732,14 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
                     continue;
                 }
                 this.logger.debug(`Window ${j} for worker ${currentWorkerId}: [${windowWorkers.join(', ')}]`);
-                const optionAccuracies = [];
-                for (const answerId of answerIds) {
-                    const binaryAnswersMap = {};
-                    for (const wId of windowWorkers) {
-                        const workerAnswers = workerAnswersMap[wId] || [];
-                        binaryAnswersMap[wId] = workerAnswers.map((wa) => wa.answerId === answerId ? 1 : 0);
-                    }
-                    const [w1, w2, w3] = windowWorkers;
-                    const Q12 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w2]);
-                    const Q13 = this.calculateAgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w3]);
-                    const Q23 = this.calculateAgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
-                    this.logger.debug(`Agreement probabilities for window ${j}: Q12=${Q12.toFixed(3)}, Q13=${Q13.toFixed(3)}, Q23=${Q23.toFixed(3)}, M=${M}`);
-                    let workerAccuracy;
-                    if (currentWorkerId === w1) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q13, Q23, M);
-                    }
-                    else if (currentWorkerId === w2) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q12, Q23, Q13, M);
-                    }
-                    else if (currentWorkerId === w3) {
-                        workerAccuracy = this.calculateWorkerAccuracy(Q13, Q23, Q12, M);
-                    }
-                    if (workerAccuracy !== undefined && !isNaN(workerAccuracy)) {
-                        optionAccuracies.push(workerAccuracy);
-                    }
-                }
-                if (optionAccuracies.length > 0) {
-                    const geometricMean = Math.pow(optionAccuracies.reduce((product, val) => product * Math.max(val, 0.01), 1), 1 / optionAccuracies.length);
-                    workerAccuraciesAcrossWindows.push(geometricMean);
+                const windowAccuracy = this.calculateMXAccuracyForWindow(windowWorkers, currentWorkerId, workerAnswersMap, answerIds, M);
+                if (windowAccuracy !== null) {
+                    workerAccuracy += windowAccuracy;
+                    validWindowCount++;
                 }
             }
-            if (workerAccuraciesAcrossWindows.length > 0) {
-                const finalAccuracy = workerAccuraciesAcrossWindows.reduce((sum, val) => sum + val, 0) /
-                    workerAccuraciesAcrossWindows.length;
-                finalAccuracies[currentWorkerId] = Math.max(1 / M, Math.min(0.95, finalAccuracy));
+            if (validWindowCount > 0) {
+                finalAccuracies[currentWorkerId] = workerAccuracy / validWindowCount;
             }
             else {
                 finalAccuracies[currentWorkerId] = 1 / M;
@@ -2783,11 +2748,57 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         this.logger.log(`M-X calculation completed. Results: ${JSON.stringify(finalAccuracies)}`);
         return finalAccuracies;
     }
-    calculateAgreementProbability(worker1Answers, worker2Answers) {
+    calculateMXAccuracyForWindow(windowWorkers, currentWorkerId, workerAnswersMap, answerIds, M) {
+        const [w1, w2, w3] = windowWorkers;
+        const currentWorkerIndex = windowWorkers.indexOf(currentWorkerId);
+        if (currentWorkerIndex === -1)
+            return null;
+        const optionAccuracies = [];
+        for (const answerId of answerIds) {
+            const allAnswersForQuestion = windowWorkers
+                .map((workerId) => this.getWorkerAnswerForQuestion(workerAnswersMap[workerId], answerId))
+                .filter((answer) => answer !== null);
+            if (allAnswersForQuestion.length < 3) {
+                continue;
+            }
+            const uniqueChoices = Array.from(new Set(allAnswersForQuestion));
+            for (const choice of uniqueChoices) {
+                const binaryAnswersMap = {};
+                for (const workerId of windowWorkers) {
+                    const workerAnswer = this.getWorkerAnswerForQuestion(workerAnswersMap[workerId], answerId);
+                    binaryAnswersMap[workerId] = [workerAnswer === choice ? 1 : 0];
+                }
+                const Q12 = this.calculateM1AgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w2]);
+                const Q13 = this.calculateM1AgreementProbability(binaryAnswersMap[w1], binaryAnswersMap[w3]);
+                const Q23 = this.calculateM1AgreementProbability(binaryAnswersMap[w2], binaryAnswersMap[w3]);
+                let subQuestionAccuracy;
+                if (currentWorkerIndex === 0) {
+                    subQuestionAccuracy = this.calculateM1WorkerAccuracy(Q12, Q13);
+                }
+                else if (currentWorkerIndex === 1) {
+                    subQuestionAccuracy = this.calculateM1WorkerAccuracy(Q12, Q23);
+                }
+                else {
+                    subQuestionAccuracy = this.calculateM1WorkerAccuracy(Q13, Q23);
+                }
+                optionAccuracies.push(Math.max(subQuestionAccuracy, 0.01));
+            }
+        }
+        if (optionAccuracies.length === 0) {
+            return 1 / M;
+        }
+        const productAccuracy = optionAccuracies.reduce((product, accuracy) => product * accuracy, 1);
+        return Math.max(1 / M, Math.min(0.95, productAccuracy));
+    }
+    getWorkerAnswerForQuestion(workerAnswers, answerId) {
+        const answer = workerAnswers.find((wa) => wa.answerId === answerId);
+        return answer ? answer.answer : null;
+    }
+    calculateM1AgreementProbability(worker1BinaryAnswers, worker2BinaryAnswers) {
         let agreementCount = 0;
-        const effectiveN = Math.min(worker1Answers.length, worker2Answers.length);
+        const effectiveN = Math.min(worker1BinaryAnswers.length, worker2BinaryAnswers.length);
         for (let i = 0; i < effectiveN; i++) {
-            if (worker1Answers[i] === worker2Answers[i]) {
+            if (worker1BinaryAnswers[i] === worker2BinaryAnswers[i]) {
                 agreementCount++;
             }
         }
@@ -2799,97 +2810,10 @@ let AccuracyCalculationServiceMX = AccuracyCalculationServiceMX_1 = class Accura
         const maxAgreement = 0.95;
         return Math.max(minAgreement, Math.min(maxAgreement, rawAgreement));
     }
-    calculateWorkerAccuracy(Q12, Q13, Q23, M) {
-        try {
-            if ([Q12, Q13, Q23].some((q) => q < 0 || q > 1 || isNaN(q))) {
-                this.logger.debug(`Invalid agreement probabilities: Q12=${Q12}, Q13=${Q13}, Q23=${Q23}`);
-                return 1 / M;
-            }
-            const minQ = 1 / M + 0.01;
-            const safeQ12 = Math.max(minQ, Q12);
-            const safeQ13 = Math.max(minQ, Q13);
-            const safeQ23 = Math.max(minQ, Q23);
-            const term1 = 1 / M;
-            const term2 = (M - 1) / M;
-            const denominator = M * safeQ23 - 1;
-            const numeratorProduct = (M * safeQ12 - 1) * (M * safeQ13 - 1);
-            if (denominator <= 0) {
-                this.logger.debug(`Invalid denominator after safety: ${denominator}, Q23=${safeQ23}, M=${M}`);
-                return 1 / M;
-            }
-            if (numeratorProduct < 0) {
-                this.logger.debug(`Invalid numerator product: ${numeratorProduct}, Q12=${safeQ12}, Q13=${safeQ13}`);
-                return 1 / M;
-            }
-            const sqrtTerm = Math.sqrt(numeratorProduct / denominator);
-            let accuracy = term1 + term2 * sqrtTerm;
-            accuracy = Math.max(0.0, Math.min(1.0, accuracy));
-            if (isNaN(accuracy) || !isFinite(accuracy)) {
-                this.logger.debug(`Invalid accuracy result: ${accuracy}`);
-                return 1 / M;
-            }
-            return accuracy;
-        }
-        catch (error) {
-            this.logger.error(`Error in calculateWorkerAccuracy: ${error.message}`);
-            return 1 / M;
-        }
-    }
-    resetBatchTracker(taskId) {
-        this.batchTrackers.delete(taskId);
-        this.logger.log(`Reset batch tracker for task ${taskId}`);
-    }
-    getBatchStatus(taskId) {
-        const tracker = this.batchTrackers.get(taskId);
-        if (!tracker) {
-            return { message: 'No batch tracker found for this task' };
-        }
-        return {
-            taskId: tracker.taskId,
-            processedWorkersCount: tracker.processedWorkers.size,
-            pendingWorkersCount: tracker.pendingWorkers.length,
-            pendingWorkers: tracker.pendingWorkers,
-            lastProcessedBatch: new Date(tracker.lastProcessedBatch).toISOString(),
-        };
-    }
-    async processAllTasksForCompletedWorkers() {
-        this.logger.log('Checking if M-X algorithm can be triggered for all tasks...');
-        const completedWorkers = await this.getCompletedWorkers();
-        this.logger.log(`Workers who completed all tasks: ${completedWorkers.length}`);
-        if (completedWorkers.length < 3) {
-            this.logger.log(`Not enough completed workers (${completedWorkers.length}/3 minimum). M-X algorithm cannot run yet.`);
-            return;
-        }
-        const allTasks = await this.getTaskService.getTasksForMXProcessing();
-        this.logger.log(`Total tasks in system: ${allTasks.length}`);
-        let processedTaskCount = 0;
-        for (const task of allTasks) {
-            const taskId = task._id.toString();
-            this.logger.debug(`Checking task ${taskId} for M-X processing...`);
-            const workersWithAnswersForTask = await this.recordedAnswerModel.distinct('workerId', {
-                taskId,
-                workerId: { $in: completedWorkers },
-            });
-            this.logger.debug(`Task ${taskId}: ${workersWithAnswersForTask.length} completed workers have answers`);
-            if (workersWithAnswersForTask.length >= 3) {
-                if (!this.batchTrackers.has(taskId)) {
-                    this.batchTrackers.set(taskId, {
-                        taskId,
-                        processedWorkers: new Set(),
-                        pendingWorkers: [],
-                        lastProcessedBatch: 0,
-                    });
-                }
-                const tracker = this.batchTrackers.get(taskId);
-                const unprocessedWorkers = workersWithAnswersForTask.filter((id) => !tracker.processedWorkers.has(id.toString()));
-                if (unprocessedWorkers.length >= 3) {
-                    this.logger.log(`Processing M-X batch for task ${taskId} with ${unprocessedWorkers.length} completed workers`);
-                    await this.processBatch(taskId, tracker, unprocessedWorkers.map((id) => id.toString()));
-                    processedTaskCount++;
-                }
-            }
-        }
-        this.logger.log(`M-X processing completed for ${processedTaskCount}/${allTasks.length} tasks`);
+    calculateM1WorkerAccuracy(Q12, Q13) {
+        const avgAgreement = (Q12 + Q13) / 2;
+        const accuracy = Math.max(0.25, Math.min(0.95, avgAgreement));
+        return accuracy;
     }
 };
 exports.AccuracyCalculationServiceMX = AccuracyCalculationServiceMX;
@@ -3556,7 +3480,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.M1Resolver = void 0;
 const graphql_1 = __webpack_require__(5);
@@ -3622,66 +3546,6 @@ let M1Resolver = class M1Resolver {
         }
         catch (error) {
             return false;
-        }
-    }
-    async getBatchStatus(taskId) {
-        const status = this.accuracyCalculationService.getBatchStatus(taskId);
-        return JSON.stringify(status, null, 2);
-    }
-    async resetBatchTracker(taskId) {
-        try {
-            this.accuracyCalculationService.resetBatchTracker(taskId);
-            return true;
-        }
-        catch (error) {
-            return false;
-        }
-    }
-    async triggerBatchProcessing(taskId, workerId) {
-        try {
-            await this.accuracyCalculationService.processWorkerSubmission(taskId, workerId);
-            return true;
-        }
-        catch (error) {
-            return false;
-        }
-    }
-    async debugEligibilityIssue() {
-        try {
-            const eligibilityRecords = await this.getEligibilityService.getEligibility();
-            const currentTrackers = this.accuracyCalculationService.getBatchStatus('all');
-            const result = {
-                eligibilityRecordsCount: eligibilityRecords.length,
-                eligibilityRecords: eligibilityRecords.slice(0, 10),
-                batchTrackersStatus: currentTrackers,
-                message: 'If eligibilityRecordsCount is 0, then M-X algorithm has not processed any workers yet',
-            };
-            return JSON.stringify(result, null, 2);
-        }
-        catch (error) {
-            return `Error: ${error.message}`;
-        }
-    }
-    async triggerManualMXProcessing() {
-        try {
-            await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
-            return 'M-X processing triggered successfully';
-        }
-        catch (error) {
-            return `Error triggering M-X processing: ${error.message}`;
-        }
-    }
-    async fixEligibilityIssue() {
-        try {
-            const fixedIssues = [];
-            await this.accuracyCalculationService.processAllTasksForCompletedWorkers();
-            fixedIssues.push('Triggered M-X processing for all completed workers');
-            await this.triggerEligibilityUpdate();
-            fixedIssues.push('Triggered eligibility status update');
-            return `Fixed issues: ${fixedIssues.join(', ')}`;
-        }
-        catch (error) {
-            return `Error fixing eligibility issue: ${error.message}`;
         }
     }
 };
@@ -3753,52 +3617,6 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", typeof (_t = typeof Promise !== "undefined" && Promise) === "function" ? _t : Object)
 ], M1Resolver.prototype, "triggerEligibilityUpdate", null);
-__decorate([
-    (0, graphql_1.Query)(() => String),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('taskId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_u = typeof Promise !== "undefined" && Promise) === "function" ? _u : Object)
-], M1Resolver.prototype, "getBatchStatus", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => Boolean),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('taskId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", typeof (_v = typeof Promise !== "undefined" && Promise) === "function" ? _v : Object)
-], M1Resolver.prototype, "resetBatchTracker", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => Boolean),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __param(0, (0, graphql_1.Args)('taskId')),
-    __param(1, (0, graphql_1.Args)('workerId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
-    __metadata("design:returntype", typeof (_w = typeof Promise !== "undefined" && Promise) === "function" ? _w : Object)
-], M1Resolver.prototype, "triggerBatchProcessing", null);
-__decorate([
-    (0, graphql_1.Query)(() => String),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_x = typeof Promise !== "undefined" && Promise) === "function" ? _x : Object)
-], M1Resolver.prototype, "debugEligibilityIssue", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => String),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_y = typeof Promise !== "undefined" && Promise) === "function" ? _y : Object)
-], M1Resolver.prototype, "triggerManualMXProcessing", null);
-__decorate([
-    (0, graphql_1.Mutation)(() => String),
-    (0, role_decorator_1.Roles)(user_enum_1.Role.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", typeof (_z = typeof Promise !== "undefined" && Promise) === "function" ? _z : Object)
-], M1Resolver.prototype, "fixEligibilityIssue", null);
 exports.M1Resolver = M1Resolver = __decorate([
     (0, graphql_1.Resolver)(),
     (0, common_1.UseGuards)(role_guard_1.RolesGuard, jwt_guard_1.JwtAuthGuard),
